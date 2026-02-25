@@ -2,115 +2,144 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>360step – Itinerario intelligente</title>
+  <title>360step – Itinerario Europeo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-o9N1j7kCzorZQvHU0JQJ2n6U52JcNhbbPCiYxWg0B90=" crossorigin="" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <header class="app-header">
-    <h1>360step</h1>
-    <p>Piccolo navigatore urbano: inserisci una città e segui l'itinerario a piedi suggerito.</p>
+    <div class="header-inner">
+      <div class="logo-badge">&#127968;</div>
+      <h1>360step</h1>
+      <p>Il tuo navigatore urbano europeo &mdash; pianifica il tuo itinerario a piedi citt&agrave; per citt&agrave;.</p>
+    </div>
   </header>
 
   <main class="app-main">
     <!-- Planner città / itinerario -->
-    <section class="card" aria-labelledby="planner-title">
+    <section class="card card-planner" aria-labelledby="planner-title">
       <div class="card-header">
-        <h2 id="planner-title">Pianifica la giornata</h2>
-        <p class="card-subtitle">
-          Scrivi una città (es. Roma, Paris, London). Per ora sono supportati alcuni esempi di grandi città europee.
-        </p>
+        <span class="card-icon">&#128205;</span>
+        <div>
+          <h2 id="planner-title">Pianifica il tuo viaggio</h2>
+          <p class="card-subtitle">Scegli la città, i giorni disponibili e genera il tuo percorso a piedi.</p>
+        </div>
       </div>
 
-      <div class="form-grid city-grid" aria-label="Seleziona città">
+      <div class="form-grid city-grid" aria-label="Seleziona città e giorni">
         <div class="form-field">
-          <label for="city-input">Città</label>
-          <input id="city-input" type="text" placeholder="Es. Roma, Paris, London" autocomplete="off">
+          <label for="city-input">&#127760; Città</label>
+          <input id="city-input" type="text" placeholder="Es. Roma, Paris, Prague, Vienna..." autocomplete="off" list="city-suggestions">
+          <datalist id="city-suggestions">
+            <option value="Roma"></option>
+            <option value="Paris"></option>
+            <option value="London"></option>
+            <option value="Barcelona"></option>
+            <option value="Amsterdam"></option>
+            <option value="Vienna"></option>
+            <option value="Prague"></option>
+            <option value="Budapest"></option>
+            <option value="Lisbon"></option>
+            <option value="Berlin"></option>
+            <option value="Madrid"></option>
+            <option value="Florence"></option>
+            <option value="Venice"></option>
+            <option value="Athens"></option>
+            <option value="Dubrovnik"></option>
+            <option value="Brussels"></option>
+            <option value="Copenhagen"></option>
+            <option value="Stockholm"></option>
+            <option value="Edinburgh"></option>
+            <option value="Seville"></option>
+            <option value="Porto"></option>
+            <option value="Krakow"></option>
+            <option value="Bruges"></option>
+            <option value="Santorini"></option>
+            <option value="Valletta"></option>
+            <option value="Ljubljana"></option>
+            <option value="Tallinn"></option>
+            <option value="Zurich"></option>
+            <option value="Geneva"></option>
+          </datalist>
         </div>
-
+        <div class="form-field">
+          <label for="days-input">&#128197; Giorni disponibili</label>
+          <select id="days-input">
+            <option value="1">1 giorno (gita rapida)</option>
+            <option value="2" selected>2 giorni (classico)</option>
+            <option value="3">3 giorni (comodo)</option>
+            <option value="4">4 giorni (approfondito)</option>
+            <option value="5">5+ giorni (full explorer)</option>
+          </select>
+        </div>
         <button id="generate-city-itinerary" type="button" class="btn primary full-width">
-          Genera itinerario a piedi
+          &#9654; Genera itinerario
         </button>
       </div>
 
       <div class="stops-wrapper">
-        <h3 class="stops-title">Tappe del tuo itinerario</h3>
-        <p class="stops-hint">
-          Viene creato un percorso a piedi con tappe ordinate per ridurre gli spostamenti.
-        </p>
+        <h3 class="stops-title">&#128337; Tappe del tuo itinerario</h3>
+        <p class="stops-hint">Percorso ottimizzato a piedi, tappe ordinate per ridurre gli spostamenti.</p>
         <p id="itinerary-summary" class="itinerary-summary"></p>
+        <div id="days-tabs" class="days-tabs"></div>
         <ol id="stops-list" class="stops-list" aria-live="polite"></ol>
       </div>
 
       <div class="actions-row">
-        <button id="clear-stops" class="btn ghost" type="button">
-          Svuota itinerario
-        </button>
-        <button id="start-tracking" class="btn primary" type="button" disabled>
-          Avvia navigazione
-        </button>
+        <button id="clear-stops" class="btn ghost" type="button">&#128465; Svuota itinerario</button>
+        <button id="start-tracking" class="btn primary" type="button" disabled>&#9654; Avvia navigazione</button>
       </div>
     </section>
 
     <!-- Navigazione in tempo reale -->
-    <section class="card" aria-labelledby="tracking-title">
+    <section class="card card-nav" aria-labelledby="tracking-title">
       <div class="card-header">
-        <h2 id="tracking-title">Navigatore in città</h2>
-        <p class="card-subtitle">
-          Segui le tappe nell'ordine suggerito. Quando arrivi a una tappa, la successiva si attiva automaticamente.
-        </p>
+        <span class="card-icon">&#129517;</span>
+        <div>
+          <h2 id="tracking-title">Navigatore in città</h2>
+          <p class="card-subtitle">Segui le tappe nell&apos;ordine suggerito. La successiva si attiva automaticamente.</p>
+        </div>
       </div>
 
-      <div id="tracking-status" class="status-banner status-neutral">
-        Navigazione non avviata.
-      </div>
+      <div id="tracking-status" class="status-banner status-neutral">Navigazione non avviata.</div>
 
       <div class="tracking-grid">
         <div class="tracking-block">
-          <h3>Tappa corrente</h3>
-          <p id="current-leg" class="muted">
-            Nessuna tappa attiva.
-          </p>
+          <h3>&#127966; Tappa corrente</h3>
+          <p id="current-leg" class="muted">Nessuna tappa attiva.</p>
         </div>
-
         <div class="tracking-block">
-          <h3>Posizione attuale</h3>
-          <p id="current-position" class="muted">
-            In attesa di posizione GPS…
-          </p>
+          <h3>&#128205; Posizione attuale</h3>
+          <p id="current-position" class="muted">In attesa di posizione GPS&hellip;</p>
         </div>
-
         <div class="tracking-block">
-          <h3>Distanza alla prossima tappa</h3>
-          <p id="distance-to-next" class="muted">
-            –
-          </p>
+          <h3>&#128694; Distanza prossima tappa</h3>
+          <p id="distance-to-next" class="muted">&ndash;</p>
         </div>
       </div>
 
       <div class="map-wrapper">
-        <h3>Mappa dell'itinerario</h3>
+        <h3>&#127759; Mappa del percorso</h3>
         <div id="map" class="map"></div>
       </div>
 
       <div class="actions-row">
-        <button id="stop-tracking" class="btn ghost" type="button" disabled>
-          Ferma navigazione
-        </button>
+        <button id="stop-tracking" class="btn ghost" type="button" disabled>&#9209; Ferma navigazione</button>
       </div>
 
       <div class="log-wrapper">
-        <h3>Timeline tappe</h3>
+        <h3>&#128203; Timeline tappe</h3>
         <ul id="log-list" class="log-list" aria-live="polite"></ul>
       </div>
     </section>
   </main>
 
   <footer class="app-footer">
-    <p>
-      Suggerimento: avvicinati alla prima tappa suggerita, poi usa "Avvia navigazione" per far proseguire automaticamente il percorso.
-    </p>
+    <p>&#128161; Suggerimento: avvicinati alla prima tappa, poi usa &ldquo;Avvia navigazione&rdquo; per proseguire automaticamente il percorso.</p>
+    <p class="footer-credit">360step &copy; 2025 &mdash; Powered by OpenStreetMap &amp; Leaflet</p>
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o8EeH6t0dmA7rFBrPcgUpwvF4v58I1Wgu9Z8HqPjqN8=" crossorigin=""></script>

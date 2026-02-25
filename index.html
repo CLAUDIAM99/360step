@@ -5,9 +5,17 @@
   <title>360step – Itinerario Europeo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
-  <!-- Rimossa Leaflet CSS -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Assicuriamoci che la mappa abbia dimensioni visibili */
+    #map {
+      width: 100%;
+      height: 450px !important; /* Forza altezza visibile */
+      background-color: #eee;
+      border-radius: 16px;
+    }
+  </style>
 </head>
 <body>
   <header class="app-header">
@@ -19,20 +27,19 @@
   </header>
 
   <main class="app-main">
-    <!-- Planner città / itinerario -->
-    <section class="card card-planner" aria-labelledby="planner-title">
+    <section class="card card-planner">
       <div class="card-header">
         <span class="card-icon">&#128205;</span>
         <div>
-          <h2 id="planner-title">Pianifica il tuo viaggio</h2>
-          <p class="card-subtitle">Scegli la città, i giorni disponibili e genera il tuo percorso a piedi.</p>
+          <h2>Pianifica il viaggio</h2>
+          <p class="card-subtitle">Inserisci città e giorni.</p>
         </div>
       </div>
 
-      <div class="form-grid city-grid" aria-label="Seleziona città e giorni">
+      <div class="form-grid">
         <div class="form-field">
           <label for="city-input">&#127760; Città</label>
-          <input id="city-input" type="text" placeholder="Es. Roma, Paris, Prague, Vienna..." autocomplete="off" list="city-suggestions">
+          <input id="city-input" type="text" placeholder="Es. Roma, Paris, London..." list="city-suggestions">
           <datalist id="city-suggestions">
             <option value="Roma"></option>
             <option value="Paris"></option>
@@ -44,46 +51,40 @@
           </datalist>
         </div>
         <div class="form-field">
-          <label for="days-input">&#128197; Giorni disponibili</label>
+          <label for="days-input">&#128197; Giorni</label>
           <select id="days-input">
             <option value="1">1 giorno</option>
             <option value="2" selected>2 giorni</option>
             <option value="3">3 giorni</option>
           </select>
         </div>
-        <button id="generate-city-itinerary" type="button" class="btn primary full-width">
-          &#9654; Genera itinerario
-        </button>
+        <button id="generate-city-itinerary" class="btn primary full-width">Genera itinerario</button>
       </div>
 
       <div class="stops-wrapper">
-        <h3 class="stops-title">&#128337; Tappe del tuo itinerario</h3>
         <p id="itinerary-summary" class="itinerary-summary"></p>
         <div id="days-tabs" class="days-tabs"></div>
-        <ol id="stops-list" class="stops-list" aria-live="polite"></ol>
+        <ol id="stops-list" class="stops-list"></ol>
       </div>
 
       <div class="actions-row">
-        <button id="clear-stops" class="btn ghost" type="button">&#128465; Svuota</button>
-        <button id="start-tracking" class="btn primary" type="button" disabled>&#9654; Avvia</button>
+        <button id="clear-stops" class="btn ghost">Svuota</button>
+        <button id="start-tracking" class="btn primary" disabled>Avvia Navigazione</button>
       </div>
     </section>
 
-    <!-- Navigazione Google Maps -->
-    <section class="card card-nav" aria-labelledby="tracking-title">
+    <section class="card card-nav">
       <div class="card-header">
         <span class="card-icon">&#129517;</span>
         <div>
-          <h2 id="tracking-title">Navigatore Google Maps</h2>
-          <p class="card-subtitle">Segui le tappe con la precisione di Google.</p>
+          <h2>Mappa e Navigatore</h2>
+          <p id="tracking-status" class="card-subtitle">In attesa dell'itinerario...</p>
         </div>
       </div>
 
-      <div id="tracking-status" class="status-banner status-neutral">In attesa...</div>
-
       <div class="tracking-grid">
         <div class="tracking-block">
-          <h3>Tappa</h3>
+          <h3>Prossima Tappa</h3>
           <p id="current-leg">--</p>
         </div>
         <div class="tracking-block">
@@ -93,17 +94,17 @@
       </div>
 
       <div class="map-wrapper">
-        <div id="map" class="map"></div>
+        <div id="map"></div>
       </div>
 
       <div class="actions-row">
-        <button id="stop-tracking" class="btn ghost" type="button" disabled>&#9209; Ferma</button>
+        <button id="stop-tracking" class="btn ghost" disabled>Ferma</button>
       </div>
     </section>
   </main>
 
-  <!-- Caricamento Google Maps API -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9z_2qS4TFOMXcjlJMhf_oJ0ABG78THgI&callback=initMap" async defer></script>
+  <!-- Caricamento script in ordine corretto -->
   <script src="app.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9z_2qS4TFOMXcjlJMhf_oJ0ABG78THgI&libraries=geometry&callback=initMap" async defer></script>
 </body>
 </html>

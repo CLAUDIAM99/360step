@@ -2,51 +2,68 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>360step – Itinerario a tappe</title>
+  <title>360step – Itinerario intelligente</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="app-header">
     <h1>360step</h1>
-    <p>Definisci il tuo itinerario e segui le tappe in tempo reale.</p>
+    <p>Piccolo navigatore urbano: scegli una città e segui le tappe consigliate.</p>
   </header>
 
   <main class="app-main">
-    <!-- Sezione creazione itinerario -->
-    <section class="card" aria-labelledby="itinerary-title">
+    <!-- Planner città / itinerario -->
+    <section class="card" aria-labelledby="planner-title">
       <div class="card-header">
-        <h2 id="itinerary-title">Itinerario</h2>
+        <h2 id="planner-title">Pianifica la giornata</h2>
         <p class="card-subtitle">
-          Aggiungi le tappe nell'ordine in cui vuoi percorrerle.
+          Seleziona una città per ottenere un itinerario ottimizzato in 1 giorno, oppure personalizza le tappe.
         </p>
       </div>
 
+      <div class="form-grid city-grid" aria-label="Seleziona città">
+        <div class="form-field">
+          <label for="city-select">Città</label>
+          <select id="city-select">
+            <option value="" selected>Seleziona una città…</option>
+            <option value="rome">Roma – classici imperdibili</option>
+            <!-- In futuro: altre città -->
+          </select>
+        </div>
+
+        <button id="generate-city-itinerary" type="button" class="btn primary full-width">
+          Genera itinerario consigliato
+        </button>
+      </div>
+
+      <hr class="section-divider" aria-hidden="true">
+
       <form id="stop-form" class="form-grid" autocomplete="off">
         <div class="form-field">
-          <label for="stop-name">Nome tappa</label>
-          <input id="stop-name" type="text" placeholder="Es. Bar sul lago" required>
+          <label for="stop-name">Nome tappa (personalizzata)</label>
+          <input id="stop-name" type="text" placeholder="Es. Caffè con vista" required>
         </div>
 
         <div class="form-field">
           <label for="stop-lat">Latitudine</label>
-          <input id="stop-lat" type="number" step="0.000001" placeholder="Es. 45.4642" required>
+          <input id="stop-lat" type="number" step="0.000001" placeholder="Es. 41.8902" required>
         </div>
 
         <div class="form-field">
           <label for="stop-lng">Longitudine</label>
-          <input id="stop-lng" type="number" step="0.000001" placeholder="Es. 9.1900" required>
+          <input id="stop-lng" type="number" step="0.000001" placeholder="Es. 12.4922" required>
         </div>
 
-        <button type="submit" class="btn primary full-width">
-          Aggiungi tappa
+        <button type="submit" class="btn ghost full-width">
+          Aggiungi tappa manuale
         </button>
       </form>
 
       <div class="stops-wrapper">
-        <h3 class="stops-title">Tappe definite</h3>
+        <h3 class="stops-title">Tappe del tuo itinerario</h3>
         <p class="stops-hint">
-          Serve almeno 1 tappa di partenza e 1 di arrivo per avviare il tracking.
+          L'ordine mostrato è quello che seguirai. Puoi combinare tappe consigliate e tappe personalizzate.
         </p>
         <ol id="stops-list" class="stops-list" aria-live="polite"></ol>
       </div>
@@ -56,22 +73,22 @@
           Svuota itinerario
         </button>
         <button id="start-tracking" class="btn primary" type="button" disabled>
-          Avvia tracking
+          Avvia navigazione
         </button>
       </div>
     </section>
 
-    <!-- Sezione tracking -->
+    <!-- Navigazione in tempo reale -->
     <section class="card" aria-labelledby="tracking-title">
       <div class="card-header">
-        <h2 id="tracking-title">Tracking in tempo reale</h2>
+        <h2 id="tracking-title">Navigatore in città</h2>
         <p class="card-subtitle">
-          La posizione si aggiorna automaticamente quando ti muovi.
+          Segui le tappe nell'ordine suggerito. La prossima tappa si attiva quando arrivi a destinazione.
         </p>
       </div>
 
       <div id="tracking-status" class="status-banner status-neutral">
-        Tracking non avviato.
+        Navigazione non avviata.
       </div>
 
       <div class="tracking-grid">
@@ -99,7 +116,7 @@
 
       <div class="actions-row">
         <button id="stop-tracking" class="btn ghost" type="button" disabled>
-          Ferma tracking
+          Ferma navigazione
         </button>
       </div>
 
@@ -112,8 +129,7 @@
 
   <footer class="app-footer">
     <p>
-      Suggerimento: imposta tappe con coordinate realistiche vicino a dove ti trovi
-      per testare rapidamente il comportamento della web app.
+      Suggerimento: avvicinati alla prima tappa consigliata, poi usa "Avvia navigazione" per far proseguire automaticamente l'itinerario.
     </p>
   </footer>
 

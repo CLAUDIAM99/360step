@@ -5,11 +5,12 @@
   <title>360step – Itinerario intelligente</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-o9N1j7kCzorZQvHU0JQJ2n6U52JcNhbbPCiYxWg0B90=" crossorigin="" />
 </head>
 <body>
   <header class="app-header">
     <h1>360step</h1>
-    <p>Piccolo navigatore urbano: scegli una città e segui le tappe consigliate.</p>
+    <p>Piccolo navigatore urbano: inserisci una città e segui l'itinerario a piedi suggerito.</p>
   </header>
 
   <main class="app-main">
@@ -18,53 +19,27 @@
       <div class="card-header">
         <h2 id="planner-title">Pianifica la giornata</h2>
         <p class="card-subtitle">
-          Seleziona una città per ottenere un itinerario ottimizzato in 1 giorno, oppure personalizza le tappe.
+          Scrivi una città (es. Roma, Paris, London). Per ora sono supportati alcuni esempi di grandi città europee.
         </p>
       </div>
 
       <div class="form-grid city-grid" aria-label="Seleziona città">
         <div class="form-field">
-          <label for="city-select">Città</label>
-          <select id="city-select">
-            <option value="" selected>Seleziona una città…</option>
-            <option value="rome">Roma – classici imperdibili</option>
-            <!-- In futuro: altre città -->
-          </select>
+          <label for="city-input">Città</label>
+          <input id="city-input" type="text" placeholder="Es. Roma, Paris, London" autocomplete="off">
         </div>
 
         <button id="generate-city-itinerary" type="button" class="btn primary full-width">
-          Genera itinerario consigliato
+          Genera itinerario a piedi
         </button>
       </div>
-
-      <hr class="section-divider" aria-hidden="true">
-
-      <form id="stop-form" class="form-grid" autocomplete="off">
-        <div class="form-field">
-          <label for="stop-name">Nome tappa (personalizzata)</label>
-          <input id="stop-name" type="text" placeholder="Es. Caffè con vista" required>
-        </div>
-
-        <div class="form-field">
-          <label for="stop-lat">Latitudine</label>
-          <input id="stop-lat" type="number" step="0.000001" placeholder="Es. 41.8902" required>
-        </div>
-
-        <div class="form-field">
-          <label for="stop-lng">Longitudine</label>
-          <input id="stop-lng" type="number" step="0.000001" placeholder="Es. 12.4922" required>
-        </div>
-
-        <button type="submit" class="btn ghost full-width">
-          Aggiungi tappa manuale
-        </button>
-      </form>
 
       <div class="stops-wrapper">
         <h3 class="stops-title">Tappe del tuo itinerario</h3>
         <p class="stops-hint">
-          L'ordine mostrato è quello che seguirai. Puoi combinare tappe consigliate e tappe personalizzate.
+          Viene creato un percorso a piedi con tappe ordinate per ridurre gli spostamenti.
         </p>
+        <p id="itinerary-summary" class="itinerary-summary"></p>
         <ol id="stops-list" class="stops-list" aria-live="polite"></ol>
       </div>
 
@@ -83,7 +58,7 @@
       <div class="card-header">
         <h2 id="tracking-title">Navigatore in città</h2>
         <p class="card-subtitle">
-          Segui le tappe nell'ordine suggerito. La prossima tappa si attiva quando arrivi a destinazione.
+          Segui le tappe nell'ordine suggerito. Quando arrivi a una tappa, la successiva si attiva automaticamente.
         </p>
       </div>
 
@@ -102,7 +77,7 @@
         <div class="tracking-block">
           <h3>Posizione attuale</h3>
           <p id="current-position" class="muted">
-            In attesa di coordinate GPS…
+            In attesa di posizione GPS…
           </p>
         </div>
 
@@ -112,6 +87,11 @@
             –
           </p>
         </div>
+      </div>
+
+      <div class="map-wrapper">
+        <h3>Mappa dell'itinerario</h3>
+        <div id="map" class="map"></div>
       </div>
 
       <div class="actions-row">
@@ -129,10 +109,11 @@
 
   <footer class="app-footer">
     <p>
-      Suggerimento: avvicinati alla prima tappa consigliata, poi usa "Avvia navigazione" per far proseguire automaticamente l'itinerario.
+      Suggerimento: avvicinati alla prima tappa suggerita, poi usa "Avvia navigazione" per far proseguire automaticamente il percorso.
     </p>
   </footer>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o8EeH6t0dmA7rFBrPcgUpwvF4v58I1Wgu9Z8HqPjqN8=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>

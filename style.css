@@ -52,7 +52,7 @@ body {
 }
 
 .app-main {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0.75rem 1.25rem 2.5rem;
   display: flex;
@@ -61,7 +61,7 @@ body {
 }
 
 .app-footer {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto 1.5rem;
   padding: 0 1.25rem;
   font-size: 0.85rem;
@@ -96,7 +96,11 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.city-grid {
+  margin-bottom: 0.75rem;
 }
 
 .form-field label {
@@ -106,7 +110,8 @@ body {
   margin-bottom: 0.2rem;
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   width: 100%;
   padding: 0.55rem 0.7rem;
   border-radius: 0.6rem;
@@ -117,7 +122,8 @@ body {
     background-color 0.15s ease;
 }
 
-.form-field input:focus {
+.form-field input:focus,
+.form-field select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3);
@@ -159,7 +165,7 @@ body {
 .btn.ghost {
   background-color: #f9fafb;
   border-color: var(--border-subtle);
-  color: var(--text-main);
+  color: #111827;
 }
 
 .btn.ghost:hover:not(:disabled) {
@@ -196,6 +202,12 @@ body {
 }
 
 .stops-hint {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.itinerary-summary {
   margin: 0 0 0.4rem;
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -291,6 +303,23 @@ body {
   color: var(--text-muted);
 }
 
+.map-wrapper {
+  margin-top: 0.75rem;
+}
+
+.map-wrapper h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+.map {
+  width: 100%;
+  height: 260px;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
 .log-wrapper {
   margin-top: 0.75rem;
   border-top: 1px dashed var(--border-subtle);
@@ -320,7 +349,7 @@ body {
 
 @media (min-width: 640px) {
   .form-grid {
-    grid-template-columns: 1.1fr 0.9fr 0.9fr;
+    grid-template-columns: 1.3fr 0.7fr;
     align-items: end;
   }
 
@@ -341,5 +370,9 @@ body {
 
   .tracking-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .map {
+    height: 320px;
   }
 }

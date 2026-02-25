@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>360step – Itinerario a tappe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>360step</h1>
+    <p>Definisci il tuo itinerario e segui le tappe in tempo reale.</p>
+  </header>
+
+  <main class="app-main">
+    <!-- Sezione creazione itinerario -->
+    <section class="card" aria-labelledby="itinerary-title">
+      <div class="card-header">
+        <h2 id="itinerary-title">Itinerario</h2>
+        <p class="card-subtitle">
+          Aggiungi le tappe nell'ordine in cui vuoi percorrerle.
+        </p>
+      </div>
+
+      <form id="stop-form" class="form-grid" autocomplete="off">
+        <div class="form-field">
+          <label for="stop-name">Nome tappa</label>
+          <input id="stop-name" type="text" placeholder="Es. Bar sul lago" required>
+        </div>
+
+        <div class="form-field">
+          <label for="stop-lat">Latitudine</label>
+          <input id="stop-lat" type="number" step="0.000001" placeholder="Es. 45.4642" required>
+        </div>
+
+        <div class="form-field">
+          <label for="stop-lng">Longitudine</label>
+          <input id="stop-lng" type="number" step="0.000001" placeholder="Es. 9.1900" required>
+        </div>
+
+        <button type="submit" class="btn primary full-width">
+          Aggiungi tappa
+        </button>
+      </form>
+
+      <div class="stops-wrapper">
+        <h3 class="stops-title">Tappe definite</h3>
+        <p class="stops-hint">
+          Serve almeno 1 tappa di partenza e 1 di arrivo per avviare il tracking.
+        </p>
+        <ol id="stops-list" class="stops-list" aria-live="polite"></ol>
+      </div>
+
+      <div class="actions-row">
+        <button id="clear-stops" class="btn ghost" type="button">
+          Svuota itinerario
+        </button>
+        <button id="start-tracking" class="btn primary" type="button" disabled>
+          Avvia tracking
+        </button>
+      </div>
+    </section>
+
+    <!-- Sezione tracking -->
+    <section class="card" aria-labelledby="tracking-title">
+      <div class="card-header">
+        <h2 id="tracking-title">Tracking in tempo reale</h2>
+        <p class="card-subtitle">
+          La posizione si aggiorna automaticamente quando ti muovi.
+        </p>
+      </div>
+
+      <div id="tracking-status" class="status-banner status-neutral">
+        Tracking non avviato.
+      </div>
+
+      <div class="tracking-grid">
+        <div class="tracking-block">
+          <h3>Tappa corrente</h3>
+          <p id="current-leg" class="muted">
+            Nessuna tappa attiva.
+          </p>
+        </div>
+
+        <div class="tracking-block">
+          <h3>Posizione attuale</h3>
+          <p id="current-position" class="muted">
+            In attesa di coordinate GPS…
+          </p>
+        </div>
+
+        <div class="tracking-block">
+          <h3>Distanza alla prossima tappa</h3>
+          <p id="distance-to-next" class="muted">
+            –
+          </p>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button id="stop-tracking" class="btn ghost" type="button" disabled>
+          Ferma tracking
+        </button>
+      </div>
+
+      <div class="log-wrapper">
+        <h3>Timeline tappe</h3>
+        <ul id="log-list" class="log-list" aria-live="polite"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>
+      Suggerimento: imposta tappe con coordinate realistiche vicino a dove ti trovi
+      per testare rapidamente il comportamento della web app.
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

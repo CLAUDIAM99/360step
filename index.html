@@ -40,7 +40,8 @@
     <div class="form-grid">
       <div class="form-field">
         <label for="city-input">🌍 Città europea</label>
-        <input id="city-input" type="text" placeholder="Es. Roma, Paris, Amsterdam..." list="city-suggestions" autocomplete="off">
+        <input id="city-input" type="text" placeholder="Es. Roma, Leuven+Brussels+Anversa..." list="city-suggestions" autocomplete="off">
+        <p class="form-hint">Città singola o multiple separate da virgola (Belgio: Leuven, Brussels, Anversa, Gand, Bruges, Liège, Namur...)</p>
         <datalist id="city-suggestions">
           <option value="Roma">
           <option value="Paris">
@@ -56,6 +57,20 @@
           <option value="Mechelen">
           <option value="Anversa">
           <option value="Ottignies">
+          <option value="Gand">
+          <option value="Bruges">
+          <option value="Liège">
+          <option value="Namur">
+          <option value="Milano">
+          <option value="Firenze">
+          <option value="Venezia">
+          <option value="Vienna">
+          <option value="Monaco">
+          <option value="Zurigo">
+          <option value="Dublin">
+          <option value="Edinburgh">
+          <option value="Lyon">
+          <option value="Nice">
         </datalist>
       </div>
 
@@ -107,13 +122,34 @@
       <div id="map"></div>
     </div>
 
-    <div style="margin-top:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
+    <div class="nav-buttons">
+      <button id="play-simulation" class="btn btn-play" disabled title="Simula il percorso con foto delle tappe">
+        ▶️ Anteprima Percorso
+      </button>
       <button id="start-tracking" class="btn primary" disabled>
         🚀 Avvia Navigazione GPS
       </button>
       <button id="stop-tracking" class="btn secondary" disabled>
         ⏸️ Sospendi
       </button>
+    </div>
+    <div id="simulation-overlay" class="simulation-overlay hidden">
+      <div class="simulation-panel">
+        <div class="simulation-photo">
+          <img id="simulation-photo-img" src="" alt="">
+        </div>
+        <div class="simulation-info">
+          <h3 id="simulation-poi-name"></h3>
+          <p id="simulation-poi-city"></p>
+          <p class="simulation-counter"><span id="sim-current">1</span> / <span id="sim-total">0</span></p>
+        </div>
+        <div class="simulation-controls">
+          <button id="sim-prev" class="btn btn-sim">⏮ Indietro</button>
+          <button id="sim-pause" class="btn btn-sim">⏸ Pausa</button>
+          <button id="sim-next" class="btn btn-sim">Avanti ⏭</button>
+          <button id="sim-close" class="btn btn-sim-close">✕ Chiudi</button>
+        </div>
+      </div>
     </div>
   </section>
 

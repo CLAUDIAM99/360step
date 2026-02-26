@@ -1,6 +1,53 @@
 // === CONFIGURAZIONE GENERALE ===
 const DISTANCE_THRESHOLD_METERS = 30;
 
+// Mappa alias → chiave città (garantisce ricerca corretta)
+const CITY_ALIASES = {
+  rome: ["roma", "rome", "rom"],
+  paris: ["parigi", "paris"],
+  london: ["londra", "london", "londres"],
+  amsterdam: ["amsterdam", "amsterdam"],
+  barcelona: ["barcellona", "barcelona", "barna"],
+  berlin: ["berlino", "berlin"],
+  madrid: ["madrid", "madrid"],
+  lisbon: ["lisbona", "lisboa", "lisbon"],
+  prague: ["praga", "prague", "praha"],
+  brussels: ["bruxelles", "brussels", "brussel", "bruxelles"],
+  antwerp: ["anversa", "antwerp", "antwerpen", "anvers"],
+  leuven: ["leuven", "lovanio", "louvain"],
+  mechelen: ["mechelen", "malines", "mechelen"],
+  ottignies: ["ottignies", "louvain-la-neuve", "lln", "ottignies-louvain-la-neuve"],
+  vienna: ["vienna", "wien", "vienna"],
+  milan: ["milano", "milan", "milano"],
+  florence: ["firenze", "florence", "florence"],
+  venice: ["venezia", "venice", "venise"],
+  dublin: ["dublino", "dublin"],
+  edinburgh: ["edimburgo", "edinburgh"],
+  lyon: ["lione", "lyon", "lyon"],
+  nice: ["nizza", "nice"],
+  ghent: ["gand", "ghent", "gent"],
+  bruges: ["bruges", "brugge", "brugges"],
+  liege: ["liegi", "liege", "luik"],
+  namur: ["namur", "namur", "namen"],
+  munich: ["monaco", "munich", "munchen", "münchen"],
+  zurich: ["zurigo", "zurich", "zürich"]
+};
+
+// Genera URL foto per POI (placeholder con seed stabile)
+function getPhotoUrl(poiName, cityName = "") {
+  const seed = `${poiName}-${cityName}`.replace(/\s+/g, "-").toLowerCase();
+  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/800/500`;
+}
+
+// Funzione per risolvere il nome inserito alla chiave corretta
+function resolveCityKey(input) {
+  const normalized = input.toLowerCase().trim().replace(/[\s-]+/g, "-");
+  for (const [key, aliases] of Object.entries(CITY_ALIASES)) {
+    if (aliases.includes(normalized)) return key;
+  }
+  return null;
+}
+
 // Database Itinerari potenziato con più città europee
 const CITY_TEMPLATES = {
   rome: {
@@ -232,6 +279,236 @@ leuven: {
       { name: "National Museum", lat: 50.0792, lng: 14.4306 },
       { name: "Vyšehrad", lat: 50.0644, lng: 14.4191 }
     ]
+  },
+  ghent: {
+    displayName: "Ghent",
+    pois: [
+      { name: "Graslei", lat: 51.0541, lng: 3.7174 },
+      { name: "Korenlei", lat: 51.0545, lng: 3.7166 },
+      { name: "Gravensteen", lat: 51.0565, lng: 3.7202 },
+      { name: "Sint-Baafskathedraal", lat: 51.0534, lng: 3.7262 },
+      { name: "Belfort van Gent", lat: 51.0543, lng: 3.7244 },
+      { name: "Sint-Niklaaskerk", lat: 51.0549, lng: 3.7240 },
+      { name: "Vrijdagmarkt", lat: 51.0566, lng: 3.7220 },
+      { name: "Patershol", lat: 51.0570, lng: 3.7180 },
+      { name: "Museum voor Schone Kunsten", lat: 51.0393, lng: 3.7204 },
+      { name: "Stadsmuseum Gent", lat: 51.0552, lng: 3.7214 }
+    ]
+  },
+  bruges: {
+    displayName: "Bruges",
+    pois: [
+      { name: "Markt", lat: 51.2087, lng: 3.2244 },
+      { name: "Belfort van Brugge", lat: 51.2082, lng: 3.2255 },
+      { name: "Basiliek van het Heilig Bloed", lat: 51.2085, lng: 3.2263 },
+      { name: "Onze-Lieve-Vrouwekerk", lat: 51.2043, lng: 3.2240 },
+      { name: "Begijnhof", lat: 51.2024, lng: 3.2233 },
+      { name: "Minnewater", lat: 51.2008, lng: 3.2258 },
+      { name: "Groeningemuseum", lat: 51.2067, lng: 3.2281 },
+      { name: "Choco-Story", lat: 51.2080, lng: 3.2266 },
+      { name: "Canal Tour", lat: 51.2070, lng: 3.2250 },
+      { name: "Rozenhoedkaai", lat: 51.2074, lng: 3.2214 }
+    ]
+  },
+  liege: {
+    displayName: "Liège",
+    pois: [
+      { name: "Place du Marché", lat: 50.6444, lng: 5.5753 },
+      { name: "Palais des Princes-Évêques", lat: 50.6450, lng: 5.5740 },
+      { name: "Cathédrale Saint-Paul", lat: 50.6411, lng: 5.5750 },
+      { name: "Montagne de Bueren", lat: 50.6465, lng: 5.5712 },
+      { name: "Gare Liège-Guillemins", lat: 50.6243, lng: 5.5742 },
+      { name: "Aquarium-Muséum", lat: 50.6185, lng: 5.5812 },
+      { name: "Coteaux de la Citadelle", lat: 50.6470, lng: 5.5730 },
+      { name: "Opéra Royal de Wallonie", lat: 50.6435, lng: 5.5758 },
+      { name: "Fragnée Bridge", lat: 50.6250, lng: 5.5710 },
+      { name: "Grand Curtius Museum", lat: 50.6485, lng: 5.5801 }
+    ]
+  },
+  namur: {
+    displayName: "Namur",
+    pois: [
+      { name: "Citadelle de Namur", lat: 50.4594, lng: 4.8636 },
+      { name: "Place de l'Ange", lat: 50.4650, lng: 4.8670 },
+      { name: "Cathédrale Saint-Aubain", lat: 50.4665, lng: 4.8665 },
+      { name: "Terra Nova", lat: 50.4590, lng: 4.8645 },
+      { name: "Pont de Jambes", lat: 50.4570, lng: 4.8720 },
+      { name: "Felix Roulin Museum", lat: 50.4655, lng: 4.8680 },
+      { name: "Sambre et Meuse Confluence", lat: 50.4580, lng: 4.8690 },
+      { name: "Grognon", lat: 50.4585, lng: 4.8685 },
+      { name: "Église Saint-Loup", lat: 50.4670, lng: 4.8650 },
+      { name: "Confluence Park", lat: 50.4575, lng: 4.8695 }
+    ]
+  },
+  vienna: {
+    displayName: "Vienna",
+    pois: [
+      { name: "Schönbrunn Palace", lat: 48.1847, lng: 16.3122 },
+      { name: "Stephansdom", lat: 48.2085, lng: 16.3731 },
+      { name: "Hofburg Palace", lat: 48.2068, lng: 16.3670 },
+      { name: "Belvedere Palace", lat: 48.1916, lng: 16.3807 },
+      { name: "Prater", lat: 48.2167, lng: 16.3958 },
+      { name: "Naschmarkt", lat: 48.1994, lng: 16.3653 },
+      { name: "Museum Quarter", lat: 48.2037, lng: 16.3641 },
+      { name: "St. Charles Church", lat: 48.1986, lng: 16.3717 },
+      { name: "Ringstrasse", lat: 48.2067, lng: 16.3667 },
+      { name: "Spanish Riding School", lat: 48.2075, lng: 16.3680 },
+      { name: "Albertina", lat: 48.2048, lng: 16.3705 },
+      { name: "Vienna State Opera", lat: 48.2033, lng: 16.3697 }
+    ]
+  },
+  milan: {
+    displayName: "Milano",
+    pois: [
+      { name: "Duomo di Milano", lat: 45.4641, lng: 9.1919 },
+      { name: "Galleria Vittorio Emanuele II", lat: 45.4659, lng: 9.1899 },
+      { name: "Teatro alla Scala", lat: 45.4675, lng: 9.1895 },
+      { name: "Castello Sforzesco", lat: 45.4704, lng: 9.1793 },
+      { name: "Santa Maria delle Grazie", lat: 45.4659, lng: 9.1703 },
+      { name: "Navigli", lat: 45.4517, lng: 9.1777 },
+      { name: "Brera District", lat: 45.4718, lng: 9.1885 },
+      { name: "Pinacoteca di Brera", lat: 45.4720, lng: 9.1880 },
+      { name: "Quadrilatero della Moda", lat: 45.4685, lng: 9.1970 },
+      { name: "Parco Sempione", lat: 45.4730, lng: 9.1753 },
+      { name: "Cimitero Monumentale", lat: 45.4862, lng: 9.1755 },
+      { name: "Porta Nuova", lat: 45.4835, lng: 9.1902 }
+    ]
+  },
+  florence: {
+    displayName: "Firenze",
+    pois: [
+      { name: "Duomo di Firenze", lat: 43.7731, lng: 11.2560 },
+      { name: "Galleria degli Uffizi", lat: 43.7676, lng: 11.2553 },
+      { name: "Ponte Vecchio", lat: 43.7680, lng: 11.2532 },
+      { name: "Piazza della Signoria", lat: 43.7696, lng: 11.2558 },
+      { name: "Basilica di Santa Croce", lat: 43.7685, lng: 11.2625 },
+      { name: "Piazzale Michelangelo", lat: 43.7629, lng: 11.2653 },
+      { name: "Palazzo Pitti", lat: 43.7650, lng: 11.2502 },
+      { name: "Boboli Gardens", lat: 43.7645, lng: 11.2495 },
+      { name: "Basilica di San Lorenzo", lat: 43.7750, lng: 11.2540 },
+      { name: "Bargello Museum", lat: 43.7702, lng: 11.2578 },
+      { name: "Mercato Centrale", lat: 43.7762, lng: 11.2535 },
+      { name: "Cattedrale di Santa Maria del Fiore", lat: 43.7731, lng: 11.2560 }
+    ]
+  },
+  venice: {
+    displayName: "Venezia",
+    pois: [
+      { name: "Piazza San Marco", lat: 45.4342, lng: 12.3386 },
+      { name: "Basilica di San Marco", lat: 45.4345, lng: 12.3396 },
+      { name: "Palazzo Ducale", lat: 45.4339, lng: 12.3404 },
+      { name: "Ponte di Rialto", lat: 45.4378, lng: 12.3359 },
+      { name: "Grand Canal", lat: 45.4408, lng: 12.3260 },
+      { name: "Murano", lat: 45.4578, lng: 12.3565 },
+      { name: "Burano", lat: 45.4853, lng: 12.4170 },
+      { name: "Peggy Guggenheim Collection", lat: 45.4310, lng: 12.3290 },
+      { name: "Gallerie dell'Accademia", lat: 45.4313, lng: 12.3285 },
+      { name: "Campanile di San Marco", lat: 45.4340, lng: 12.3393 },
+      { name: "Ponte dei Sospiri", lat: 45.4339, lng: 12.3406 },
+      { name: "Teatro La Fenice", lat: 45.4335, lng: 12.3337 }
+    ]
+  },
+  dublin: {
+    displayName: "Dublin",
+    pois: [
+      { name: "Trinity College", lat: 53.3438, lng: -6.2546 },
+      { name: "Temple Bar", lat: 53.3454, lng: -6.2627 },
+      { name: "Guinness Storehouse", lat: 53.3419, lng: -6.2868 },
+      { name: "Dublin Castle", lat: 53.3429, lng: -6.2674 },
+      { name: "St. Patrick's Cathedral", lat: 53.3395, lng: -6.2711 },
+      { name: "Kilmainham Gaol", lat: 53.3422, lng: -6.3098 },
+      { name: "Phoenix Park", lat: 53.3562, lng: -6.3292 },
+      { name: "National Gallery", lat: 53.3412, lng: -6.2526 },
+      { name: "Ha'penny Bridge", lat: 53.3462, lng: -6.2637 },
+      { name: "Grafton Street", lat: 53.3432, lng: -6.2607 },
+      { name: "Christ Church Cathedral", lat: 53.3434, lng: -6.2711 },
+      { name: "Irish Museum of Modern Art", lat: 53.3418, lng: -6.3012 }
+    ]
+  },
+  edinburgh: {
+    displayName: "Edinburgh",
+    pois: [
+      { name: "Edinburgh Castle", lat: 55.9486, lng: -3.1999 },
+      { name: "Royal Mile", lat: 55.9496, lng: -3.1884 },
+      { name: "Arthur's Seat", lat: 55.9444, lng: -3.1615 },
+      { name: "National Museum of Scotland", lat: 55.9470, lng: -3.1905 },
+      { name: "Scott Monument", lat: 55.9524, lng: -3.1933 },
+      { name: "Palace of Holyroodhouse", lat: 55.9530, lng: -3.1725 },
+      { name: "Calton Hill", lat: 55.9553, lng: -3.1828 },
+      { name: "Princes Street Gardens", lat: 55.9518, lng: -3.1955 },
+      { name: "Scottish National Gallery", lat: 55.9507, lng: -3.1962 },
+      { name: "The Real Mary King's Close", lat: 55.9502, lng: -3.1902 },
+      { name: "Camera Obscura", lat: 55.9487, lng: -3.1965 },
+      { name: "Grassmarket", lat: 55.9465, lng: -3.1995 }
+    ]
+  },
+  lyon: {
+    displayName: "Lyon",
+    pois: [
+      { name: "Basilique Notre-Dame de Fourvière", lat: 45.7622, lng: 4.8226 },
+      { name: "Vieux Lyon", lat: 45.7603, lng: 4.8280 },
+      { name: "Place Bellecour", lat: 45.7567, lng: 4.8324 },
+      { name: "Confluence Museum", lat: 45.7479, lng: 4.8174 },
+      { name: "Parc de la Tête d'Or", lat: 45.7769, lng: 4.8548 },
+      { name: "Musée des Confluences", lat: 45.7326, lng: 4.8174 },
+      { name: "Croix-Rousse", lat: 45.7720, lng: 4.8320 },
+      { name: "Théâtres Romains", lat: 45.7595, lng: 4.8198 },
+      { name: "Traboules", lat: 45.7625, lng: 4.8285 },
+      { name: "Halles de Lyon", lat: 45.7558, lng: 4.8380 },
+      { name: "Musée des Beaux-Arts", lat: 45.7597, lng: 4.8335 },
+      { name: "Lumière Institute", lat: 45.7480, lng: 4.8610 }
+    ]
+  },
+  nice: {
+    displayName: "Nice",
+    pois: [
+      { name: "Promenade des Anglais", lat: 43.6952, lng: 7.2643 },
+      { name: "Vieux Nice", lat: 43.6952, lng: 7.2770 },
+      { name: "Colline du Château", lat: 43.6955, lng: 7.2775 },
+      { name: "Marché aux Fleurs", lat: 43.6958, lng: 7.2760 },
+      { name: "Musée Matisse", lat: 43.7183, lng: 7.2588 },
+      { name: "Cimiez Monastery", lat: 43.7190, lng: 7.2600 },
+      { name: "Place Masséna", lat: 43.6956, lng: 7.2733 },
+      { name: "MAMAC", lat: 43.6960, lng: 7.2785 },
+      { name: "Villa Ephrussi", lat: 43.6958, lng: 7.3292 },
+      { name: "Monaco", lat: 43.7384, lng: 7.4246 },
+      { name: "Cap Ferrat", lat: 43.6875, lng: 7.3333 },
+      { name: "Russian Cathedral", lat: 43.7100, lng: 7.2640 }
+    ]
+  },
+  munich: {
+    displayName: "Monaco di Baviera",
+    pois: [
+      { name: "Marienplatz", lat: 48.1374, lng: 11.5755 },
+      { name: "Neues Rathaus", lat: 48.1374, lng: 11.5762 },
+      { name: "Frauenkirche", lat: 48.1385, lng: 11.5735 },
+      { name: "English Garden", lat: 48.1607, lng: 11.6158 },
+      { name: "Residenz", lat: 48.1414, lng: 11.5780 },
+      { name: "Nymphenburg Palace", lat: 48.1585, lng: 11.5037 },
+      { name: "Viktualienmarkt", lat: 48.1355, lng: 11.5810 },
+      { name: "BMW Museum", lat: 48.1773, lng: 11.5560 },
+      { name: "Deutsches Museum", lat: 48.1299, lng: 11.5832 },
+      { name: "Odeonsplatz", lat: 48.1425, lng: 11.5768 },
+      { name: "Hofbräuhaus", lat: 48.1376, lng: 11.5817 },
+      { name: "Olympiapark", lat: 48.1758, lng: 11.5495 }
+    ]
+  },
+  zurich: {
+    displayName: "Zurigo",
+    pois: [
+      { name: "Bahnhofstrasse", lat: 47.3769, lng: 8.5417 },
+      { name: "Grossmünster", lat: 47.3695, lng: 8.5442 },
+      { name: "Fraumünster", lat: 47.3696, lng: 8.5411 },
+      { name: "Lindenhof", lat: 47.3724, lng: 8.5412 },
+      { name: "Lake Zurich", lat: 47.3564, lng: 8.5418 },
+      { name: "Kunsthaus Zürich", lat: 47.3693, lng: 8.5489 },
+      { name: "Swiss National Museum", lat: 47.3783, lng: 8.5399 },
+      { name: "Old Town", lat: 47.3720, lng: 8.5410 },
+      { name: "Uetliberg", lat: 47.3511, lng: 8.4911 },
+      { name: "Rietberg Museum", lat: 47.3555, lng: 8.5011 },
+      { name: "Josefswiese", lat: 47.3720, lng: 8.5280 },
+      { name: "Paradeplatz", lat: 47.3665, lng: 8.5385 }
+    ]
   }
 };
 
@@ -245,6 +522,8 @@ let stops = [];
 let currentDay = 1;
 let currentLegIndex = 0;
 let watchId = null;
+let simulationInterval = null;
+let simIndex = 0;
 
 // Inizializzazione Google Maps (callback globale)
 window.initMap = function() {
@@ -297,22 +576,33 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   btnGenerate.addEventListener("click", () => {
-    const rawCity = cityInput.value.toLowerCase().trim();
-    // Supporto per varianti nomi
-    let city = rawCity;
-    if (rawCity === "roma") city = "rome";
-    if (rawCity === "parigi" || rawCity === "paris") city = "paris";
-    if (rawCity === "londra") city = "london";
-    if (rawCity === "bruxelles") city = "brussels";
-    if (rawCity === "barcellona") city = "barcelona";
-    if (rawCity === "berlino") city = "berlin";
-    if (rawCity === "praga") city = "prague";
-    if (rawCity === "lisbona") city = "lisbon";
+    // Supporto città multiple (virgola-separate), es: "Leuven, Brussels, Anversa"
+    const rawInput = cityInput.value.trim();
+    const cityParts = rawInput.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    
+    let pois = [];
+    const foundCities = [];
+    
+    for (const part of cityParts) {
+      const cityKey = resolveCityKey(part);
+      if (cityKey && CITY_TEMPLATES[cityKey]) {
+        const template = CITY_TEMPLATES[cityKey];
+        pois = pois.concat(template.pois.map(p => ({
+          ...p,
+          cityName: template.displayName,
+          photo: getPhotoUrl(p.name, template.displayName)
+        })));
+        foundCities.push(template.displayName);
+      }
+    }
+    
+    if (pois.length === 0) {
+      trackingStatus.textContent = "Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).";
+      trackingStatus.className = "status-banner status-neutral";
+      return;
+    }
 
     const numDays = parseInt(daysInput.value);
-    const template = CITY_TEMPLATES[city] || CITY_TEMPLATES.rome;
-    
-    const pois = [...template.pois];
     allStops = [];
     const perDay = Math.ceil(pois.length / numDays);
     
@@ -324,7 +614,8 @@ document.addEventListener("DOMContentLoaded", () => {
     renderTabs(numDays);
     loadDay(1);
     
-    trackingStatus.textContent = `Itinerario per ${template.displayName} pronto!`;
+    const citiesLabel = foundCities.join(", ");
+    trackingStatus.textContent = pois.length > 0 ? `Itinerario per ${citiesLabel} pronto!` : "Nessun itinerario generato.";
     trackingStatus.className = "status-banner status-active";
   });
 
@@ -367,6 +658,9 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
     
     btnStart.disabled = stops.length < 1;
+    if (document.getElementById("play-simulation")) {
+      document.getElementById("play-simulation").disabled = allStops.flat().length < 1;
+    }
   }
 
   function calculateAndDisplayRoute() {
@@ -459,5 +753,113 @@ document.addEventListener("DOMContentLoaded", () => {
     trackingStatus.className = "status-banner status-neutral";
     btnStart.disabled = false;
     btnStop.disabled = true;
+  });
+
+  // === ANTEPRIMA PERCORSO (PLAY) ===
+  const btnPlay = document.getElementById("play-simulation");
+  const overlay = document.getElementById("simulation-overlay");
+  const simPhoto = document.getElementById("simulation-photo-img");
+  const simPoiName = document.getElementById("simulation-poi-name");
+  const simPoiCity = document.getElementById("simulation-poi-city");
+  const simCurrent = document.getElementById("sim-current");
+  const simTotal = document.getElementById("sim-total");
+  const btnSimPrev = document.getElementById("sim-prev");
+  const btnSimPause = document.getElementById("sim-pause");
+  const btnSimNext = document.getElementById("sim-next");
+  const btnSimClose = document.getElementById("sim-close");
+
+  function stopSimulation() {
+    if (simulationInterval) {
+      clearInterval(simulationInterval);
+      simulationInterval = null;
+    }
+    overlay.classList.add("hidden");
+    btnSimPause.textContent = "⏸ Pausa";
+  }
+
+  function updateSimulationUI(index, flatStops) {
+    const s = flatStops[index];
+    if (!s) return;
+    if (simPhoto) {
+      simPhoto.src = s.photo || getPhotoUrl(s.name, s.cityName || "");
+      simPhoto.alt = s.name;
+    }
+    simPoiName.textContent = s.name;
+    simPoiCity.textContent = s.cityName ? `📍 ${s.cityName}` : "";
+    simCurrent.textContent = index + 1;
+    simTotal.textContent = flatStops.length;
+
+    // Pan mappa e mostra percorso fino a questa tappa
+    const stopsSoFar = flatStops.slice(0, index + 1);
+    map.panTo({ lat: s.lat, lng: s.lng });
+    map.setZoom(15);
+
+    if (typeof google !== "undefined" && directionsService && stopsSoFar.length >= 2) {
+      const origin = { lat: stopsSoFar[0].lat, lng: stopsSoFar[0].lng };
+      const dest = { lat: stopsSoFar[stopsSoFar.length - 1].lat, lng: stopsSoFar[stopsSoFar.length - 1].lng };
+      const waypoints = stopsSoFar.slice(1, -1).map(st => ({ location: { lat: st.lat, lng: st.lng }, stopover: true }));
+      directionsService.route({
+        origin,
+        destination: dest,
+        waypoints,
+        travelMode: google.maps.TravelMode.WALKING
+      }, (result, status) => {
+        if (status === "OK") directionsRenderer.setDirections(result);
+      });
+    }
+  }
+
+  btnPlay.addEventListener("click", () => {
+    const flatStops = allStops.flat();
+    if (flatStops.length === 0) return;
+
+    simIndex = 0;
+    overlay.classList.remove("hidden");
+    simTotal.textContent = flatStops.length;
+    updateSimulationUI(0, flatStops);
+
+    if (simulationInterval) clearInterval(simulationInterval);
+    simulationInterval = setInterval(() => {
+      simIndex = (simIndex + 1) % flatStops.length;
+      updateSimulationUI(simIndex, flatStops);
+      if (simIndex === flatStops.length - 1) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        btnSimPause.textContent = "⏸ Fine";
+      }
+    }, 3500);
+  });
+
+  btnSimPrev.addEventListener("click", () => {
+    const flatStops = allStops.flat();
+    simIndex = Math.max(0, simIndex - 1);
+    updateSimulationUI(simIndex, flatStops);
+  });
+
+  btnSimNext.addEventListener("click", () => {
+    const flatStops = allStops.flat();
+    simIndex = Math.min(flatStops.length - 1, simIndex + 1);
+    updateSimulationUI(simIndex, flatStops);
+  });
+
+  btnSimPause.addEventListener("click", () => {
+    if (simulationInterval) {
+      clearInterval(simulationInterval);
+      simulationInterval = null;
+      btnSimPause.textContent = "▶ Riprendi";
+    } else {
+      const flatStops = allStops.flat();
+      simulationInterval = setInterval(() => {
+        simIndex = (simIndex + 1) % flatStops.length;
+        updateSimulationUI(simIndex, flatStops);
+      }, 3500);
+      btnSimPause.textContent = "⏸ Pausa";
+    }
+  });
+
+  btnSimClose.addEventListener("click", stopSimulation);
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) stopSimulation();
   });
 });

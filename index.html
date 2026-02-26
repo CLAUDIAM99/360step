@@ -2,109 +2,113 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>360step – Itinerario Europeo</title>
+  <title>360step – Il tuo Navigatore Urbano</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    /* Assicuriamoci che la mappa abbia dimensioni visibili */
-    #map {
-      width: 100%;
-      height: 450px !important; /* Forza altezza visibile */
-      background-color: #eee;
-      border-radius: 16px;
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Google Maps API (Verrà caricata da app.js o qui se necessario) -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry" defer></script>
+  <script src="app.js" defer></script>
 </head>
 <body>
-  <header class="app-header">
-    <div class="header-inner">
-      <div class="logo-badge">&#127968;</div>
-      <h1>360step</h1>
-      <p>Il tuo navigatore urbano europeo &mdash; pianifica il tuo itinerario a piedi città per città.</p>
+
+<header class="app-header">
+  <div class="logo-badge">🚀</div>
+  <h1>360step</h1>
+  <p>Pianifica il tuo itinerario a piedi perfetto, tappa dopo tappa.</p>
+</header>
+
+<main class="app-main">
+  <!-- Colonna Sinistra: Planner -->
+  <section class="card">
+    <div class="card-header">
+      <span class="card-icon">📍</span>
+      <div>
+        <h2>Il Tuo Viaggio</h2>
+        <p class="card-subtitle">Scegli la meta e la durata</p>
+      </div>
     </div>
-  </header>
 
-  <main class="app-main">
-    <section class="card card-planner">
-      <div class="card-header">
-        <span class="card-icon">&#128205;</span>
-        <div>
-          <h2>Pianifica il viaggio</h2>
-          <p class="card-subtitle">Inserisci città e giorni.</p>
-        </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="city-input">🏙️ Città di destinazione</label>
+        <input id="city-input" type="text" placeholder="Es. Roma, Paris, London..." list="city-suggestions">
+        <datalist id="city-suggestions">
+          <option value="Roma">
+          <option value="Paris">
+          <option value="London">
+        </datalist>
       </div>
 
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="city-input">&#127760; Città</label>
-          <input id="city-input" type="text" placeholder="Es. Roma, Paris, London..." list="city-suggestions">
-          <datalist id="city-suggestions">
-            <option value="Roma"></option>
-            <option value="Paris"></option>
-            <option value="London"></option>
-            <option value="Barcelona"></option>
-            <option value="Amsterdam"></option>
-            <option value="Vienna"></option>
-            <option value="Prague"></option>
-          </datalist>
-        </div>
-        <div class="form-field">
-          <label for="days-input">&#128197; Giorni</label>
-          <select id="days-input">
-            <option value="1">1 giorno</option>
-            <option value="2" selected>2 giorni</option>
-            <option value="3">3 giorni</option>
-          </select>
-        </div>
-        <button id="generate-city-itinerary" class="btn primary full-width">Genera itinerario</button>
+      <div class="form-field">
+        <label for="days-input">📅 Quanti giorni?</label>
+        <select id="days-input">
+          <option value="1">1 Giorno (Tour Rapido)</option>
+          <option value="2" selected>2 Giorni (Completo)</option>
+          <option value="3">3 Giorni (Relax)</option>
+        </select>
       </div>
 
-      <div class="stops-wrapper">
-        <p id="itinerary-summary" class="itinerary-summary"></p>
-        <div id="days-tabs" class="days-tabs"></div>
-        <ol id="stops-list" class="stops-list"></ol>
-      </div>
+      <button id="generate-city-itinerary" class="btn primary">
+        ✨ Genera Itinerario
+      </button>
+    </div>
 
-      <div class="actions-row">
-        <button id="clear-stops" class="btn ghost">Svuota</button>
-        <button id="start-tracking" class="btn primary" disabled>Avvia Navigazione</button>
-      </div>
-    </section>
+    <div id="days-tabs" class="days-tabs">
+      <!-- Tabs generate dinamicamente -->
+    </div>
 
-    <section class="card card-nav">
-      <div class="card-header">
-        <span class="card-icon">&#129517;</span>
-        <div>
-          <h2>Mappa e Navigatore</h2>
-          <p id="tracking-status" class="card-subtitle">In attesa dell'itinerario...</p>
-        </div>
-      </div>
+    <div class="itinerary-list">
+      <ul id="stops-list" class="stops-list">
+        <!-- Tappe generate dinamicamente -->
+      </ul>
+    </div>
+  </section>
 
-      <div class="tracking-grid">
-        <div class="tracking-block">
-          <h3>Prossima Tappa</h3>
-          <p id="current-leg">--</p>
-        </div>
-        <div class="tracking-block">
-          <h3>Distanza</h3>
-          <p id="distance-to-next">--</p>
-        </div>
+  <!-- Colonna Destra: Navigatore -->
+  <section class="card">
+    <div class="card-header">
+      <span class="card-icon">🧭</span>
+      <div>
+        <h2>Navigatore Live</h2>
+        <p class="card-subtitle">Mappa e tracking in tempo reale</p>
       </div>
+    </div>
 
-      <div class="map-wrapper">
-        <div id="map"></div>
+    <div id="tracking-status" class="status-banner status-neutral">
+      In attesa di un itinerario...
+    </div>
+
+    <div class="tracking-grid">
+      <div class="tracking-block">
+        <h3>Prossima Meta</h3>
+        <p id="current-leg">--</p>
       </div>
-
-      <div class="actions-row">
-        <button id="stop-tracking" class="btn ghost" disabled>Ferma</button>
+      <div class="tracking-block">
+        <h3>Distanza</h3>
+        <p id="distance-to-next">--</p>
       </div>
-    </section>
-  </main>
+    </div>
 
-  <!-- Caricamento script in ordine corretto -->
-  <script src="app.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9z_2qS4TFOMXcjlJMhf_oJ0ABG78THgI&libraries=geometry&callback=initMap" async defer></script>
+    <div class="map-container">
+      <div id="map"></div>
+    </div>
+
+    <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+      <button id="start-tracking" class="btn primary" disabled>
+        🚀 Avvia Navigazione
+      </button>
+      <button id="stop-tracking" class="btn secondary" disabled>
+        ⏸️ Sospendi
+      </button>
+    </div>
+  </section>
+</main>
+
+<footer style="text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.9rem;">
+  <p>&copy; 2026 360step — Realizzato per esploratori urbani.</p>
+</footer>
+
 </body>
 </html>

@@ -33,10 +33,39 @@ const CITY_ALIASES = {
   zurich: ["zurigo", "zurich", "zürich"]
 };
 
-// Genera URL foto per POI (placeholder con seed stabile)
+// Fallback placeholder
 function getPhotoUrl(poiName, cityName = "") {
   const seed = `${poiName}-${cityName}`.replace(/\s+/g, "-").toLowerCase();
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/800/500`;
+}
+
+// Cache per foto reali Wikipedia
+const photoCache = new Map();
+
+// Recupera foto reali tramite Wikipedia API (immagini dei luoghi effettivi)
+async function getRealPhotoUrl(poiName, cityName = "") {
+  const cacheKey = `${poiName}|${cityName}`;
+  if (photoCache.has(cacheKey)) return photoCache.get(cacheKey);
+
+  const searchTerm = cityName ? `${poiName} ${cityName}` : poiName;
+  const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(searchTerm)}&gsrlimit=1&prop=pageimages&pithumbsize=800&format=json&origin=*`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const pages = data.query?.pages;
+    if (pages) {
+      const page = Object.values(pages)[0];
+      const thumb = page?.thumbnail?.source;
+      if (thumb) {
+        photoCache.set(cacheKey, thumb);
+        return thumb;
+      }
+    }
+  } catch (e) { console.warn("Wikipedia photo fetch:", e); }
+  const fallback = getPhotoUrl(poiName, cityName);
+  photoCache.set(cacheKey, fallback);
+  return fallback;
 }
 
 // Funzione per risolvere il nome inserito alla chiave corretta
@@ -589,8 +618,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const template = CITY_TEMPLATES[cityKey];
         pois = pois.concat(template.pois.map(p => ({
           ...p,
-          cityName: template.displayName,
-          photo: getPhotoUrl(p.name, template.displayName)
+          cityName: template.displayName
         })));
         foundCities.push(template.displayName);
       }
@@ -684,7 +712,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateMarkers() {
-    markers.forEach(m => m.setMap(null));
+    markers.forEach(m => {
+      google.maps.event.clearInstanceListeners(m);
+      m.setMap(null);
+    });
     markers = stops.map((s, i) => new google.maps.Marker({
         position: { lat: s.lat, lng: s.lng },
         map: map,
@@ -703,6 +734,48 @@ document.addEventListener("DOMContentLoaded", () => {
     const bounds = new google.maps.LatLngBounds();
     stops.forEach(s => bounds.extend({ lat: s.lat, lng: s.lng }));
     map.fitBounds(bounds);
+  }
+
+  function updateMarkersForSimulation(flatStops, currentIdx, onMarkerClick) {
+    markers.forEach(m => {
+      google.maps.event.clearInstanceListeners(m);
+      m.setMap(null);
+    });
+    markers = flatStops.map((s, i) => {
+      const m = new google.maps.Marker({
+        position: { lat: s.lat, lng: s.lng },
+        map: map,
+        label: { text: (i + 1).toString(), color: "white", fontWeight: "bold" },
+        title: `${i + 1}. ${s.name} — Clicca per vedere`,
+        cursor: "pointer",
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: i === currentIdx ? "#6366f1" : "#94a3b8",
+          fillOpacity: 1,
+          strokeWeight: 2,
+          strokeColor: "white",
+          scale: 16
+        }
+      });
+      m.addListener("click", () => onMarkerClick(i));
+      return m;
+    });
+    const bounds = new google.maps.LatLngBounds();
+    flatStops.forEach(s => bounds.extend({ lat: s.lat, lng: s.lng }));
+    map.fitBounds(bounds);
+  }
+
+  function highlightSimulationMarker(flatStops, currentIdx) {
+    markers.forEach((m, i) => {
+      m.setIcon({
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: i === currentIdx ? "#6366f1" : "#94a3b8",
+        fillOpacity: 1,
+        strokeWeight: 2,
+        strokeColor: "white",
+        scale: 16
+      });
+    });
   }
 
   btnStart.addEventListener("click", () => {
@@ -775,14 +848,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     overlay.classList.add("hidden");
     btnSimPause.textContent = "⏸ Pausa";
+    loadDay(currentDay);
   }
 
-  function updateSimulationUI(index, flatStops) {
+  async function updateSimulationUI(index, flatStops) {
     const s = flatStops[index];
     if (!s) return;
+    simIndex = index;
+    highlightSimulationMarker(flatStops, index);
+
     if (simPhoto) {
-      simPhoto.src = s.photo || getPhotoUrl(s.name, s.cityName || "");
+      simPhoto.style.opacity = "0.5";
+      simPhoto.src = "";
       simPhoto.alt = s.name;
+      const realUrl = await getRealPhotoUrl(s.name, s.cityName || "");
+      if (flatStops[index] === s) simPhoto.src = realUrl;
+      simPhoto.style.opacity = "1";
     }
     simPoiName.textContent = s.name;
     simPoiCity.textContent = s.cityName ? `📍 ${s.cityName}` : "";
@@ -814,6 +895,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (flatStops.length === 0) return;
 
     simIndex = 0;
+    updateMarkersForSimulation(flatStops, 0, (i) => {
+      updateSimulationUI(i, flatStops);
+    });
     overlay.classList.remove("hidden");
     simTotal.textContent = flatStops.length;
     updateSimulationUI(0, flatStops);
@@ -859,7 +943,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btnSimClose.addEventListener("click", stopSimulation);
 
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) stopSimulation();
-  });
 });

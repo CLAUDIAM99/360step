@@ -7,8 +7,14 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <!-- Google Maps API (Verrà caricata da app.js o qui se necessario) -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry" defer></script>
+  <!--
+    NOTA: Sostituire YOUR_API_KEY con una chiave Google Maps valida abilitata per:
+    Maps JavaScript API, Directions API, Geometry Library
+  -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry&callback=initMap"
+    async
+    defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -20,6 +26,7 @@
 </header>
 
 <main class="app-main">
+
   <!-- Colonna Sinistra: Planner -->
   <section class="card">
     <div class="card-header">
@@ -32,21 +39,28 @@
 
     <div class="form-grid">
       <div class="form-field">
-        <label for="city-input">🏙️ Città di destinazione</label>
-        <input id="city-input" type="text" placeholder="Es. Roma, Paris, London..." list="city-suggestions">
+        <label for="city-input">🌍 Città europea</label>
+        <input id="city-input" type="text" placeholder="Es. Roma, Paris, Amsterdam..." list="city-suggestions" autocomplete="off">
         <datalist id="city-suggestions">
           <option value="Roma">
           <option value="Paris">
           <option value="London">
+          <option value="Amsterdam">
+          <option value="Barcelona">
+          <option value="Berlin">
+          <option value="Brussels">
+          <option value="Madrid">
+          <option value="Lisbon">
+          <option value="Prague">
         </datalist>
       </div>
 
       <div class="form-field">
         <label for="days-input">📅 Quanti giorni?</label>
         <select id="days-input">
-          <option value="1">1 Giorno (Tour Rapido)</option>
-          <option value="2" selected>2 Giorni (Completo)</option>
-          <option value="3">3 Giorni (Relax)</option>
+          <option value="1">1 Giorno — Tour Rapido (~6 tappe)</option>
+          <option value="2" selected>2 Giorni — Completo (~6 tappe/giorno)</option>
+          <option value="3">3 Giorni — Relax (~4 tappe/giorno)</option>
         </select>
       </div>
 
@@ -55,15 +69,9 @@
       </button>
     </div>
 
-    <div id="days-tabs" class="days-tabs">
-      <!-- Tabs generate dinamicamente -->
-    </div>
+    <div id="days-tabs" class="days-tabs"></div>
 
-    <div class="itinerary-list">
-      <ul id="stops-list" class="stops-list">
-        <!-- Tappe generate dinamicamente -->
-      </ul>
-    </div>
+    <ul id="stops-list" class="stops-list"></ul>
   </section>
 
   <!-- Colonna Destra: Navigatore -->
@@ -72,22 +80,22 @@
       <span class="card-icon">🧭</span>
       <div>
         <h2>Navigatore Live</h2>
-        <p class="card-subtitle">Mappa e tracking in tempo reale</p>
+        <p class="card-subtitle">Mappa e tracking GPS</p>
       </div>
     </div>
 
     <div id="tracking-status" class="status-banner status-neutral">
-      In attesa di un itinerario...
+      📍 Inserisci una città e genera l’itinerario!
     </div>
 
     <div class="tracking-grid">
       <div class="tracking-block">
         <h3>Prossima Meta</h3>
-        <p id="current-leg">--</p>
+        <p id="current-leg">—</p>
       </div>
       <div class="tracking-block">
         <h3>Distanza</h3>
-        <p id="distance-to-next">--</p>
+        <p id="distance-to-next">—</p>
       </div>
     </div>
 
@@ -95,19 +103,20 @@
       <div id="map"></div>
     </div>
 
-    <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+    <div style="margin-top:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
       <button id="start-tracking" class="btn primary" disabled>
-        🚀 Avvia Navigazione
+        🚀 Avvia Navigazione GPS
       </button>
       <button id="stop-tracking" class="btn secondary" disabled>
         ⏸️ Sospendi
       </button>
     </div>
   </section>
+
 </main>
 
-<footer style="text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.9rem;">
-  <p>&copy; 2026 360step — Realizzato per esploratori urbani.</p>
+<footer style="text-align:center; padding:3rem 1rem; color:#94a3b8; font-size:0.9rem;">
+  <p>&copy; 2026 360step — Esplora le più belle città europee a piedi.</p>
 </footer>
 
 </body>

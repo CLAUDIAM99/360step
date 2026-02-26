@@ -54,7 +54,67 @@ const CITY_TEMPLATES = {
       { name: "Piccadilly Circus", lat: 51.5101, lng: -0.1342 }
     ]
   },
-  amsterdam: {
+leuven: {
+    displayName: "Leuven",
+    pois: [
+      { name: "Grote Markt", lat: 50.8795, lng: 4.7005 },
+      { name: "Stadhuis van Leuven", lat: 50.8794, lng: 4.7004 },
+      { name: "Sint-Pieterskerk", lat: 50.8791, lng: 4.7009 },
+      { name: "KU Leuven Universiteitsbibliotheek", lat: 50.8796, lng: 4.7019 },
+      { name: "Imec Tower", lat: 50.8633, lng: 4.6789 },
+      { name: "Park Abbey", lat: 50.8556, lng: 4.7261 },
+      { name: "Stella Artois Brouwerij", lat: 50.8760, lng: 4.6992 },
+      { name: "Museum Leuven", lat: 50.8783, lng: 4.6997 },
+      { name: "Fonske Fountain", lat: 50.8793, lng: 4.7006 },
+      { name: "Naamsestraat", lat: 50.8760, lng: 4.6992 }
+    ]
+  },
+  mechelen: {
+    displayName: "Mechelen",
+    pois: [
+      { name: "Grote Markt Mechelen", lat: 51.0280, lng: 4.4800 },
+      { name: "Sint-Romboutskathedraal", lat: 51.0284, lng: 4.4800 },
+      { name: "Stadhuis Mechelen", lat: 51.0279, lng: 4.4792 },
+      { name: "Hof van Busleyden", lat: 51.0289, lng: 4.4811 },
+      { name: "Paleis op de Meir", lat: 51.0278, lng: 4.4806 },
+      { name: "Speelgoedmuseum", lat: 51.0293, lng: 4.4828 },
+      { name: "Dijle River Walk", lat: 51.0275, lng: 4.4780 },
+      { name: "Begijnhof Mechelen", lat: 51.0261, lng: 4.4819 },
+      { name: "Schepenhuis", lat: 51.0281, lng: 4.4794 },
+      { name: "IJzerenleen", lat: 51.0283, lng: 4.4797 }
+    ]
+  },
+  antwerp: {
+    displayName: "Anversa",
+    pois: [
+      { name: "Grote Markt Anversa", lat: 51.2213, lng: 4.3997 },
+      { name: "Onze-Lieve-Vrouwekathedraal", lat: 51.2211, lng: 4.4003 },
+      { name: "Rubenshuis", lat: 51.2180, lng: 4.4079 },
+      { name: "MAS Museum aan de Stroom", lat: 51.2298, lng: 4.4019 },
+      { name: "Steen Castle", lat: 51.2237, lng: 4.3964 },
+      { name: "KMSKA", lat: 51.2117, lng: 4.4104 },
+      { name: "Plantin-Moretus Museum", lat: 51.2196, lng: 4.3983 },
+      { name: "Meir Shopping Street", lat: 51.2178, lng: 4.4094 },
+      { name: "Chinatown Antwerp", lat: 51.2265, lng: 4.4108 },
+      { name: "Zoo Antwerpen", lat: 51.2167, lng: 4.4214 }
+    ]
+  },
+  ottignies: {
+    displayName: "Ottignies",
+    pois: [
+      { name: "Gare d'Ottignies", lat: 50.6697, lng: 4.5664 },
+      { name: "Place de l'Eglise Ottignies", lat: 50.6706, lng: 4.5656 },
+      { name: "Bois de Lauzelle", lat: 50.6576, lng: 4.5734 },
+      { name: "Louvain-la-Neuve Campus", lat: 50.6683, lng: 4.6156 },
+      { name: "Grand-Place Louvain-la-Neuve", lat: 50.6683, lng: 4.6124 },
+      { name: "Lac de Louvain-la-Neuve", lat: 50.6653, lng: 4.6212 },
+      { name: "Musee de Louvain-la-Neuve", lat: 50.6694, lng: 4.6110 },
+      { name: "Theatre Jean Vilar", lat: 50.6679, lng: 4.6114 },
+      { name: "Parc du Rabais", lat: 50.6663, lng: 4.5589 },
+      { name: "Eglise Saint-Pierre Ottignies", lat: 50.6709, lng: 4.5660 }
+    ]
+  },
+    amsterdam: {
     displayName: "Amsterdam",
     pois: [
       { name: "Dam Square", lat: 52.3731, lng: 4.8922 },

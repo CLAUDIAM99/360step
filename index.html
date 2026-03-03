@@ -6,162 +6,118 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
-  <!--
-    NOTA: Sostituire YOUR_API_KEY con una chiave Google Maps valida abilitata per:
-    Maps JavaScript API, Directions API, Geometry Library
-  -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9z_2qS4TFOMXcjlJMhf_oJ0ABG78THgI&libraries=geometry&callback=initMap"
-    async
-    defer></script>
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9z_2qS4TFOMXcjlJMhf_oJ0ABG78THgI&libraries=geometry&callback=initMap"
+    async defer></script>
   <script src="app.js" defer></script>
 </head>
-<body class="page-load">
+<body>
 
-<header class="app-header animate-in">
-  <div class="logo-badge">🚀</div>
-  <h1>360step</h1>
-  <p>Pianifica il tuo itinerario a piedi perfetto, tappa dopo tappa.</p>
+<header class="hero">
+  <div class="hero-inner">
+    <p class="hero-label">Il tuo navigatore urbano</p>
+    <h1 class="hero-title">Non giocare al turismo a caso.</h1>
+    <p class="hero-subtitle">Pianifica l'itinerario perfetto a piedi, tappa dopo tappa. Solo poche città alla volta, attenzione totale, e la mappa al tuo fianco.</p>
+  </div>
 </header>
 
-<main class="app-main">
+<main class="main">
+  <div class="content-wrapper">
 
-  <!-- Colonna Sinistra: Planner -->
-  <section class="card animate-in">
-    <div class="card-header">
-      <span class="card-icon">📍</span>
-      <div>
-        <h2>Il Tuo Viaggio</h2>
-        <p class="card-subtitle">Scegli la meta e la durata</p>
-      </div>
-    </div>
+    <section class="section planner-section">
+      <div class="section-label">Pianifica il viaggio</div>
+      <h2 class="section-title">Scegli la meta e la durata</h2>
 
-    <div class="form-grid">
-      <div class="form-field">
-        <label for="city-input">🌍 Città europea</label>
-        <input id="city-input" type="text" placeholder="Es. Roma, Leuven+Brussels+Anversa..." list="city-suggestions" autocomplete="off">
-        <p class="form-hint">Città singola o multiple separate da virgola (Belgio: Leuven, Brussels, Anversa, Gand, Bruges, Liège, Namur...)</p>
+      <div class="form-block">
+        <label for="city-input" class="field-label">Città europea</label>
+        <input id="city-input" type="text" placeholder="Es. Roma, Leuven, Brussels, Anversa…" list="city-suggestions" autocomplete="off" class="field-input">
+        <p class="field-hint">Città singola o multiple separate da virgola</p>
         <datalist id="city-suggestions">
-          <option value="Roma">
-          <option value="Paris">
-          <option value="London">
-          <option value="Amsterdam">
-          <option value="Barcelona">
-          <option value="Berlin">
-          <option value="Brussels">
-          <option value="Madrid">
-          <option value="Lisbon">
-          <option value="Prague">
-          <option value="Leuven">
-          <option value="Mechelen">
-          <option value="Anversa">
-          <option value="Ottignies">
-          <option value="Gand">
-          <option value="Bruges">
-          <option value="Liège">
-          <option value="Namur">
-          <option value="Milano">
-          <option value="Firenze">
-          <option value="Venezia">
-          <option value="Vienna">
-          <option value="Monaco">
-          <option value="Zurigo">
-          <option value="Dublin">
-          <option value="Edinburgh">
-          <option value="Lyon">
-          <option value="Nice">
+          <option value="Roma"><option value="Paris"><option value="London"><option value="Amsterdam">
+          <option value="Barcelona"><option value="Berlin"><option value="Brussels"><option value="Madrid">
+          <option value="Lisbon"><option value="Prague"><option value="Leuven"><option value="Mechelen">
+          <option value="Anversa"><option value="Ottignies"><option value="Gand"><option value="Bruges">
+          <option value="Liège"><option value="Namur"><option value="Milano"><option value="Firenze">
+          <option value="Venezia"><option value="Vienna"><option value="Monaco"><option value="Zurigo">
+          <option value="Dublin"><option value="Edinburgh"><option value="Lyon"><option value="Nice">
         </datalist>
       </div>
 
-      <div class="form-field">
-        <label for="days-input">📅 Quanti giorni?</label>
-        <select id="days-input">
-          <option value="1">1 Giorno — Tour Rapido (~6 tappe)</option>
-          <option value="2" selected>2 Giorni — Completo (~6 tappe/giorno)</option>
-          <option value="3">3 Giorni — Relax (~4 tappe/giorno)</option>
+      <div class="form-block">
+        <label for="days-input" class="field-label">Quanti giorni</label>
+        <select id="days-input" class="field-input field-select">
+          <option value="1">1 giorno — tour rapido</option>
+          <option value="2" selected>2 giorni — completo</option>
+          <option value="3">3 giorni — relax</option>
         </select>
       </div>
 
-      <button id="generate-city-itinerary" class="btn primary">
-        ✨ Genera Itinerario
-      </button>
-      <button id="recalc-from-position" class="btn btn-recalc" disabled title="Riordina l'itinerario dalla tua posizione attuale">
-        📍 Ricalcola da mia posizione
-      </button>
-    </div>
-
-    <div id="days-tabs" class="days-tabs"></div>
-
-    <ul id="stops-list" class="stops-list"></ul>
-  </section>
-
-  <!-- Colonna Destra: Navigatore -->
-  <section class="card animate-in card-delay">
-    <div class="card-header">
-      <span class="card-icon">🧭</span>
-      <div>
-        <h2>Navigatore Live</h2>
-        <p class="card-subtitle">Mappa e tracking GPS</p>
+      <div class="actions">
+        <button id="generate-city-itinerary" class="btn btn-primary">Genera itinerario</button>
+        <button id="recalc-from-position" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola da mia posizione</button>
       </div>
-    </div>
 
-    <div id="tracking-status" class="status-banner status-neutral">
-      📍 Inserisci una città e genera l’itinerario!
-    </div>
+      <div id="days-tabs" class="days-tabs"></div>
+      <ul id="stops-list" class="stops-list"></ul>
+    </section>
 
-    <div class="tracking-grid">
-      <div class="tracking-block">
-        <h3>Prossima Meta</h3>
-        <p id="current-leg">—</p>
+    <section class="section navigator-section">
+      <div class="section-label">Navigatore live</div>
+      <h2 class="section-title">Mappa e tracking GPS</h2>
+
+      <div id="tracking-status" class="status-banner status-neutral">
+        Inserisci una città e genera l'itinerario.
       </div>
-      <div class="tracking-block">
-        <h3>Distanza</h3>
-        <p id="distance-to-next">—</p>
-      </div>
-    </div>
 
-    <div class="map-container">
-      <div id="map"></div>
-      <button id="show-my-location" class="btn-location" title="Mostra la mia posizione">📍</button>
-    </div>
-
-    <div class="nav-buttons">
-      <button id="play-simulation" class="btn btn-play" disabled title="Simula il percorso con foto delle tappe">
-        ▶️ Anteprima Percorso
-      </button>
-      <button id="start-tracking" class="btn primary" disabled>
-        🚀 Avvia Navigazione GPS
-      </button>
-      <button id="stop-tracking" class="btn secondary" disabled>
-        ⏸️ Sospendi
-      </button>
-    </div>
-    <div id="simulation-overlay" class="simulation-overlay simulation-panel-side hidden">
-      <p class="simulation-hint">Clicca sui numeri sulla mappa per saltare a una tappa</p>
-      <div class="simulation-panel">
-        <div class="simulation-photo">
-          <img id="simulation-photo-img" src="" alt="">
+      <div class="tracking-row">
+        <div class="tracking-item">
+          <span class="tracking-label">Prossima meta</span>
+          <span id="current-leg" class="tracking-value">—</span>
         </div>
-        <div class="simulation-info">
-          <h3 id="simulation-poi-name"></h3>
-          <p id="simulation-poi-city"></p>
-          <p class="simulation-counter"><span id="sim-current">1</span> / <span id="sim-total">0</span></p>
-        </div>
-        <div class="simulation-controls">
-          <button id="sim-prev" class="btn btn-sim">⏮ Indietro</button>
-          <button id="sim-pause" class="btn btn-sim">⏸ Pausa</button>
-          <button id="sim-next" class="btn btn-sim">Avanti ⏭</button>
-          <button id="sim-close" class="btn btn-sim-close">✕ Chiudi</button>
+        <div class="tracking-item">
+          <span class="tracking-label">Distanza</span>
+          <span id="distance-to-next" class="tracking-value">—</span>
         </div>
       </div>
-    </div>
-  </section>
 
+      <div class="map-wrapper">
+        <div id="map" class="map"></div>
+        <button id="show-my-location" class="btn-map-location" title="Mostra la mia posizione">📍</button>
+      </div>
+
+      <div class="actions actions-stack">
+        <button id="play-simulation" class="btn btn-primary" disabled>Anteprima percorso</button>
+        <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione GPS</button>
+        <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
+      </div>
+
+      <div id="simulation-overlay" class="sim-overlay hidden">
+        <p class="sim-hint">Clicca sui numeri sulla mappa per saltare a una tappa</p>
+        <div class="sim-card">
+          <div class="sim-photo">
+            <img id="simulation-photo-img" src="" alt="">
+          </div>
+          <div class="sim-body">
+            <h3 id="simulation-poi-name" class="sim-title"></h3>
+            <p id="simulation-poi-city" class="sim-city"></p>
+            <p class="sim-counter"><span id="sim-current">1</span> / <span id="sim-total">0</span></p>
+          </div>
+          <div class="sim-actions">
+            <button id="sim-prev" class="btn btn-small">Indietro</button>
+            <button id="sim-pause" class="btn btn-small">Pausa</button>
+            <button id="sim-next" class="btn btn-small">Avanti</button>
+            <button id="sim-close" class="btn btn-small btn-close">Chiudi</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
 </main>
 
-<footer class="app-footer animate-in">
-  <p>&copy; 2026 360step — Esplora le più belle città europee a piedi.</p>
+<footer class="footer">
+  <p>&copy; 2026 360step — Esplora le città europee a piedi</p>
 </footer>
 
 </body>

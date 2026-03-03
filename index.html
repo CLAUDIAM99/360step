@@ -81,18 +81,13 @@
         </div>
       </div>
 
-      <div class="map-wrapper">
-        <div id="map" class="map"></div>
-        <button id="show-my-location" class="btn-map-location" title="Mostra la mia posizione">📍</button>
-      </div>
+      <div class="map-and-sim">
+        <div class="map-wrapper">
+          <div id="map" class="map"></div>
+          <button id="show-my-location" class="btn-map-location" title="Mostra la mia posizione">📍</button>
+        </div>
 
-      <div class="actions actions-stack">
-        <button id="play-simulation" class="btn btn-primary" disabled>Anteprima percorso</button>
-        <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione GPS</button>
-        <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
-      </div>
-
-      <div id="simulation-overlay" class="sim-overlay hidden">
+        <div id="simulation-overlay" class="sim-overlay hidden">
         <p class="sim-hint">Clicca sui numeri sulla mappa per saltare a una tappa</p>
         <div class="sim-card">
           <div class="sim-photo">
@@ -110,6 +105,12 @@
             <button id="sim-close" class="btn btn-small btn-close">Chiudi</button>
           </div>
         </div>
+      </div>
+
+      <div class="actions actions-stack">
+        <button id="play-simulation" class="btn btn-primary" disabled>Anteprima percorso</button>
+        <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione GPS</button>
+        <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
       </div>
     </section>
 

@@ -446,25 +446,46 @@ body {
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
 }
 
-/* === Simulation overlay === */
-.sim-overlay {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(400px, 90vw);
-  background: var(--color-surface);
-  border-left: 1px solid var(--color-border);
-  padding: var(--space-lg);
-  overflow-y: auto;
-  z-index: 1000;
-  box-shadow: -8px 0 40px rgba(0,0,0,0.08);
-  transition: transform 0.35s var(--transition-slow);
+/* === Map + Sim container === */
+.map-and-sim {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
 }
 
-.sim-overlay.hidden {
-  transform: translateX(100%);
-  pointer-events: none;
+.map-and-sim:has(.sim-overlay:not(.hidden)) {
+  gap: var(--space-lg);
+}
+
+.map-and-sim .map-wrapper {
+  flex: 1;
+  min-width: 280px;
+  margin-bottom: 0;
+}
+
+/* === Simulation panel (integrato nel layout) === */
+.sim-overlay {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  transition: width 0.35s var(--transition-slow), opacity 0.3s ease, min-width 0.35s ease;
+  flex-shrink: 0;
+}
+
+.sim-overlay:not(.hidden) {
+  width: min(360px, 100%);
+  min-width: min(320px, 100%);
+  padding: var(--space-lg);
+  overflow-y: auto;
+  opacity: 1;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
 }
 
 .sim-hint {
@@ -545,8 +566,18 @@ body {
   .hero {
     padding: var(--space-xl) var(--space-sm);
   }
+  .map-and-sim {
+    flex-direction: column;
+  }
+  .map-and-sim .map-wrapper {
+    margin-bottom: var(--space-md);
+  }
   .map-wrapper {
     height: 400px;
     min-height: 280px;
+  }
+  .sim-overlay:not(.hidden) {
+    width: 100%;
+    min-width: 100%;
   }
 }

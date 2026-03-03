@@ -17,9 +17,9 @@
     defer></script>
   <script src="app.js" defer></script>
 </head>
-<body>
+<body class="page-load">
 
-<header class="app-header">
+<header class="app-header animate-in">
   <div class="logo-badge">🚀</div>
   <h1>360step</h1>
   <p>Pianifica il tuo itinerario a piedi perfetto, tappa dopo tappa.</p>
@@ -28,7 +28,7 @@
 <main class="app-main">
 
   <!-- Colonna Sinistra: Planner -->
-  <section class="card">
+  <section class="card animate-in">
     <div class="card-header">
       <span class="card-icon">📍</span>
       <div>
@@ -86,6 +86,9 @@
       <button id="generate-city-itinerary" class="btn primary">
         ✨ Genera Itinerario
       </button>
+      <button id="recalc-from-position" class="btn btn-recalc" disabled title="Riordina l'itinerario dalla tua posizione attuale">
+        📍 Ricalcola da mia posizione
+      </button>
     </div>
 
     <div id="days-tabs" class="days-tabs"></div>
@@ -94,7 +97,7 @@
   </section>
 
   <!-- Colonna Destra: Navigatore -->
-  <section class="card">
+  <section class="card animate-in card-delay">
     <div class="card-header">
       <span class="card-icon">🧭</span>
       <div>
@@ -120,6 +123,7 @@
 
     <div class="map-container">
       <div id="map"></div>
+      <button id="show-my-location" class="btn-location" title="Mostra la mia posizione">📍</button>
     </div>
 
     <div class="nav-buttons">
@@ -156,7 +160,7 @@
 
 </main>
 
-<footer style="text-align:center; padding:3rem 1rem; color:#94a3b8; font-size:0.9rem;">
+<footer class="app-footer animate-in">
   <p>&copy; 2026 360step — Esplora le più belle città europee a piedi.</p>
 </footer>
 

@@ -42,30 +42,91 @@ function getPhotoUrl(poiName, cityName = "") {
 // Cache per foto reali Wikipedia
 const photoCache = new Map();
 
+// Mapping POI → titolo Wikipedia inglese (per foto veritiere ai monumenti)
+const POI_WIKI_TITLES = {
+  "Colosseo|Roma": "Colosseum",
+  "Fontana di Trevi|Roma": "Trevi Fountain",
+  "Pantheon|Roma": "Pantheon, Rome",
+  "Foro Romano|Roma": "Roman Forum",
+  "Piazza Navona|Roma": "Piazza Navona",
+  "Tour Eiffel|Paris": "Eiffel Tower",
+  "Louvre|Paris": "Louvre",
+  "Notre Dame|Paris": "Notre-Dame de Paris",
+  "Big Ben|London": "Big Ben",
+  "Tower Bridge|London": "Tower Bridge",
+  "Westminster Abbey|London": "Westminster Abbey",
+  "Sagrada Família|Barcelona": "Sagrada Família",
+  "Park Güell|Barcelona": "Park Güell",
+  "Brandenburg Gate|Berlin": "Brandenburg Gate",
+  "Manneken Pis|Brussels": "Manneken Pis",
+  "Grand Place|Brussels": "Grand-Place",
+  "Charles Bridge|Prague": "Charles Bridge",
+  "Duomo di Milano|Milano": "Milan Cathedral",
+  "Duomo di Firenze|Firenze": "Florence Cathedral",
+  "Piazza San Marco|Venezia": "Piazza San Marco",
+  "Ponte Vecchio|Firenze": "Ponte Vecchio"
+};
+
 // Recupera foto reali tramite Wikipedia API (immagini dei luoghi effettivi)
-async function getRealPhotoUrl(poiName, cityName = "") {
+async function getRealPhotoUrl(poiName, cityName = "", wikiTitleOverride) {
   const cacheKey = `${poiName}|${cityName}`;
   if (photoCache.has(cacheKey)) return photoCache.get(cacheKey);
 
-  const searchTerm = cityName ? `${poiName} ${cityName}` : poiName;
-  const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(searchTerm)}&gsrlimit=1&prop=pageimages&pithumbsize=800&format=json&origin=*`;
+  const wikiTitle = wikiTitleOverride || POI_WIKI_TITLES[cacheKey] || (cityName ? `${poiName} ${cityName}` : poiName);
+  const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiTitle)}&prop=pageimages&pithumbsize=800&format=json&origin=*`;
 
   try {
-    const res = await fetch(url);
-    const data = await res.json();
-    const pages = data.query?.pages;
+    let res = await fetch(url);
+    let data = await res.json();
+    let pages = data.query?.pages;
+    let thumb = null;
     if (pages) {
       const page = Object.values(pages)[0];
-      const thumb = page?.thumbnail?.source;
-      if (thumb) {
-        photoCache.set(cacheKey, thumb);
-        return thumb;
+      thumb = page?.thumbnail?.source;
+    }
+    if (!thumb && !wikiTitleOverride) {
+      const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(wikiTitle)}&gsrlimit=1&prop=pageimages&pithumbsize=800&format=json&origin=*`;
+      res = await fetch(searchUrl);
+      data = await res.json();
+      pages = data.query?.pages;
+      if (pages) {
+        const page = Object.values(pages)[0];
+        thumb = page?.thumbnail?.source;
       }
+    }
+    if (thumb) {
+      photoCache.set(cacheKey, thumb);
+      return thumb;
     }
   } catch (e) { console.warn("Wikipedia photo fetch:", e); }
   const fallback = getPhotoUrl(poiName, cityName);
   photoCache.set(cacheKey, fallback);
   return fallback;
+}
+
+// Ordina i POI partendo dalla posizione utente (nearest-neighbor)
+function optimizeRouteFromPosition(pois, userLat, userLng) {
+  if (!pois.length || typeof google === "undefined" || !google.maps?.geometry?.spherical) return pois;
+
+  const remaining = [...pois];
+  const ordered = [];
+  let current = { lat: userLat, lng: userLng };
+
+  while (remaining.length) {
+    let nearestIdx = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const d = google.maps.geometry.spherical.computeDistanceBetween(
+        new google.maps.LatLng(current.lat, current.lng),
+        new google.maps.LatLng(remaining[i].lat, remaining[i].lng)
+      );
+      if (d < minDist) { minDist = d; nearestIdx = i; }
+    }
+    ordered.push(remaining[nearestIdx]);
+    current = remaining[nearestIdx];
+    remaining.splice(nearestIdx, 1);
+  }
+  return ordered;
 }
 
 // Funzione per risolvere il nome inserito alla chiave corretta
@@ -546,6 +607,8 @@ let map;
 let directionsService;
 let directionsRenderer;
 let markers = [];
+let userMarker = null;
+let userPosition = null;
 let allStops = [];
 let stops = [];
 let currentDay = 1;
@@ -576,6 +639,19 @@ window.initMap = function() {
       suppressMarkers: true,
       polylineOptions: { strokeColor: "#6366f1", strokeWeight: 6, strokeOpacity: 0.8 }
     });
+    userMarker = new google.maps.Marker({
+      map: map,
+      visible: false,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: "#4285F4",
+        fillOpacity: 1,
+        strokeWeight: 3,
+        strokeColor: "#fff",
+        scale: 10
+      },
+      zIndex: 1000
+    });
     console.log("Maps API caricata correttamente.");
   } catch (e) {
     console.error("Errore inizializzazione Maps:", e);
@@ -604,8 +680,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3000);
   }
 
-  btnGenerate.addEventListener("click", () => {
-    // Supporto città multiple (virgola-separate), es: "Leuven, Brussels, Anversa"
+  function doGenerateItinerary(userLat, userLng) {
     const rawInput = cityInput.value.trim();
     const cityParts = rawInput.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
     
@@ -630,6 +705,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    if (userLat != null && userLng != null) {
+      pois = optimizeRouteFromPosition(pois, userLat, userLng);
+    }
+
     const numDays = parseInt(daysInput.value);
     allStops = [];
     const perDay = Math.ceil(pois.length / numDays);
@@ -645,7 +724,61 @@ document.addEventListener("DOMContentLoaded", () => {
     const citiesLabel = foundCities.join(", ");
     trackingStatus.textContent = pois.length > 0 ? `Itinerario per ${citiesLabel} pronto!` : "Nessun itinerario generato.";
     trackingStatus.className = "status-banner status-active";
+  }
+
+  btnGenerate.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      doGenerateItinerary(null, null);
+      return;
+    }
+    trackingStatus.textContent = "Rilevamento posizione in corso...";
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        userPosition = { lat, lng };
+        if (userMarker) {
+          userMarker.setPosition({ lat, lng });
+          userMarker.setVisible(true);
+        }
+        doGenerateItinerary(lat, lng);
+      },
+      () => doGenerateItinerary(null, null),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   });
+
+  const btnRecalcFromPosition = document.getElementById("recalc-from-position");
+  if (btnRecalcFromPosition) {
+    btnRecalcFromPosition.addEventListener("click", () => {
+      const flatStops = allStops.flat();
+      if (flatStops.length === 0) return;
+      if (!navigator.geolocation) return alert("GPS non supportato.");
+      trackingStatus.textContent = "Ricalcolo da tua posizione...";
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          userPosition = { lat, lng };
+          if (userMarker) {
+            userMarker.setPosition({ lat, lng });
+            userMarker.setVisible(true);
+          }
+          const optimized = optimizeRouteFromPosition(flatStops, lat, lng);
+          const numDays = allStops.length;
+          allStops = [];
+          const perDay = Math.ceil(optimized.length / numDays);
+          for (let i = 0; i < numDays; i++) {
+            allStops.push(optimized.slice(i * perDay, (i + 1) * perDay));
+          }
+          loadDay(1);
+          trackingStatus.textContent = "Itinerario riordinato dalla tua posizione!";
+          trackingStatus.className = "status-banner status-active";
+        },
+        () => alert("Impossibile ottenere la posizione.")
+      );
+    });
+  }
 
   function renderTabs(n) {
     daysTabsContainer.innerHTML = "";
@@ -679,7 +812,10 @@ document.addEventListener("DOMContentLoaded", () => {
       <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}">
         <div class="stop-info">
           <span class="stop-number">${i + 1}</span>
-          <span class="stop-name">${s.name}</span>
+          <div>
+            <span class="stop-name">${s.name}</span>
+            ${s.durationToNext ? `<span class="stop-duration">→ ~${s.durationToNext}</span>` : ''}
+          </div>
         </div>
         <span class="stop-status">${s.reached ? '✅' : '⏳'}</span>
       </li>
@@ -689,10 +825,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById("play-simulation")) {
       document.getElementById("play-simulation").disabled = allStops.flat().length < 1;
     }
+    const btnRecalc = document.getElementById("recalc-from-position");
+    if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
   }
 
   function calculateAndDisplayRoute() {
-    if (typeof google === "undefined" || !directionsService || stops.length < 2) return;
+    if (typeof google === "undefined" || !directionsService || stops.length < 1) return;
+
+    if (stops.length === 1) {
+      stops[0].durationToNext = null;
+      directionsRenderer.setDirections({ routes: [] });
+      updateMarkers();
+      return;
+    }
 
     const origin = { lat: stops[0].lat, lng: stops[0].lng };
     const destination = { lat: stops[stops.length - 1].lat, lng: stops[stops.length - 1].lng };
@@ -706,6 +851,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }, (result, status) => {
       if (status === "OK") {
         directionsRenderer.setDirections(result);
+        const legs = result.routes?.[0]?.legs || [];
+        for (let i = 0; i < stops.length; i++) {
+          stops[i].durationToNext = i < legs.length && legs[i].duration ? legs[i].duration.text : null;
+        }
+        renderStopsList();
         updateMarkers();
       }
     });
@@ -789,6 +939,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     watchId = navigator.geolocation.watchPosition(pos => {
       const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      userPosition = userPos;
+      if (userMarker) {
+        userMarker.setPosition(userPos);
+        userMarker.setVisible(true);
+      }
+      map.panTo(userPos);
       
       if (currentLegIndex < stops.length) {
         const target = stops[currentLegIndex];
@@ -822,11 +978,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btnStop.addEventListener("click", () => {
     if (watchId) navigator.geolocation.clearWatch(watchId);
+    if (userMarker) userMarker.setVisible(false);
     trackingStatus.textContent = "Navigazione sospesa.";
     trackingStatus.className = "status-banner status-neutral";
     btnStart.disabled = false;
     btnStop.disabled = true;
   });
+
+  const btnShowLocation = document.getElementById("show-my-location");
+  if (btnShowLocation) {
+    btnShowLocation.addEventListener("click", () => {
+      if (!navigator.geolocation) return alert("GPS non supportato.");
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          userPosition = p;
+          if (userMarker) {
+            userMarker.setPosition(p);
+            userMarker.setVisible(true);
+          }
+          map.panTo(p);
+          map.setZoom(16);
+        },
+        err => alert("Impossibile ottenere la posizione."),
+        { enableHighAccuracy: true }
+      );
+    });
+  }
 
   // === ANTEPRIMA PERCORSO (PLAY) ===
   const btnPlay = document.getElementById("play-simulation");

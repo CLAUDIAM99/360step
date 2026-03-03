@@ -61,6 +61,11 @@ body {
   width: 100%;
 }
 
+.hero-compact {
+  padding-top: var(--space-lg);
+  padding-bottom: var(--space-md);
+}
+
 .hero-inner {
   max-width: 680px;
   width: 100%;
@@ -95,11 +100,25 @@ body {
   font-weight: 400;
 }
 
+.hero-actions {
+  margin-top: var(--space-lg);
+  display: flex;
+  justify-content: center;
+}
+
+.hero-cta {
+  min-width: 180px;
+}
+
 /* === Main content === */
 .main {
   padding: var(--space-2xl) var(--space-lg);
   width: 100%;
   max-width: 100%;
+}
+
+.is-hidden {
+  display: none;
 }
 
 .content-wrapper {
@@ -128,6 +147,33 @@ body {
 }
 
 .section:nth-child(2) { animation-delay: 0.1s; }
+
+.steps-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
+}
+
+.step-pill {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-alt);
+  color: var(--color-text-soft);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.step-pill-active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(16px); }
@@ -449,19 +495,15 @@ body {
 /* === Map + Sim container === */
 .map-and-sim {
   display: flex;
-  gap: 0;
-  align-items: stretch;
-  margin-bottom: var(--space-md);
-  flex-wrap: wrap;
-}
-
-.map-and-sim:has(.sim-overlay:not(.hidden)) {
   gap: var(--space-lg);
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+  flex-wrap: nowrap;
 }
 
 .map-and-sim .map-wrapper {
-  flex: 1;
-  min-width: 280px;
+  flex: 1 1 0%;
+  min-width: 0;
   margin-bottom: 0;
 }
 
@@ -469,6 +511,7 @@ body {
 .sim-overlay {
   width: 0;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   opacity: 0;
   background: var(--color-surface);
@@ -480,8 +523,8 @@ body {
 }
 
 .sim-overlay:not(.hidden) {
-  width: min(360px, 100%);
-  min-width: min(320px, 100%);
+  width: clamp(260px, 32vw, 360px);
+  min-width: clamp(220px, 28vw, 320px);
   padding: var(--space-lg);
   overflow-y: auto;
   opacity: 1;
@@ -559,7 +602,7 @@ body {
 }
 
 /* Contenimento viewport - tutto dentro la pagina */
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .main {
     padding: var(--space-lg) var(--space-sm);
   }
@@ -568,6 +611,7 @@ body {
   }
   .map-and-sim {
     flex-direction: column;
+    align-items: stretch;
   }
   .map-and-sim .map-wrapper {
     margin-bottom: var(--space-md);

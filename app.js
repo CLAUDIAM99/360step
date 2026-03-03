@@ -616,6 +616,7 @@ let currentLegIndex = 0;
 let watchId = null;
 let simulationInterval = null;
 let simIndex = 0;
+let currentStep = 1;
 
 // Inizializzazione Google Maps (callback globale)
 window.initMap = function() {
@@ -660,6 +661,11 @@ window.initMap = function() {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  const mainEl = document.querySelector(".main");
+  const heroEl = document.querySelector(".hero");
+  const enterAppBtn = document.getElementById("enter-app");
+  const stepPills = document.querySelectorAll(".step-pill");
+
   const cityInput = document.getElementById("city-input");
   const daysInput = document.getElementById("days-input");
   const btnGenerate = document.getElementById("generate-city-itinerary");
@@ -668,6 +674,36 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStart = document.getElementById("start-tracking");
   const btnStop = document.getElementById("stop-tracking");
   const trackingStatus = document.getElementById("tracking-status");
+
+  if (enterAppBtn && mainEl && heroEl) {
+    enterAppBtn.addEventListener("click", () => {
+      mainEl.classList.remove("is-hidden");
+      heroEl.classList.add("hero-compact");
+      mainEl.scrollIntoView({ behavior: "smooth" });
+      currentStep = 1;
+      updateStepUI();
+    });
+  }
+
+  function updateStepUI() {
+    stepPills.forEach(pill => {
+      const step = Number(pill.dataset.step || "1");
+      pill.classList.toggle("step-pill-active", step === currentStep);
+    });
+  }
+
+  stepPills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      const step = Number(pill.dataset.step || "1");
+      currentStep = step;
+      updateStepUI();
+      if (step === 1 && document.querySelector(".planner-section")) {
+        document.querySelector(".planner-section").scrollIntoView({ behavior: "smooth" });
+      } else if (step === 2 && document.querySelector(".navigator-section")) {
+        document.querySelector(".navigator-section").scrollIntoView({ behavior: "smooth" });
+      }
+    });
+  });
 
   // Controllo iniziale se l'API è caricata (nel caso defer fallisca o sia lenta)
   if (typeof google === "undefined" || !google.maps) {
@@ -822,11 +858,12 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
     
     btnStart.disabled = stops.length < 1;
+    const flatCount = allStops.flat().length;
     if (document.getElementById("play-simulation")) {
-      document.getElementById("play-simulation").disabled = allStops.flat().length < 1;
+      document.getElementById("play-simulation").disabled = flatCount < 1;
     }
     const btnRecalc = document.getElementById("recalc-from-position");
-    if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
+    if (btnRecalc) btnRecalc.disabled = flatCount < 1;
   }
 
   function calculateAndDisplayRoute() {

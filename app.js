@@ -616,7 +616,6 @@ let currentLegIndex = 0;
 let watchId = null;
 let simulationInterval = null;
 let simIndex = 0;
-let currentStep = 1;
 
 // Inizializzazione Google Maps (callback globale)
 window.initMap = function() {
@@ -661,11 +660,6 @@ window.initMap = function() {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  const mainEl = document.querySelector(".main");
-  const heroEl = document.querySelector(".hero");
-  const enterAppBtn = document.getElementById("enter-app");
-  const stepPills = document.querySelectorAll(".step-pill");
-
   const cityInput = document.getElementById("city-input");
   const daysInput = document.getElementById("days-input");
   const btnGenerate = document.getElementById("generate-city-itinerary");
@@ -674,36 +668,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStart = document.getElementById("start-tracking");
   const btnStop = document.getElementById("stop-tracking");
   const trackingStatus = document.getElementById("tracking-status");
-
-  if (enterAppBtn && mainEl && heroEl) {
-    enterAppBtn.addEventListener("click", () => {
-      mainEl.classList.remove("is-hidden");
-      heroEl.classList.add("hero-compact");
-      mainEl.scrollIntoView({ behavior: "smooth" });
-      currentStep = 1;
-      updateStepUI();
-    });
-  }
-
-  function updateStepUI() {
-    stepPills.forEach(pill => {
-      const step = Number(pill.dataset.step || "1");
-      pill.classList.toggle("step-pill-active", step === currentStep);
-    });
-  }
-
-  stepPills.forEach(pill => {
-    pill.addEventListener("click", () => {
-      const step = Number(pill.dataset.step || "1");
-      currentStep = step;
-      updateStepUI();
-      if (step === 1 && document.querySelector(".planner-section")) {
-        document.querySelector(".planner-section").scrollIntoView({ behavior: "smooth" });
-      } else if (step === 2 && document.querySelector(".navigator-section")) {
-        document.querySelector(".navigator-section").scrollIntoView({ behavior: "smooth" });
-      }
-    });
-  });
 
   // Controllo iniziale se l'API è caricata (nel caso defer fallisca o sia lenta)
   if (typeof google === "undefined" || !google.maps) {
@@ -858,12 +822,11 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
     
     btnStart.disabled = stops.length < 1;
-    const flatCount = allStops.flat().length;
     if (document.getElementById("play-simulation")) {
-      document.getElementById("play-simulation").disabled = flatCount < 1;
+      document.getElementById("play-simulation").disabled = allStops.flat().length < 1;
     }
     const btnRecalc = document.getElementById("recalc-from-position");
-    if (btnRecalc) btnRecalc.disabled = flatCount < 1;
+    if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
   }
 
   function calculateAndDisplayRoute() {
@@ -973,6 +936,10 @@ document.addEventListener("DOMContentLoaded", () => {
     trackingStatus.className = "status-banner status-active";
     btnStart.disabled = true;
     btnStop.disabled = false;
+     document.body.classList.add("is-tracking");
+     if (map) {
+       map.setZoom(17);
+     }
 
     watchId = navigator.geolocation.watchPosition(pos => {
       const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -981,7 +948,12 @@ document.addEventListener("DOMContentLoaded", () => {
         userMarker.setPosition(userPos);
         userMarker.setVisible(true);
       }
-      map.panTo(userPos);
+      if (map) {
+        map.panTo(userPos);
+        if (map.getZoom() < 17) {
+          map.setZoom(17);
+        }
+      }
       
       if (currentLegIndex < stops.length) {
         const target = stops[currentLegIndex];
@@ -1020,6 +992,12 @@ document.addEventListener("DOMContentLoaded", () => {
     trackingStatus.className = "status-banner status-neutral";
     btnStart.disabled = false;
     btnStop.disabled = true;
+    document.body.classList.remove("is-tracking");
+    if (map && stops.length) {
+      const bounds = new google.maps.LatLngBounds();
+      stops.forEach(s => bounds.extend({ lat: s.lat, lng: s.lng }));
+      map.fitBounds(bounds);
+    }
   });
 
   const btnShowLocation = document.getElementById("show-my-location");
@@ -1157,5 +1135,96 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   btnSimClose.addEventListener("click", stopSimulation);
+
+  // === VIAGGI MESSI DA PARTE ===
+  const plannedForm = document.getElementById("planned-form");
+  const plannedList = document.getElementById("planned-list");
+  const plannedNameInput = document.getElementById("planned-name");
+  const plannedCitiesInput = document.getElementById("planned-cities");
+  const plannedDateInput = document.getElementById("planned-date");
+
+  const PLANNED_STORAGE_KEY = "360step_planned_trips";
+  let plannedTrips = [];
+
+  function loadPlannedTrips() {
+    try {
+      const raw = localStorage.getItem(PLANNED_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        plannedTrips = parsed;
+      }
+    } catch (e) {
+      console.warn("Impossibile leggere i viaggi salvati", e);
+    }
+  }
+
+  function savePlannedTrips() {
+    try {
+      localStorage.setItem(PLANNED_STORAGE_KEY, JSON.stringify(plannedTrips));
+    } catch (e) {
+      console.warn("Impossibile salvare i viaggi", e);
+    }
+  }
+
+  function renderPlannedTrips() {
+    if (!plannedList) return;
+    if (!plannedTrips.length) {
+      plannedList.innerHTML = "";
+      return;
+    }
+    plannedList.innerHTML = plannedTrips.map((trip, index) => {
+      const dateLabel = trip.date ? ` · ${trip.date}` : "";
+      const citiesLabel = trip.cities ? trip.cities : "Città da definire";
+      return `
+        <li class="planned-item" data-index="${index}">
+          <div class="planned-main">
+            <span class="planned-name">${trip.name}</span>
+            <span class="planned-meta">${citiesLabel}${dateLabel}</span>
+          </div>
+          <div class="planned-actions">
+            <button type="button" class="btn btn-outline planned-remove">✕</button>
+          </div>
+        </li>
+      `;
+    }).join("");
+  }
+
+  if (plannedForm && plannedList) {
+    loadPlannedTrips();
+    renderPlannedTrips();
+
+    plannedForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = plannedNameInput.value.trim();
+      const cities = plannedCitiesInput.value.trim();
+      const date = plannedDateInput.value;
+      if (!name) {
+        plannedNameInput.focus();
+        return;
+      }
+      plannedTrips.push({ name, cities, date });
+      savePlannedTrips();
+      renderPlannedTrips();
+      plannedNameInput.value = "";
+      plannedCitiesInput.value = "";
+      plannedDateInput.value = "";
+    });
+
+    plannedList.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.classList.contains("planned-remove")) {
+        const item = target.closest(".planned-item");
+        if (!item) return;
+        const idx = Number(item.getAttribute("data-index"));
+        if (!Number.isNaN(idx)) {
+          plannedTrips.splice(idx, 1);
+          savePlannedTrips();
+          renderPlannedTrips();
+        }
+      }
+    });
+  }
 
 });

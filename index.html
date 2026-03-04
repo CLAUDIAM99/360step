@@ -19,19 +19,11 @@
     <p class="hero-label">Il tuo navigatore urbano</p>
     <h1 class="hero-title">Non giocare al turismo a caso.</h1>
     <p class="hero-subtitle">Pianifica l'itinerario perfetto a piedi, tappa dopo tappa. Solo poche città alla volta, attenzione totale, e la mappa al tuo fianco.</p>
-    <div class="hero-actions">
-      <button id="enter-app" class="btn btn-primary hero-cta">Entra nell’app</button>
-    </div>
   </div>
 </header>
 
-<main class="main is-hidden">
+<main class="main">
   <div class="content-wrapper">
-
-    <div class="steps-bar">
-      <button class="step-pill step-pill-active" data-step="1">1. Pianifica</button>
-      <button class="step-pill" data-step="2">2. Naviga</button>
-    </div>
 
     <section class="section planner-section">
       <div class="section-label">Pianifica il viaggio</div>
@@ -59,11 +51,7 @@
           <option value="2" selected>2 giorni — completo</option>
           <option value="3">3 giorni — relax</option>
         </select>
-      </div>
-
-      <div class="actions">
-        <button id="generate-city-itinerary" class="btn btn-primary">Genera itinerario</button>
-        <button id="recalc-from-position" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola da mia posizione</button>
+        <p class="field-hint planner-hint">Per generare e avviare la navigazione usa i pulsanti accanto alla mappa.</p>
       </div>
 
       <div id="days-tabs" class="days-tabs"></div>
@@ -115,11 +103,27 @@
         </div>
       </div>
 
-      <div class="actions actions-stack">
-        <button id="play-simulation" class="btn btn-primary" disabled>Anteprima percorso</button>
+      <div class="actions actions-main">
+        <button id="generate-city-itinerary" class="btn btn-primary">Genera itinerario</button>
         <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione GPS</button>
+        <button id="play-simulation" class="btn btn-outline" disabled>Anteprima percorso</button>
+        <button id="recalc-from-position" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola da mia posizione</button>
         <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
       </div>
+
+      <section class="planned-section">
+        <h3 class="planned-title">Viaggi messi da parte</h3>
+        <p class="planned-hint">Segna gli itinerari che vuoi tenere pronti per quando partirai davvero.</p>
+
+        <form id="planned-form" class="planned-form">
+          <input id="planned-name" type="text" class="field-input planned-input" placeholder="Nome viaggio (es. Weekend a Roma)">
+          <input id="planned-cities" type="text" class="field-input planned-input" placeholder="Città o tappe principali">
+          <input id="planned-date" type="date" class="field-input planned-input planned-input-date">
+          <button type="submit" class="btn btn-outline planned-add">Aggiungi</button>
+        </form>
+
+        <ul id="planned-list" class="planned-list" aria-live="polite"></ul>
+      </section>
     </section>
 
   </div>

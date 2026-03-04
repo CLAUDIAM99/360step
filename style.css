@@ -253,6 +253,14 @@ body {
   margin-bottom: 0;
 }
 
+.actions-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: var(--space-md) 0;
+  justify-content: flex-start;
+}
+
 .planner-hint {
   margin-top: var(--space-sm);
 }
@@ -427,6 +435,85 @@ body {
 .status-done {
   background: var(--color-success-bg);
   color: var(--color-success);
+}
+
+/* === Navigator header (destinazione + distanza) === */
+.navigator-header {
+  margin-bottom: var(--space-sm);
+}
+.navigator-header .status-banner {
+  margin-bottom: var(--space-sm);
+}
+.navigator-header .tracking-row {
+  margin-bottom: 0;
+}
+
+/* === Indicazioni turn-by-turn === */
+.directions-panel {
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.2s ease, margin 0.2s ease;
+}
+.directions-panel.visible {
+  max-height: 240px;
+  opacity: 1;
+  overflow-y: auto;
+}
+.directions-panel-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-sm);
+}
+.directions-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.directions-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.directions-step:last-child {
+  border-bottom: none;
+}
+.directions-step-num {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.directions-step.current .directions-step-num {
+  background: var(--color-success);
+}
+.directions-step-text {
+  flex: 1;
+  color: var(--color-text);
+}
+.directions-step-dist {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
 }
 
 /* === Tracking === */

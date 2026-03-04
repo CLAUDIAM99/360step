@@ -41,7 +41,14 @@
       <div class="form-block">
         <label for="days-input" class="field-label">Quanti giorni</label>
         <input id="days-input" type="number" min="1" max="14" value="2" class="field-input" placeholder="Es. 2">
-        <p class="field-hint planner-hint">Scrivi il numero di giorni (puoi scegliere tu) e usa i pulsanti accanto alla mappa.</p>
+      </div>
+
+      <div class="actions actions-toolbar">
+        <button id="generate-city-itinerary" class="btn btn-primary">Genera itinerario</button>
+        <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione</button>
+        <button id="play-simulation" class="btn btn-outline" disabled>Anteprima</button>
+        <button id="recalc-from-position" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola</button>
+        <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
       </div>
 
       <div id="days-tabs" class="days-tabs"></div>
@@ -49,22 +56,23 @@
     </section>
 
     <section class="section navigator-section">
-      <div class="section-label">Navigatore live</div>
-      <h2 class="section-title">Mappa e tracking GPS</h2>
-
-      <div id="tracking-status" class="status-banner status-neutral">
-        Inserisci una città e genera l'itinerario.
+      <div class="navigator-header">
+        <div id="tracking-status" class="status-banner status-neutral">Città e giorni a sinistra → Genera → Avvia navigazione.</div>
+        <div class="tracking-row">
+          <div class="tracking-item">
+            <span class="tracking-label">Destinazione</span>
+            <span id="current-leg" class="tracking-value">—</span>
+          </div>
+          <div class="tracking-item">
+            <span class="tracking-label">Distanza</span>
+            <span id="distance-to-next" class="tracking-value">—</span>
+          </div>
+        </div>
       </div>
 
-      <div class="tracking-row">
-        <div class="tracking-item">
-          <span class="tracking-label">Prossima meta</span>
-          <span id="current-leg" class="tracking-value">—</span>
-        </div>
-        <div class="tracking-item">
-          <span class="tracking-label">Distanza</span>
-          <span id="distance-to-next" class="tracking-value">—</span>
-        </div>
+      <div id="directions-panel" class="directions-panel" aria-hidden="true">
+        <h3 class="directions-panel-title">Indicazioni</h3>
+        <div id="directions-steps" class="directions-steps"></div>
       </div>
 
       <div class="map-and-sim">
@@ -91,14 +99,6 @@
             <button id="sim-close" class="btn btn-small btn-close">Chiudi</button>
           </div>
         </div>
-      </div>
-
-      <div class="actions actions-main">
-        <button id="generate-city-itinerary" class="btn btn-primary">Genera itinerario</button>
-        <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione GPS</button>
-        <button id="play-simulation" class="btn btn-outline" disabled>Anteprima percorso</button>
-        <button id="recalc-from-position" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola da mia posizione</button>
-        <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
       </div>
 
       <section class="planned-section">

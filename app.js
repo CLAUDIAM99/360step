@@ -888,7 +888,62 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
   }
 
-  // Crea un percorso dalla posizione utente alla tappa selezionata
+  // Estrae testo dalle istruzioni HTML delle Directions API
+  function stripHtml(html) {
+    if (!html) return "";
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return (div.textContent || div.innerText || "").trim();
+  }
+
+  // Mostra il pannello indicazioni con le istruzioni turn-by-turn (gira a destra, ecc.)
+  function renderDirectionsPanel(legs, currentStepIndex) {
+    const panel = document.getElementById("directions-panel");
+    const container = document.getElementById("directions-steps");
+    if (!panel || !container) return;
+    currentStepIndex = currentStepIndex ?? 0;
+    const steps = [];
+    if (legs && legs.length) {
+      legs.forEach(leg => {
+        if (leg.steps && leg.steps.length) {
+          leg.steps.forEach(s => steps.push({
+            text: stripHtml(s.instructions),
+            distance: s.distance && s.distance.text ? s.distance.text : "",
+            duration: s.duration && s.duration.text ? s.duration.text : ""
+          }));
+        }
+      });
+    }
+    if (steps.length === 0) {
+      panel.classList.remove("visible");
+      panel.setAttribute("aria-hidden", "true");
+      container.innerHTML = "";
+      return;
+    }
+    container.innerHTML = steps.map((s, i) => `
+      <div class="directions-step ${i === currentStepIndex ? "current" : ""}" data-index="${i}">
+        <span class="directions-step-num">${i + 1}</span>
+        <div>
+          <div class="directions-step-text">${s.text || "—"}</div>
+          ${s.distance ? `<div class="directions-step-dist">${s.distance}${s.duration ? " · " + s.duration : ""}</div>` : ""}
+        </div>
+      </div>
+    `).join("");
+    panel.classList.add("visible");
+    panel.setAttribute("aria-hidden", "false");
+  }
+
+  function hideDirectionsPanel() {
+    const panel = document.getElementById("directions-panel");
+    const container = document.getElementById("directions-steps");
+    if (panel) {
+      panel.classList.remove("visible");
+      panel.setAttribute("aria-hidden", "true");
+    }
+    if (container) container.innerHTML = "";
+  }
+
+  // Crea un percorso dalla posizione utente alla tappa selezionata e mostra le indicazioni
   function drawRouteFromUserToStop(stopIndex) {
     if (typeof google === "undefined" || !directionsService || !stops[stopIndex]) return;
     if (!userPosition) return;
@@ -902,8 +957,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }, (result, status) => {
       if (status === "OK") {
         directionsRenderer.setDirections(result);
-        trackingStatus.textContent = `Navigazione verso ${destination.name}`;
+        trackingStatus.textContent = `Verso ${destination.name}`;
         trackingStatus.className = "status-banner status-active";
+        const legs = result.routes && result.routes[0] && result.routes[0].legs;
+        renderDirectionsPanel(legs, 0);
       }
     });
   }

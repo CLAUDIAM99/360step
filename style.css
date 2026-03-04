@@ -56,7 +56,7 @@ body {
 .hero {
   padding: var(--space-xl) var(--space-lg);
   text-align: center;
-  background: var(--color-surface);
+  background: #f7f3ee;
   border-bottom: 1px solid var(--color-border);
   width: 100%;
 }
@@ -300,8 +300,18 @@ body {
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* Secondario: Avvia navigazione (accent ben visibile) */
+.btn-accent {
+  background: #1e5f74;
+  color: white;
+  border: none;
+}
+.btn-accent:hover:not(:disabled) {
+  background: #164a5c;
 }
 
 .btn-small {
@@ -413,13 +423,17 @@ body {
   margin-top: 0.15rem;
 }
 
-/* === Status banner === */
+/* === Status banner (nascosto di default, visibile solo con .status-visible) === */
 .status-banner {
+  display: none;
   padding: var(--space-md);
   border-radius: var(--radius);
   font-size: 0.95rem;
   margin-bottom: var(--space-md);
   transition: var(--transition);
+}
+.status-banner.status-visible {
+  display: block;
 }
 
 .status-neutral {

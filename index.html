@@ -32,10 +32,9 @@
       <div class="form-block">
         <label for="city-input" class="field-label">Città europea</label>
         <div class="city-search-wrap">
-          <input id="city-input" type="text" placeholder="Cerca o seleziona città…" autocomplete="off" class="field-input">
+          <input id="city-input" type="text" placeholder="Es. Roma, Parigi, Leuven…" autocomplete="off" class="field-input">
           <div id="city-suggestions-dropdown" class="city-suggestions-dropdown" aria-hidden="true"></div>
         </div>
-        <p class="field-hint">Cerca e clicca per aggiungere; più città separate da virgola.</p>
       </div>
 
       <div class="form-block">
@@ -45,7 +44,7 @@
 
       <div class="actions actions-toolbar">
         <button id="generate-city-itinerary" class="btn btn-primary">Genera itinerario</button>
-        <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione</button>
+        <button id="start-tracking" class="btn btn-accent" disabled>Avvia navigazione</button>
         <button id="play-simulation" class="btn btn-outline" disabled>Anteprima</button>
         <button id="recalc-from-position" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola</button>
         <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
@@ -56,8 +55,8 @@
     </section>
 
     <section class="section navigator-section">
-      <div class="navigator-header">
-        <div id="tracking-status" class="status-banner status-neutral">Città e giorni a sinistra → Genera → Avvia navigazione.</div>
+        <div class="navigator-header">
+        <div id="tracking-status" class="status-banner status-neutral" aria-live="polite"></div>
         <div class="tracking-row">
           <div class="tracking-item">
             <span class="tracking-label">Destinazione</span>

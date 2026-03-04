@@ -748,6 +748,21 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   });
 
+  // Permette di lanciare la generazione con Invio o scegliendo dal menu
+  if (cityInput) {
+    cityInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        btnGenerate.click();
+      }
+    });
+    cityInput.addEventListener("change", () => {
+      if (cityInput.value.trim()) {
+        btnGenerate.click();
+      }
+    });
+  }
+
   const btnRecalcFromPosition = document.getElementById("recalc-from-position");
   if (btnRecalcFromPosition) {
     btnRecalcFromPosition.addEventListener("click", () => {
@@ -809,7 +824,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderStopsList() {
     stopsList.innerHTML = stops.map((s, i) => `
-      <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}">
+      <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}" data-index="${i}">
         <div class="stop-info">
           <span class="stop-number">${i + 1}</span>
           <div>
@@ -827,6 +842,73 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const btnRecalc = document.getElementById("recalc-from-position");
     if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
+  }
+
+  // Crea un percorso dalla posizione utente alla tappa selezionata
+  function drawRouteFromUserToStop(stopIndex) {
+    if (typeof google === "undefined" || !directionsService || !stops[stopIndex]) return;
+    if (!userPosition) return;
+    const destination = stops[stopIndex];
+    const originLatLng = { lat: userPosition.lat, lng: userPosition.lng };
+
+    directionsService.route({
+      origin: originLatLng,
+      destination: { lat: destination.lat, lng: destination.lng },
+      travelMode: google.maps.TravelMode.WALKING
+    }, (result, status) => {
+      if (status === "OK") {
+        directionsRenderer.setDirections(result);
+        trackingStatus.textContent = `Navigazione verso ${destination.name}`;
+        trackingStatus.className = "status-banner status-active";
+      }
+    });
+  }
+
+  // Click su una tappa: imposta quella come destinazione dalla posizione attuale
+  if (stopsList) {
+    stopsList.addEventListener("click", (event) => {
+      const item = event.target.closest(".stop-item");
+      if (!item) return;
+      const index = Number(item.getAttribute("data-index"));
+      if (Number.isNaN(index) || !stops[index]) return;
+
+      currentLegIndex = index;
+      document.getElementById("current-leg").textContent = stops[index].name;
+      renderStopsList();
+      updateMarkers();
+
+      const buildFromPosition = () => {
+        if (map) {
+          map.setZoom(17);
+          map.panTo(userPosition);
+        }
+        drawRouteFromUserToStop(index);
+      };
+
+      if (userPosition) {
+        buildFromPosition();
+      } else if (navigator.geolocation) {
+        trackingStatus.textContent = "Rilevamento posizione in corso...";
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userPosition = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude
+            };
+            if (userMarker) {
+              userMarker.setPosition(userPosition);
+              userMarker.setVisible(true);
+            }
+            buildFromPosition();
+          },
+          () => {
+            trackingStatus.textContent = "Impossibile ottenere la posizione.";
+            trackingStatus.className = "status-banner status-neutral";
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      }
+    });
   }
 
   function calculateAndDisplayRoute() {

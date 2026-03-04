@@ -617,15 +617,15 @@ let watchId = null;
 let simulationInterval = null;
 let simIndex = 0;
 
-// Inizializzazione Google Maps (callback globale) — nessuna geolocalizzazione al caricamento
+// Inizializzazione Google Maps (callback globale)
 window.initMap = function() {
   const mapElement = document.getElementById("map");
   if (!mapElement) return;
 
   try {
     map = new google.maps.Map(mapElement, {
-      zoom: 4,
-      center: { lat: 48.8, lng: 10 },
+      zoom: 14,
+      center: { lat: 41.8902, lng: 12.4922 },
       disableDefaultUI: false,
       styles: [
         { "featureType": "all", "elementType": "labels.text.fill", "stylers": [{"color": "#334155"}] },
@@ -655,11 +655,7 @@ window.initMap = function() {
     console.log("Maps API caricata correttamente.");
   } catch (e) {
     console.error("Errore inizializzazione Maps:", e);
-    const el = document.getElementById("tracking-status");
-    if (el) {
-      el.textContent = "Errore: Google Maps non caricato. Controlla la connessione o l'API Key.";
-      el.classList.add("status-visible");
-    }
+    document.getElementById("tracking-status").textContent = "Errore: Google Maps non caricato. Controlla la connessione o l'API Key.";
   }
 };
 
@@ -673,15 +669,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStop = document.getElementById("stop-tracking");
   const trackingStatus = document.getElementById("tracking-status");
 
-  // Nessuna richiesta GPS al caricamento. Il banner di stato è nascosto di default e si mostra solo al click su "Avvia navigazione".
-  function setStatusVisible(visible) {
-    if (!trackingStatus) return;
-    trackingStatus.classList.toggle("status-visible", !!visible);
-  }
-  function setStatusMessage(text, className) {
-    if (!trackingStatus) return;
-    trackingStatus.textContent = text;
-    trackingStatus.className = "status-banner " + (className || "status-neutral");
+  // Controllo iniziale se l'API è caricata (nel caso defer fallisca o sia lenta)
+  if (typeof google === "undefined" || !google.maps) {
+    trackingStatus.textContent = "Attivazione navigatore in corso...";
+    setTimeout(() => {
+        if (typeof google === "undefined") {
+            trackingStatus.textContent = "Errore: Servizi Google non disponibili. Controlla l'API Key nel file index.html.";
+            trackingStatus.className = "status-banner status-neutral";
+        }
+    }, 3000);
   }
 
   function doGenerateItinerary(userLat, userLng) {
@@ -704,8 +700,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     if (pois.length === 0) {
-      setStatusVisible(true);
-      setStatusMessage("Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).", "status-neutral");
+      trackingStatus.textContent = "Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).";
+      trackingStatus.className = "status-banner status-neutral";
       return;
     }
 
@@ -726,8 +722,8 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDay(1);
     
     const citiesLabel = foundCities.join(", ");
-    setStatusVisible(true);
-    setStatusMessage(pois.length > 0 ? `Itinerario per ${citiesLabel} pronto!` : "Nessun itinerario generato.", "status-active");
+    trackingStatus.textContent = pois.length > 0 ? `Itinerario per ${citiesLabel} pronto!` : "Nessun itinerario generato.";
+    trackingStatus.className = "status-banner status-active";
   }
 
   btnGenerate.addEventListener("click", () => {
@@ -735,8 +731,7 @@ document.addEventListener("DOMContentLoaded", () => {
       doGenerateItinerary(null, null);
       return;
     }
-    setStatusVisible(true);
-    setStatusMessage("Rilevamento posizione in corso…", "status-active");
+    trackingStatus.textContent = "Rilevamento posizione in corso...";
     navigator.geolocation.getCurrentPosition(
       pos => {
         const lat = pos.coords.latitude;
@@ -753,73 +748,13 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   });
 
-  // Permette di lanciare la generazione con Invio
-  if (cityInput) {
-    cityInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const dropdown = document.getElementById("city-suggestions-dropdown");
-        if (dropdown && dropdown.classList.contains("visible")) {
-          const first = dropdown.querySelector(".city-suggestion-item");
-          if (first) first.click();
-        } else {
-          btnGenerate.click();
-        }
-      }
-    });
-  }
-
-  // Barra ricerca città a cascata: elenco da CITY_TEMPLATES + CITY_ALIASES
-  const cityDropdown = document.getElementById("city-suggestions-dropdown");
-  if (cityInput && cityDropdown) {
-    const cityList = Object.entries(CITY_TEMPLATES).map(([key, t]) => ({
-      key,
-      displayName: t.displayName,
-      searchTerms: [t.displayName.toLowerCase(), ...(CITY_ALIASES[key] || []).map(a => a.toLowerCase())]
-    }));
-
-    function showSuggestions(query) {
-      const q = (query || "").trim().toLowerCase();
-      const filtered = q
-        ? cityList.filter(c => c.searchTerms.some(term => term.includes(q)))
-        : cityList.slice(0, 20);
-      cityDropdown.innerHTML = filtered.slice(0, 12).map(c => 
-        `<div class="city-suggestion-item" data-name="${c.displayName.replace(/"/g, "&quot;")}">${c.displayName}</div>`
-      ).join("");
-      cityDropdown.classList.toggle("visible", filtered.length > 0);
-      cityDropdown.setAttribute("aria-hidden", filtered.length === 0 ? "true" : "false");
-    }
-
-    function addCity(name) {
-      const cur = cityInput.value.trim();
-      cityInput.value = cur ? `${cur}, ${name}` : name;
-      cityDropdown.classList.remove("visible");
-      cityDropdown.setAttribute("aria-hidden", "true");
-    }
-
-    cityInput.addEventListener("input", () => showSuggestions(cityInput.value));
-    cityInput.addEventListener("focus", () => showSuggestions(cityInput.value));
-    cityDropdown.addEventListener("click", (e) => {
-      const item = e.target.closest(".city-suggestion-item");
-      if (item) addCity(item.getAttribute("data-name"));
-    });
-
-    document.addEventListener("click", (e) => {
-      if (!e.target.closest(".city-search-wrap")) {
-        cityDropdown.classList.remove("visible");
-        cityDropdown.setAttribute("aria-hidden", "true");
-      }
-    });
-  }
-
   const btnRecalcFromPosition = document.getElementById("recalc-from-position");
   if (btnRecalcFromPosition) {
     btnRecalcFromPosition.addEventListener("click", () => {
       const flatStops = allStops.flat();
       if (flatStops.length === 0) return;
       if (!navigator.geolocation) return alert("GPS non supportato.");
-      setStatusVisible(true);
-      setStatusMessage("Ricalcolo da tua posizione…", "status-active");
+      trackingStatus.textContent = "Ricalcolo da tua posizione...";
       navigator.geolocation.getCurrentPosition(
         pos => {
           const lat = pos.coords.latitude;
@@ -837,7 +772,8 @@ document.addEventListener("DOMContentLoaded", () => {
             allStops.push(optimized.slice(i * perDay, (i + 1) * perDay));
           }
           loadDay(1);
-          setStatusMessage("Itinerario riordinato dalla tua posizione!", "status-active");
+          trackingStatus.textContent = "Itinerario riordinato dalla tua posizione!";
+          trackingStatus.className = "status-banner status-active";
         },
         () => alert("Impossibile ottenere la posizione.")
       );
@@ -873,7 +809,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderStopsList() {
     stopsList.innerHTML = stops.map((s, i) => `
-      <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}" data-index="${i}">
+      <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}">
         <div class="stop-info">
           <span class="stop-number">${i + 1}</span>
           <div>
@@ -891,226 +827,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const btnRecalc = document.getElementById("recalc-from-position");
     if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
-  }
-
-  // Estrae testo dalle istruzioni HTML delle Directions API
-  function stripHtml(html) {
-    if (!html) return "";
-    const div = document.createElement("div");
-    div.innerHTML = html;
-    return (div.textContent || div.innerText || "").trim();
-  }
-
-  // Mostra il pannello indicazioni con le istruzioni turn-by-turn (gira a destra, ecc.)
-  function renderDirectionsPanel(legs, currentStepIndex) {
-    const panel = document.getElementById("directions-panel");
-    const container = document.getElementById("directions-steps");
-    if (!panel || !container) return;
-    currentStepIndex = currentStepIndex ?? 0;
-    const steps = [];
-    if (legs && legs.length) {
-      legs.forEach(leg => {
-        if (leg.steps && leg.steps.length) {
-          leg.steps.forEach(s => steps.push({
-            text: stripHtml(s.instructions),
-            distance: s.distance && s.distance.text ? s.distance.text : "",
-            duration: s.duration && s.duration.text ? s.duration.text : ""
-          }));
-        }
-      });
-    }
-    if (steps.length === 0) {
-      panel.classList.remove("visible");
-      panel.setAttribute("aria-hidden", "true");
-      container.innerHTML = "";
-      return;
-    }
-    container.innerHTML = steps.map((s, i) => `
-      <div class="directions-step ${i === currentStepIndex ? "current" : ""}" data-index="${i}">
-        <span class="directions-step-num">${i + 1}</span>
-        <div>
-          <div class="directions-step-text">${s.text || "—"}</div>
-          ${s.distance ? `<div class="directions-step-dist">${s.distance}${s.duration ? " · " + s.duration : ""}</div>` : ""}
-        </div>
-      </div>
-    `).join("");
-    panel.classList.add("visible");
-    panel.setAttribute("aria-hidden", "false");
-  }
-
-  function hideDirectionsPanel() {
-    const panel = document.getElementById("directions-panel");
-    const container = document.getElementById("directions-steps");
-    if (panel) {
-      panel.classList.remove("visible");
-      panel.setAttribute("aria-hidden", "true");
-    }
-    if (container) container.innerHTML = "";
-  }
-
-  // Crea un percorso dalla posizione utente alla tappa selezionata e mostra le indicazioni
-  function drawRouteFromUserToStop(stopIndex) {
-    if (typeof google === "undefined" || !directionsService || !stops[stopIndex]) return;
-    if (!userPosition) return;
-    const destination = stops[stopIndex];
-    const originLatLng = { lat: userPosition.lat, lng: userPosition.lng };
-
-    directionsService.route({
-      origin: originLatLng,
-      destination: { lat: destination.lat, lng: destination.lng },
-      travelMode: google.maps.TravelMode.WALKING
-    }, (result, status) => {
-      if (status === "OK") {
-        directionsRenderer.setDirections(result);
-        setStatusMessage(`Verso ${destination.name}`, "status-active");
-        const legs = result.routes && result.routes[0] && result.routes[0].legs;
-        renderDirectionsPanel(legs, 0);
-      }
-    });
-  }
-
-  // Messaggio errore GPS leggibile in console e in italiano per l'utente
-  function handleGeolocationError(err) {
-    const code = err && err.code;
-    const msg = err && err.message ? err.message : "";
-    const codeNames = { 1: "PERMISSION_DENIED", 2: "POSITION_UNAVAILABLE", 3: "TIMEOUT" };
-    const codeName = codeNames[code] || "UNKNOWN";
-    console.error("[GPS] Errore geolocalizzazione:", codeName, "code=" + code, msg);
-
-    let userMsg = "Impossibile usare la posizione.";
-    if (code === 1) userMsg = "Permesso GPS negato. Abilita la posizione nelle impostazioni del browser o del dispositivo.";
-    else if (code === 2) userMsg = "Posizione non disponibile. Controlla che il GPS sia attivo e il segnale sufficiente.";
-    else if (code === 3) userMsg = "Tempo scaduto. Riprova in un luogo con migliore ricezione.";
-
-    setStatusVisible(true);
-    setStatusMessage(userMsg, "status-neutral");
-  }
-
-  // Avvia la navigazione GPS solo al click — permesso richiesto qui, mai al caricamento
-  function startGpsTracking() {
-    if (!navigator.geolocation) {
-      setStatusVisible(true);
-      setStatusMessage("Questo browser non supporta la geolocalizzazione. Usa un browser aggiornato.", "status-neutral");
-      console.error("[GPS] navigator.geolocation non disponibile");
-      return;
-    }
-    if (typeof google === "undefined" || !google.maps) {
-      setStatusVisible(true);
-      setStatusMessage("Mappa non ancora pronta. Attendi qualche secondo e riprova.", "status-neutral");
-      console.error("[GPS] Google Maps API non caricata");
-      return;
-    }
-    if (!stops.length) {
-      setStatusVisible(true);
-      setStatusMessage("Genera prima un itinerario (città + Genera itinerario).", "status-neutral");
-      return;
-    }
-
-    setStatusVisible(true);
-    setStatusMessage("Richiesta posizione in corso… Accetta il permesso nel browser.", "status-active");
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-    document.body.classList.add("is-tracking");
-    if (map) map.setZoom(17);
-
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        userPosition = userPos;
-        if (userMarker) {
-          userMarker.setPosition(userPos);
-          userMarker.setVisible(true);
-        }
-        if (map) {
-          map.panTo(userPos);
-          if (map.getZoom() < 17) map.setZoom(17);
-        }
-        setStatusMessage("Navigazione attiva.", "status-active");
-
-        if (currentLegIndex < stops.length) {
-          const target = stops[currentLegIndex];
-          const distance = google.maps.geometry.spherical.computeDistanceBetween(
-            new google.maps.LatLng(userPos.lat, userPos.lng),
-            new google.maps.LatLng(target.lat, target.lng)
-          );
-          const distEl = document.getElementById("distance-to-next");
-          const legEl = document.getElementById("current-leg");
-          if (distEl) distEl.textContent = `${Math.round(distance)} m`;
-          if (legEl) legEl.textContent = target.name;
-          drawRouteFromUserToStop(currentLegIndex);
-          if (distance < DISTANCE_THRESHOLD_METERS) {
-            stops[currentLegIndex].reached = true;
-            currentLegIndex++;
-            renderStopsList();
-            updateMarkers();
-            if (currentLegIndex >= stops.length) {
-              setStatusMessage("Itinerario completato! 🎉", "status-done");
-              if (watchId) navigator.geolocation.clearWatch(watchId);
-              watchId = null;
-              btnStop.disabled = true;
-              btnStart.disabled = false;
-              document.body.classList.remove("is-tracking");
-            }
-          }
-        }
-      },
-      (err) => {
-        handleGeolocationError(err);
-        btnStart.disabled = false;
-        btnStop.disabled = true;
-        if (watchId) {
-          navigator.geolocation.clearWatch(watchId);
-          watchId = null;
-        }
-        document.body.classList.remove("is-tracking");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  }
-
-  // Click su una tappa: imposta destinazione, disegna percorso e avvia navigazione vera
-  if (stopsList) {
-    stopsList.addEventListener("click", (event) => {
-      const item = event.target.closest(".stop-item");
-      if (!item) return;
-      const index = Number(item.getAttribute("data-index"));
-      if (Number.isNaN(index) || !stops[index]) return;
-
-      currentLegIndex = index;
-      document.getElementById("current-leg").textContent = stops[index].name;
-      renderStopsList();
-      updateMarkers();
-
-      const buildAndStartNavigation = () => {
-        if (map) {
-          map.setZoom(17);
-          map.panTo(userPosition);
-        }
-        drawRouteFromUserToStop(index);
-        if (!watchId) startGpsTracking();
-      };
-
-      if (userPosition) {
-        buildAndStartNavigation();
-      } else if (navigator.geolocation) {
-        setStatusVisible(true);
-        setStatusMessage("Rilevamento posizione in corso…", "status-active");
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            if (userMarker) {
-              userMarker.setPosition(userPosition);
-              userMarker.setVisible(true);
-            }
-            buildAndStartNavigation();
-          },
-          (err) => {
-            handleGeolocationError(err);
-          },
-          { enableHighAccuracy: true, timeout: 8000 }
-        );
-      }
-    });
   }
 
   function calculateAndDisplayRoute() {
@@ -1213,24 +929,60 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   btnStart.addEventListener("click", () => {
-    startGpsTracking();
+    if (!navigator.geolocation) return alert("GPS non supportato.");
+    if (typeof google === "undefined") return alert("Servizi Google non caricati.");
+
+    trackingStatus.textContent = "Navigazione attiva...";
+    trackingStatus.className = "status-banner status-active";
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+
+    watchId = navigator.geolocation.watchPosition(pos => {
+      const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      userPosition = userPos;
+      if (userMarker) {
+        userMarker.setPosition(userPos);
+        userMarker.setVisible(true);
+      }
+      map.panTo(userPos);
+      
+      if (currentLegIndex < stops.length) {
+        const target = stops[currentLegIndex];
+        const distance = google.maps.geometry.spherical.computeDistanceBetween(
+          new google.maps.LatLng(userPos.lat, userPos.lng),
+          new google.maps.LatLng(target.lat, target.lng)
+        );
+
+        document.getElementById("distance-to-next").textContent = `${Math.round(distance)} m`;
+        document.getElementById("current-leg").textContent = target.name;
+
+        if (distance < DISTANCE_THRESHOLD_METERS) {
+          stops[currentLegIndex].reached = true;
+          currentLegIndex++;
+          renderStopsList();
+          updateMarkers();
+          
+          if (currentLegIndex >= stops.length) {
+            trackingStatus.textContent = "Itinerario completato! 🎉";
+            trackingStatus.className = "status-banner status-done";
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            btnStop.disabled = true;
+          }
+        }
+      }
+    }, (err) => {
+      console.error("GPS Error:", err);
+      trackingStatus.textContent = "Errore GPS. Controlla i permessi.";
+    }, { enableHighAccuracy: true, timeout: 5000 });
   });
 
   btnStop.addEventListener("click", () => {
-    if (watchId) {
-      navigator.geolocation.clearWatch(watchId);
-      watchId = null;
-    }
+    if (watchId) navigator.geolocation.clearWatch(watchId);
     if (userMarker) userMarker.setVisible(false);
-    setStatusMessage("Navigazione sospesa.", "status-neutral");
+    trackingStatus.textContent = "Navigazione sospesa.";
+    trackingStatus.className = "status-banner status-neutral";
     btnStart.disabled = false;
     btnStop.disabled = true;
-    document.body.classList.remove("is-tracking");
-    if (map && stops.length) {
-      const bounds = new google.maps.LatLngBounds();
-      stops.forEach(s => bounds.extend({ lat: s.lat, lng: s.lng }));
-      map.fitBounds(bounds);
-    }
   });
 
   const btnShowLocation = document.getElementById("show-my-location");
@@ -1368,96 +1120,5 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   btnSimClose.addEventListener("click", stopSimulation);
-
-  // === VIAGGI MESSI DA PARTE ===
-  const plannedForm = document.getElementById("planned-form");
-  const plannedList = document.getElementById("planned-list");
-  const plannedNameInput = document.getElementById("planned-name");
-  const plannedCitiesInput = document.getElementById("planned-cities");
-  const plannedDateInput = document.getElementById("planned-date");
-
-  const PLANNED_STORAGE_KEY = "360step_planned_trips";
-  let plannedTrips = [];
-
-  function loadPlannedTrips() {
-    try {
-      const raw = localStorage.getItem(PLANNED_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        plannedTrips = parsed;
-      }
-    } catch (e) {
-      console.warn("Impossibile leggere i viaggi salvati", e);
-    }
-  }
-
-  function savePlannedTrips() {
-    try {
-      localStorage.setItem(PLANNED_STORAGE_KEY, JSON.stringify(plannedTrips));
-    } catch (e) {
-      console.warn("Impossibile salvare i viaggi", e);
-    }
-  }
-
-  function renderPlannedTrips() {
-    if (!plannedList) return;
-    if (!plannedTrips.length) {
-      plannedList.innerHTML = "";
-      return;
-    }
-    plannedList.innerHTML = plannedTrips.map((trip, index) => {
-      const dateLabel = trip.date ? ` · ${trip.date}` : "";
-      const citiesLabel = trip.cities ? trip.cities : "Città da definire";
-      return `
-        <li class="planned-item" data-index="${index}">
-          <div class="planned-main">
-            <span class="planned-name">${trip.name}</span>
-            <span class="planned-meta">${citiesLabel}${dateLabel}</span>
-          </div>
-          <div class="planned-actions">
-            <button type="button" class="btn btn-outline planned-remove">✕</button>
-          </div>
-        </li>
-      `;
-    }).join("");
-  }
-
-  if (plannedForm && plannedList) {
-    loadPlannedTrips();
-    renderPlannedTrips();
-
-    plannedForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = plannedNameInput.value.trim();
-      const cities = plannedCitiesInput.value.trim();
-      const date = plannedDateInput.value;
-      if (!name) {
-        plannedNameInput.focus();
-        return;
-      }
-      plannedTrips.push({ name, cities, date });
-      savePlannedTrips();
-      renderPlannedTrips();
-      plannedNameInput.value = "";
-      plannedCitiesInput.value = "";
-      plannedDateInput.value = "";
-    });
-
-    plannedList.addEventListener("click", (e) => {
-      const target = e.target;
-      if (!(target instanceof HTMLElement)) return;
-      if (target.classList.contains("planned-remove")) {
-        const item = target.closest(".planned-item");
-        if (!item) return;
-        const idx = Number(item.getAttribute("data-index"));
-        if (!Number.isNaN(idx)) {
-          plannedTrips.splice(idx, 1);
-          savePlannedTrips();
-          renderPlannedTrips();
-        }
-      }
-    });
-  }
 
 });

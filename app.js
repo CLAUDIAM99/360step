@@ -937,6 +937,8 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         document.getElementById("distance-to-next").textContent = `${Math.round(distance)} m`;
         document.getElementById("current-leg").textContent = target.name;
+        // aggiorna sempre il percorso come Google Maps: da dove sei alla tappa corrente
+        drawRouteFromUserToStop(currentLegIndex);
         if (distance < DISTANCE_THRESHOLD_METERS) {
           stops[currentLegIndex].reached = true;
           currentLegIndex++;

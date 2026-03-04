@@ -249,6 +249,8 @@ body {
 .actions-main {
   justify-content: flex-start;
   gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  margin-bottom: 0;
 }
 
 .planner-hint {

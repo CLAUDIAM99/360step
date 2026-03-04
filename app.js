@@ -748,17 +748,61 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   });
 
-  // Permette di lanciare la generazione con Invio o scegliendo dal menu
+  // Permette di lanciare la generazione con Invio
   if (cityInput) {
     cityInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        btnGenerate.click();
+        const dropdown = document.getElementById("city-suggestions-dropdown");
+        if (dropdown && dropdown.classList.contains("visible")) {
+          const first = dropdown.querySelector(".city-suggestion-item");
+          if (first) first.click();
+        } else {
+          btnGenerate.click();
+        }
       }
     });
-    cityInput.addEventListener("change", () => {
-      if (cityInput.value.trim()) {
-        btnGenerate.click();
+  }
+
+  // Barra ricerca città a cascata: elenco da CITY_TEMPLATES + CITY_ALIASES
+  const cityDropdown = document.getElementById("city-suggestions-dropdown");
+  if (cityInput && cityDropdown) {
+    const cityList = Object.entries(CITY_TEMPLATES).map(([key, t]) => ({
+      key,
+      displayName: t.displayName,
+      searchTerms: [t.displayName.toLowerCase(), ...(CITY_ALIASES[key] || []).map(a => a.toLowerCase())]
+    }));
+
+    function showSuggestions(query) {
+      const q = (query || "").trim().toLowerCase();
+      const filtered = q
+        ? cityList.filter(c => c.searchTerms.some(term => term.includes(q)))
+        : cityList.slice(0, 20);
+      cityDropdown.innerHTML = filtered.slice(0, 12).map(c => 
+        `<div class="city-suggestion-item" data-name="${c.displayName.replace(/"/g, "&quot;")}">${c.displayName}</div>`
+      ).join("");
+      cityDropdown.classList.toggle("visible", filtered.length > 0);
+      cityDropdown.setAttribute("aria-hidden", filtered.length === 0 ? "true" : "false");
+    }
+
+    function addCity(name) {
+      const cur = cityInput.value.trim();
+      cityInput.value = cur ? `${cur}, ${name}` : name;
+      cityDropdown.classList.remove("visible");
+      cityDropdown.setAttribute("aria-hidden", "true");
+    }
+
+    cityInput.addEventListener("input", () => showSuggestions(cityInput.value));
+    cityInput.addEventListener("focus", () => showSuggestions(cityInput.value));
+    cityDropdown.addEventListener("click", (e) => {
+      const item = e.target.closest(".city-suggestion-item");
+      if (item) addCity(item.getAttribute("data-name"));
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".city-search-wrap")) {
+        cityDropdown.classList.remove("visible");
+        cityDropdown.setAttribute("aria-hidden", "true");
       }
     });
   }
@@ -864,7 +908,58 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Click su una tappa: imposta quella come destinazione dalla posizione attuale
+  // Avvia la navigazione GPS in tempo reale (usata da pulsante e da click su tappa)
+  function startGpsTracking() {
+    if (!navigator.geolocation || typeof google === "undefined") return;
+    trackingStatus.textContent = "Navigazione attiva...";
+    trackingStatus.className = "status-banner status-active";
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    document.body.classList.add("is-tracking");
+    if (map) map.setZoom(17);
+
+    watchId = navigator.geolocation.watchPosition(pos => {
+      const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      userPosition = userPos;
+      if (userMarker) {
+        userMarker.setPosition(userPos);
+        userMarker.setVisible(true);
+      }
+      if (map) {
+        map.panTo(userPos);
+        if (map.getZoom() < 17) map.setZoom(17);
+      }
+      if (currentLegIndex < stops.length) {
+        const target = stops[currentLegIndex];
+        const distance = google.maps.geometry.spherical.computeDistanceBetween(
+          new google.maps.LatLng(userPos.lat, userPos.lng),
+          new google.maps.LatLng(target.lat, target.lng)
+        );
+        document.getElementById("distance-to-next").textContent = `${Math.round(distance)} m`;
+        document.getElementById("current-leg").textContent = target.name;
+        if (distance < DISTANCE_THRESHOLD_METERS) {
+          stops[currentLegIndex].reached = true;
+          currentLegIndex++;
+          renderStopsList();
+          updateMarkers();
+          if (currentLegIndex >= stops.length) {
+            trackingStatus.textContent = "Itinerario completato! 🎉";
+            trackingStatus.className = "status-banner status-done";
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+            btnStop.disabled = true;
+            btnStart.disabled = false;
+            document.body.classList.remove("is-tracking");
+          }
+        }
+      }
+    }, (err) => {
+      console.error("GPS Error:", err);
+      trackingStatus.textContent = "Errore GPS. Controlla i permessi.";
+    }, { enableHighAccuracy: true, timeout: 5000 });
+  }
+
+  // Click su una tappa: imposta destinazione, disegna percorso e avvia navigazione vera
   if (stopsList) {
     stopsList.addEventListener("click", (event) => {
       const item = event.target.closest(".stop-item");
@@ -877,29 +972,27 @@ document.addEventListener("DOMContentLoaded", () => {
       renderStopsList();
       updateMarkers();
 
-      const buildFromPosition = () => {
+      const buildAndStartNavigation = () => {
         if (map) {
           map.setZoom(17);
           map.panTo(userPosition);
         }
         drawRouteFromUserToStop(index);
+        if (!watchId) startGpsTracking();
       };
 
       if (userPosition) {
-        buildFromPosition();
+        buildAndStartNavigation();
       } else if (navigator.geolocation) {
         trackingStatus.textContent = "Rilevamento posizione in corso...";
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            userPosition = {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude
-            };
+            userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             if (userMarker) {
               userMarker.setPosition(userPosition);
               userMarker.setVisible(true);
             }
-            buildFromPosition();
+            buildAndStartNavigation();
           },
           () => {
             trackingStatus.textContent = "Impossibile ottenere la posizione.";
@@ -1013,62 +1106,14 @@ document.addEventListener("DOMContentLoaded", () => {
   btnStart.addEventListener("click", () => {
     if (!navigator.geolocation) return alert("GPS non supportato.");
     if (typeof google === "undefined") return alert("Servizi Google non caricati.");
-
-    trackingStatus.textContent = "Navigazione attiva...";
-    trackingStatus.className = "status-banner status-active";
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-     document.body.classList.add("is-tracking");
-     if (map) {
-       map.setZoom(17);
-     }
-
-    watchId = navigator.geolocation.watchPosition(pos => {
-      const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      userPosition = userPos;
-      if (userMarker) {
-        userMarker.setPosition(userPos);
-        userMarker.setVisible(true);
-      }
-      if (map) {
-        map.panTo(userPos);
-        if (map.getZoom() < 17) {
-          map.setZoom(17);
-        }
-      }
-      
-      if (currentLegIndex < stops.length) {
-        const target = stops[currentLegIndex];
-        const distance = google.maps.geometry.spherical.computeDistanceBetween(
-          new google.maps.LatLng(userPos.lat, userPos.lng),
-          new google.maps.LatLng(target.lat, target.lng)
-        );
-
-        document.getElementById("distance-to-next").textContent = `${Math.round(distance)} m`;
-        document.getElementById("current-leg").textContent = target.name;
-
-        if (distance < DISTANCE_THRESHOLD_METERS) {
-          stops[currentLegIndex].reached = true;
-          currentLegIndex++;
-          renderStopsList();
-          updateMarkers();
-          
-          if (currentLegIndex >= stops.length) {
-            trackingStatus.textContent = "Itinerario completato! 🎉";
-            trackingStatus.className = "status-banner status-done";
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            btnStop.disabled = true;
-          }
-        }
-      }
-    }, (err) => {
-      console.error("GPS Error:", err);
-      trackingStatus.textContent = "Errore GPS. Controlla i permessi.";
-    }, { enableHighAccuracy: true, timeout: 5000 });
+    startGpsTracking();
   });
 
   btnStop.addEventListener("click", () => {
-    if (watchId) navigator.geolocation.clearWatch(watchId);
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
     if (userMarker) userMarker.setVisible(false);
     trackingStatus.textContent = "Navigazione sospesa.";
     trackingStatus.className = "status-banner status-neutral";

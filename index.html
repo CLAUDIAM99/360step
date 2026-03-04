@@ -31,17 +31,11 @@
 
       <div class="form-block">
         <label for="city-input" class="field-label">Città europea</label>
-        <input id="city-input" type="text" placeholder="Es. Roma, Leuven, Brussels, Anversa…" list="city-suggestions" autocomplete="off" class="field-input">
-        <p class="field-hint">Città singola o multiple separate da virgola</p>
-        <datalist id="city-suggestions">
-          <option value="Roma"><option value="Paris"><option value="London"><option value="Amsterdam">
-          <option value="Barcelona"><option value="Berlin"><option value="Brussels"><option value="Madrid">
-          <option value="Lisbon"><option value="Prague"><option value="Leuven"><option value="Mechelen">
-          <option value="Anversa"><option value="Ottignies"><option value="Gand"><option value="Bruges">
-          <option value="Liège"><option value="Namur"><option value="Milano"><option value="Firenze">
-          <option value="Venezia"><option value="Vienna"><option value="Monaco"><option value="Zurigo">
-          <option value="Dublin"><option value="Edinburgh"><option value="Lyon"><option value="Nice">
-        </datalist>
+        <div class="city-search-wrap">
+          <input id="city-input" type="text" placeholder="Cerca o seleziona città…" autocomplete="off" class="field-input">
+          <div id="city-suggestions-dropdown" class="city-suggestions-dropdown" aria-hidden="true"></div>
+        </div>
+        <p class="field-hint">Cerca e clicca per aggiungere; più città separate da virgola.</p>
       </div>
 
       <div class="form-block">

@@ -602,6 +602,122 @@ leuven: {
   }
 };
 
+// Catalogo città: breve descrizione e cosa vedere (mostrato dopo la ricerca)
+const CITY_CATALOG = {
+  rome: {
+    description: "Capitale eterna, tra antichità romana e barocco. Storia, arte e vita da dolce vita.",
+    highlights: ["Colosseo e Foro Romano", "Vaticano e Basilica di San Pietro", "Fontana di Trevi e Piazza di Spagna", "Pantheon e Piazza Navona", "Trastevere e quartieri"]
+  },
+  paris: {
+    description: "Città della luce: arte, moda e monumenti iconici. Romantica e sempre in movimento.",
+    highlights: ["Tour Eiffel e Champ de Mars", "Louvre e Tuileries", "Notre-Dame e Île de la Cité", "Sacré-Cœur e Montmartre", "Champs-Élysées e Arco di Trionfo"]
+  },
+  london: {
+    description: "Metropoli tra tradizione e avanguardia. Musei gratuiti, parchi e quartieri vivaci.",
+    highlights: ["Big Ben e Westminster", "British Museum e National Gallery", "Tower Bridge e Tower of London", "Buckingham Palace", "Camden e Covent Garden"]
+  },
+  leuven: {
+    description: "Città universitaria belga, birra e architettura gotica. Compatta e accogliente.",
+    highlights: ["Grote Markt e Stadhuis", "Sint-Pieterskerk", "KU Leuven e biblioteca", "Stella Artois Brouwerij", "Park Abbey"]
+  },
+  amsterdam: {
+    description: "Canali, biciclette e musei. Libertà e cultura in una città a misura d'uomo.",
+    highlights: ["Dam e Palazzo Reale", "Rijksmuseum e Van Gogh", "Anne Frank House", "Jordaan e canali", "Mercato dei fiori"]
+  },
+  barcelona: {
+    description: "Gaudí, mare e tapas. Architettura modernista e vita mediterranea.",
+    highlights: ["Sagrada Família", "Park Güell", "Casa Batlló e La Pedrera", "Barri Gòtic e Rambla", "Barceloneta e spiaggia"]
+  },
+  berlin: {
+    description: "Capitale creativa e storica. Musei, street art e memoria del Novecento.",
+    highlights: ["Porta di Brandeburgo", "Museumsinsel", "East Side Gallery", "Checkpoint Charlie", "Reichstag e quartieri"]
+  },
+  brussels: {
+    description: "Cuore dell'Europa, cioccolato e birra. Grand Place e Manneken Pis.",
+    highlights: ["Grand Place", "Manneken Pis", "Atomium", "Mont des Arts", "Quartieri europei"]
+  },
+  madrid: {
+    description: "Capital española: Prado, tapas e vita notturna. Sole e cultura.",
+    highlights: ["Museo del Prado", "Palacio Real", "Puerta del Sol e Gran Vía", "Retiro", "Mercato di San Miguel"]
+  },
+  lisbon: {
+    description: "Sette colline, tram e fado. Atmosfera portoghese e vista sull'oceano.",
+    highlights: ["Alfama e castello", "Belém e Mosteiro", "Tram 28", "Baixa e Chiado", "Miradouros"]
+  },
+  prague: {
+    description: "Centro storico UNESCO, birra e architettura gotica e barocca.",
+    highlights: ["Ponte Carlo e Castello", "Orologio astronomico", "Piazza della Città Vecchia", "Quartiere ebraico", "Birrerie"]
+  },
+  mechelen: {
+    description: "Piccola città fiamminga tra Bruxelles e Anversa. Campanili e tranquillità.",
+    highlights: ["Sint-Romboutskathedraal", "Grote Markt", "Hof van Busleyden", "Begijnhof", "Dijle"]
+  },
+  antwerp: {
+    description: "Porto e diamanti, Rubens e arte. Seconda città del Belgio.",
+    highlights: ["Grote Markt e cattedrale", "MAS", "Rubenshuis", "Stazione Centrale", "Meir"]
+  },
+  ottignies: {
+    description: "Porta di Louvain-la-Neuve: campus, lago e natura.",
+    highlights: ["Louvain-la-Neuve", "Lac de LLN", "Bois de Lauzelle", "Grand-Place LLN"]
+  },
+  ghent: {
+    description: "Città medievale fiamminga tra canali e torri. Meno turistica, molto autentica.",
+    highlights: ["Gravensteen", "Graslei e Korenlei", "Sint-Baafskathedraal", "Belfort", "Patershol"]
+  },
+  bruges: {
+    description: "Venezia del Nord: canali, cioccolato e centro storico UNESCO.",
+    highlights: ["Markt e Belfort", "Canali e giri in barca", "Basilica del Sacro Sangue", "Begijnhof", "Cioccolaterie"]
+  },
+  liege: {
+    description: "Città vallone sul fiume Meuse. Montagne de Bueren e vita studentesca.",
+    highlights: ["Place du Marché", "Montagne de Bueren", "Gare Guillemins", "Coteaux de la Citadelle"]
+  },
+  namur: {
+    description: "Capitale della Vallonia alla confluenza Sambre e Mosa. Citadella e tranquillità.",
+    highlights: ["Citadelle", "Terra Nova", "Pont de Jambes", "Grognon"]
+  },
+  vienna: {
+    description: "Capitale asburgica: musica, caffè e palazzi. Eleganza e cultura.",
+    highlights: ["Schönbrunn", "Stephansdom", "Hofburg", "Belvedere", "Caffè storici"]
+  },
+  milan: {
+    description: "Moda, design e Duomo. Metropoli italiana tra business e arte.",
+    highlights: ["Duomo e Galleria", "Santa Maria delle Grazie (Cenacolo)", "Castello Sforzesco", "Navigli", "Quadrilatero della moda"]
+  },
+  florence: {
+    description: "Culla del Rinascimento. Uffizi, Duomo e arte a ogni angolo.",
+    highlights: ["Uffizi e Ponte Vecchio", "Duomo e Cupola", "Piazza della Signoria", "Piazzale Michelangelo", "San Lorenzo e mercato"]
+  },
+  venice: {
+    description: "Laguna unica al mondo. Canali, palazzi e atmosfera irrepetibile.",
+    highlights: ["Piazza San Marco", "Ponte di Rialto", "Canal Grande", "Murano e Burano", "Ponte dei Sospiri"]
+  },
+  dublin: {
+    description: "Capitals irlandese: pub, letteratura e cordialità. Trinity e Guinness.",
+    highlights: ["Trinity College", "Guinness Storehouse", "Temple Bar", "Castello e cattedrali", "Phoenix Park"]
+  },
+  edinburgh: {
+    description: "Castello, Royal Mile e festival. Scozia tra storia e natura.",
+    highlights: ["Edinburgh Castle", "Royal Mile", "Arthur's Seat", "Palazzo di Holyroodhouse", "Grassmarket"]
+  },
+  lyon: {
+    description: "Capitale della gastronomia e della seta. Tra due colline e due fiumi.",
+    highlights: ["Fourvière e basilica", "Vieux Lyon e traboules", "Presqu'île", "Confluence", "Murailles du Croix-Rousse"]
+  },
+  nice: {
+    description: "Côte d'Azur: mare, Promenade des Anglais e luce del sud.",
+    highlights: ["Promenade des Anglais", "Vieux Nice", "Colline du Château", "Cimiez", "Mercato dei fiori"]
+  },
+  munich: {
+    description: "Cuore della Baviera: birra, barocco e BMW. Oktoberfest e Residenz.",
+    highlights: ["Marienplatz e Neues Rathaus", "Residenz", "Englischer Garten", "BMW Museum", "Viktualienmarkt"]
+  },
+  zurich: {
+    description: "Finanza, lago e qualità della vita. Compatta tra acqua e monti.",
+    highlights: ["Bahnhofstrasse", "Grossmünster e Fraumünster", "Lago e Lindenhof", "Kunsthaus", "Altstadt"]
+  }
+};
+
 // Stato Applicazione
 let map;
 let directionsService;
@@ -617,15 +733,20 @@ let watchId = null;
 let simulationInterval = null;
 let simIndex = 0;
 
-// Inizializzazione Google Maps (callback globale)
+// Inizializzazione Google Maps (callback globale) — nessuna geolocalizzazione al caricamento
 window.initMap = function() {
+  if (window._mapsLoadTimeout) {
+    clearTimeout(window._mapsLoadTimeout);
+    window._mapsLoadTimeout = null;
+  }
   const mapElement = document.getElementById("map");
   if (!mapElement) return;
 
   try {
     map = new google.maps.Map(mapElement, {
-      zoom: 14,
-      center: { lat: 41.8902, lng: 12.4922 },
+      // Mondo intero di default
+      zoom: 2,
+      center: { lat: 0, lng: 0 },
       disableDefaultUI: false,
       styles: [
         { "featureType": "all", "elementType": "labels.text.fill", "stylers": [{"color": "#334155"}] },
@@ -633,6 +754,7 @@ window.initMap = function() {
       ]
     });
 
+    // DirectionsService/DirectionsRenderer/Marker: in futuro migrare a Routes API e AdvancedMarkerElement (vedi avvisi in console)
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({
       map: map,
@@ -653,31 +775,92 @@ window.initMap = function() {
       zIndex: 1000
     });
     console.log("Maps API caricata correttamente.");
+    window.__mapsLoaded = true;
+    if (typeof window.__mapsResolve === "function") {
+      window.__mapsResolve();
+      window.__mapsResolve = null;
+    }
   } catch (e) {
     console.error("Errore inizializzazione Maps:", e);
-    document.getElementById("tracking-status").textContent = "Errore: Google Maps non caricato. Controlla la connessione o l'API Key.";
+    const el = document.getElementById("tracking-status");
+    if (el) {
+      el.textContent = "Mappa non disponibile. Disattiva il blocca-pubblicità per questo sito e ricarica, oppure controlla l'API Key.";
+      el.classList.add("status-visible");
+    }
   }
 };
+
+function loadGoogleMapsScriptIfNeeded() {
+  if (window.google && window.google.maps) return Promise.resolve();
+  if (document.querySelector('script[data-360step="gmaps"]')) {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("timeout")), 9000);
+      window.__mapsResolve = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+    });
+  }
+
+  const key = window.__360STEP_CONFIG__?.googleMapsApiKey;
+  if (!key) {
+    return Promise.reject(new Error("missing_google_maps_key"));
+  }
+
+  window._mapsLoadError = false;
+  window._mapsLoadTimeout = setTimeout(() => {
+    if (typeof google === "undefined") {
+      window._mapsLoadError = true;
+      const el = document.getElementById("tracking-status");
+      if (el) {
+        el.textContent = "La mappa non si è caricata. Avvia il progetto con il server e controlla la chiave Google Maps in .env (oppure disattiva ad-blocker).";
+        el.classList.add("status-visible");
+      }
+      console.warn("[360step] Google Maps non caricato in tempo.");
+    }
+  }, 8000);
+
+  return new Promise((resolve, reject) => {
+    window.__mapsResolve = resolve;
+    const s = document.createElement("script");
+    s.setAttribute("data-360step", "gmaps");
+    s.async = true;
+    s.defer = true;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=geometry&callback=initMap`;
+    s.onerror = () => {
+      window._mapsLoadError = true;
+      if (window._mapsLoadTimeout) clearTimeout(window._mapsLoadTimeout);
+      const el = document.getElementById("tracking-status");
+      if (el) {
+        el.textContent = "Impossibile caricare Google Maps. Controlla la connessione o disattiva il blocca-pubblicità.";
+        el.classList.add("status-visible");
+      }
+      reject(new Error("gmaps_load_error"));
+    };
+    document.head.appendChild(s);
+  });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const cityInput = document.getElementById("city-input");
   const daysInput = document.getElementById("days-input");
-  const btnGenerate = document.getElementById("generate-city-itinerary");
+  const btnGenerate = document.getElementById("btn-generate");
+  const btnGenerateAi = document.getElementById("generate-ai-itinerary");
   const stopsList = document.getElementById("stops-list");
   const daysTabsContainer = document.getElementById("days-tabs");
-  const btnStart = document.getElementById("start-tracking");
-  const btnStop = document.getElementById("stop-tracking");
+  const btnStart = document.getElementById("btn-start");
+  const btnStop = document.getElementById("btn-stop");
   const trackingStatus = document.getElementById("tracking-status");
 
-  // Controllo iniziale se l'API è caricata (nel caso defer fallisca o sia lenta)
-  if (typeof google === "undefined" || !google.maps) {
-    trackingStatus.textContent = "Attivazione navigatore in corso...";
-    setTimeout(() => {
-        if (typeof google === "undefined") {
-            trackingStatus.textContent = "Errore: Servizi Google non disponibili. Controlla l'API Key nel file index.html.";
-            trackingStatus.className = "status-banner status-neutral";
-        }
-    }, 3000);
+  // Nessuna richiesta GPS al caricamento. Il banner di stato è nascosto di default e si mostra solo al click su "Avvia navigazione".
+  function setStatusVisible(visible) {
+    if (!trackingStatus) return;
+    trackingStatus.classList.toggle("status-visible", !!visible);
+  }
+  function setStatusMessage(text, className) {
+    if (!trackingStatus) return;
+    trackingStatus.textContent = text;
+    trackingStatus.className = "status-banner " + (className || "status-neutral");
   }
 
   function doGenerateItinerary(userLat, userLng) {
@@ -700,8 +883,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     if (pois.length === 0) {
-      trackingStatus.textContent = "Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).";
-      trackingStatus.className = "status-banner status-neutral";
+      setStatusVisible(true);
+      setStatusMessage("Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).", "status-neutral");
       return;
     }
 
@@ -722,8 +905,53 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDay(1);
     
     const citiesLabel = foundCities.join(", ");
-    trackingStatus.textContent = pois.length > 0 ? `Itinerario per ${citiesLabel} pronto!` : "Nessun itinerario generato.";
-    trackingStatus.className = "status-banner status-active";
+    setStatusVisible(true);
+    setStatusMessage(pois.length > 0 ? `Itinerario per ${citiesLabel} pronto!` : "Nessun itinerario generato.", "status-active");
+  }
+
+  function doGenerateAiItinerary(userLat, userLng) {
+    const rawInput = cityInput.value.trim();
+    const cityParts = rawInput.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    let pois = [];
+    const foundCities = [];
+
+    for (const part of cityParts) {
+      const cityKey = resolveCityKey(part);
+      if (cityKey && CITY_TEMPLATES[cityKey]) {
+        const template = CITY_TEMPLATES[cityKey];
+        pois = pois.concat(template.pois.map(p => ({
+          ...p,
+          cityName: template.displayName
+        })));
+        foundCities.push(template.displayName);
+      }
+    }
+
+    if (!pois.length) {
+      setStatusVisible(true);
+      setStatusMessage("Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).", "status-neutral");
+      return;
+    }
+
+    // “AI” semplice: mix + un po’ di varietà, poi ottimizza per vicinanza
+    pois = [...pois].sort(() => Math.random() - 0.5);
+    if (userLat != null && userLng != null) {
+      pois = optimizeRouteFromPosition(pois, userLat, userLng);
+    }
+
+    const numDays = parseInt(daysInput.value);
+    allStops = [];
+    const perDay = Math.ceil(pois.length / numDays);
+    for (let i = 0; i < numDays; i++) {
+      allStops.push(pois.slice(i * perDay, (i + 1) * perDay));
+    }
+
+    currentDay = 1;
+    renderTabs(numDays);
+    loadDay(1);
+    const citiesLabel = foundCities.join(", ");
+    setStatusVisible(true);
+    setStatusMessage(`Itinerario AI per ${citiesLabel} pronto!`, "status-active");
   }
 
   btnGenerate.addEventListener("click", () => {
@@ -731,7 +959,8 @@ document.addEventListener("DOMContentLoaded", () => {
       doGenerateItinerary(null, null);
       return;
     }
-    trackingStatus.textContent = "Rilevamento posizione in corso...";
+    setStatusVisible(true);
+    setStatusMessage("Rilevamento posizione in corso…", "status-active");
     navigator.geolocation.getCurrentPosition(
       pos => {
         const lat = pos.coords.latitude;
@@ -748,13 +977,167 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   });
 
-  const btnRecalcFromPosition = document.getElementById("recalc-from-position");
+  if (btnGenerateAi) {
+    btnGenerateAi.addEventListener("click", () => {
+      setStatusVisible(true);
+      setStatusMessage("Creo un itinerario AI…", "status-active");
+      if (!navigator.geolocation) {
+        doGenerateAiItinerary(null, null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          userPosition = { lat, lng };
+          if (userMarker) {
+            userMarker.setPosition({ lat, lng });
+            userMarker.setVisible(true);
+          }
+          doGenerateAiItinerary(lat, lng);
+        },
+        () => doGenerateAiItinerary(null, null),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+  }
+
+  // Se è presente config con chiave (es. server), carica Maps dinamicamente; altrimenti lo script in HTML chiama initMap
+  if (window.__360STEP_CONFIG__?.googleMapsApiKey) {
+    loadGoogleMapsScriptIfNeeded().catch((err) => {
+      if (err?.message === "missing_google_maps_key") {
+        setStatusVisible(true);
+        setStatusMessage("Manca la chiave Google Maps. Imposta GOOGLE_MAPS_API_KEY in .env.", "status-neutral");
+      }
+    });
+  }
+
+  // Permette di lanciare la generazione con Invio
+  if (cityInput) {
+    cityInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const dropdown = document.getElementById("city-suggestions-dropdown");
+        if (dropdown && dropdown.classList.contains("visible")) {
+          const first = dropdown.querySelector(".city-suggestion-item");
+          if (first) first.click();
+        } else {
+          btnGenerate.click();
+        }
+      }
+    });
+  }
+
+  // Barra ricerca città a cascata: elenco da CITY_TEMPLATES + CITY_ALIASES
+  const cityDropdown = document.getElementById("city-suggestions-dropdown");
+  if (cityInput && cityDropdown) {
+    const cityList = Object.entries(CITY_TEMPLATES).map(([key, t]) => ({
+      key,
+      displayName: t.displayName,
+      searchTerms: [t.displayName.toLowerCase(), ...(CITY_ALIASES[key] || []).map(a => a.toLowerCase())]
+    }));
+
+    function showSuggestions(query) {
+      const q = (query || "").trim().toLowerCase();
+      const filtered = q
+        ? cityList.filter(c => c.searchTerms.some(term => term.includes(q)))
+        : cityList.slice(0, 20);
+      cityDropdown.innerHTML = filtered.slice(0, 12).map(c => 
+        `<div class="city-suggestion-item" data-name="${c.displayName.replace(/"/g, "&quot;")}" data-key="${c.key}">${c.displayName}</div>`
+      ).join("");
+      cityDropdown.classList.toggle("visible", filtered.length > 0);
+      cityDropdown.setAttribute("aria-hidden", filtered.length === 0 ? "true" : "false");
+    }
+
+    function addCity(name, key) {
+      const cur = cityInput.value.trim();
+      cityInput.value = cur ? `${cur}, ${name}` : name;
+      cityDropdown.classList.remove("visible");
+      cityDropdown.setAttribute("aria-hidden", "true");
+      renderCityCatalog(key || getFirstCityKeyFromInput());
+    }
+
+    function getFirstCityKeyFromInput() {
+      const raw = cityInput.value.trim();
+      if (!raw) return null;
+      const parts = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+      for (const part of parts) {
+        let key = resolveCityKey(part);
+        if (!key) {
+          for (const [k, t] of Object.entries(CITY_TEMPLATES)) {
+            if (t.displayName && t.displayName.toLowerCase() === part.toLowerCase()) {
+              key = k;
+              break;
+            }
+          }
+        }
+        if (key && CITY_CATALOG[key]) return key;
+      }
+      return null;
+    }
+
+    function renderCityCatalog(cityKey) {
+      const catalogEl = document.getElementById("city-catalog");
+      if (!catalogEl) return;
+      if (!cityKey || !CITY_CATALOG[cityKey]) {
+        catalogEl.innerHTML = "";
+        catalogEl.classList.remove("city-catalog-visible");
+        return;
+      }
+      const cat = CITY_CATALOG[cityKey];
+      const name = CITY_TEMPLATES[cityKey] ? CITY_TEMPLATES[cityKey].displayName : cityKey;
+      catalogEl.innerHTML = `
+        <div class="city-catalog-card">
+          <h4 class="city-catalog-title">${name}</h4>
+          <p class="city-catalog-desc">${cat.description}</p>
+          <p class="city-catalog-label">Cosa vedere</p>
+          <ul class="city-catalog-highlights">${(cat.highlights || []).map(h => `<li>${h}</li>`).join("")}</ul>
+        </div>
+      `;
+      catalogEl.classList.add("city-catalog-visible");
+    }
+
+    // Mostra subito il catalogo di Roma al caricamento
+    const catalogEl = document.getElementById("city-catalog");
+    if (catalogEl) {
+      renderCityCatalog("rome");
+    }
+
+    cityInput.addEventListener("input", () => {
+      showSuggestions(cityInput.value);
+      const key = getFirstCityKeyFromInput();
+      renderCityCatalog(key || "rome");
+    });
+    cityInput.addEventListener("blur", () => {
+      const key = getFirstCityKeyFromInput();
+      renderCityCatalog(key || "rome");
+    });
+    cityInput.addEventListener("focus", () => showSuggestions(cityInput.value));
+    cityDropdown.addEventListener("click", (e) => {
+      const item = e.target.closest(".city-suggestion-item");
+      if (item) {
+        const name = item.getAttribute("data-name");
+        const key = item.getAttribute("data-key");
+        addCity(name, key);
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".city-search-wrap")) {
+        cityDropdown.classList.remove("visible");
+        cityDropdown.setAttribute("aria-hidden", "true");
+      }
+    });
+  }
+
+  const btnRecalcFromPosition = document.getElementById("btn-recalc");
   if (btnRecalcFromPosition) {
     btnRecalcFromPosition.addEventListener("click", () => {
       const flatStops = allStops.flat();
       if (flatStops.length === 0) return;
       if (!navigator.geolocation) return alert("GPS non supportato.");
-      trackingStatus.textContent = "Ricalcolo da tua posizione...";
+      setStatusVisible(true);
+      setStatusMessage("Ricalcolo da tua posizione…", "status-active");
       navigator.geolocation.getCurrentPosition(
         pos => {
           const lat = pos.coords.latitude;
@@ -772,8 +1155,7 @@ document.addEventListener("DOMContentLoaded", () => {
             allStops.push(optimized.slice(i * perDay, (i + 1) * perDay));
           }
           loadDay(1);
-          trackingStatus.textContent = "Itinerario riordinato dalla tua posizione!";
-          trackingStatus.className = "status-banner status-active";
+          setStatusMessage("Itinerario riordinato dalla tua posizione!", "status-active");
         },
         () => alert("Impossibile ottenere la posizione.")
       );
@@ -809,7 +1191,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderStopsList() {
     stopsList.innerHTML = stops.map((s, i) => `
-      <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}">
+      <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}" data-index="${i}">
         <div class="stop-info">
           <span class="stop-number">${i + 1}</span>
           <div>
@@ -821,12 +1203,231 @@ document.addEventListener("DOMContentLoaded", () => {
       </li>
     `).join("");
     
-    btnStart.disabled = stops.length < 1;
-    if (document.getElementById("play-simulation")) {
-      document.getElementById("play-simulation").disabled = allStops.flat().length < 1;
-    }
-    const btnRecalc = document.getElementById("recalc-from-position");
+    if (btnStart) btnStart.disabled = stops.length < 1;
+    const btnPreview = document.getElementById("btn-preview");
+    if (btnPreview) btnPreview.disabled = allStops.flat().length < 1;
+    const btnRecalc = document.getElementById("btn-recalc");
     if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
+  }
+
+  // Estrae testo dalle istruzioni HTML delle Directions API
+  function stripHtml(html) {
+    if (!html) return "";
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return (div.textContent || div.innerText || "").trim();
+  }
+
+  // Mostra il pannello indicazioni con le istruzioni turn-by-turn (gira a destra, ecc.)
+  function renderDirectionsPanel(legs, currentStepIndex) {
+    const panel = document.getElementById("directions-panel");
+    const container = document.getElementById("directions-steps");
+    if (!panel || !container) return;
+    currentStepIndex = currentStepIndex ?? 0;
+    const steps = [];
+    if (legs && legs.length) {
+      legs.forEach(leg => {
+        if (leg.steps && leg.steps.length) {
+          leg.steps.forEach(s => steps.push({
+            text: stripHtml(s.instructions),
+            distance: s.distance && s.distance.text ? s.distance.text : "",
+            duration: s.duration && s.duration.text ? s.duration.text : ""
+          }));
+        }
+      });
+    }
+    if (steps.length === 0) {
+      panel.classList.remove("visible");
+      panel.setAttribute("aria-hidden", "true");
+      container.innerHTML = "";
+      return;
+    }
+    container.innerHTML = steps.map((s, i) => `
+      <div class="directions-step ${i === currentStepIndex ? "current" : ""}" data-index="${i}">
+        <span class="directions-step-num">${i + 1}</span>
+        <div>
+          <div class="directions-step-text">${s.text || "—"}</div>
+          ${s.distance ? `<div class="directions-step-dist">${s.distance}${s.duration ? " · " + s.duration : ""}</div>` : ""}
+        </div>
+      </div>
+    `).join("");
+    panel.classList.add("visible");
+    panel.setAttribute("aria-hidden", "false");
+  }
+
+  function hideDirectionsPanel() {
+    const panel = document.getElementById("directions-panel");
+    const container = document.getElementById("directions-steps");
+    if (panel) {
+      panel.classList.remove("visible");
+      panel.setAttribute("aria-hidden", "true");
+    }
+    if (container) container.innerHTML = "";
+  }
+
+  // Crea un percorso dalla posizione utente alla tappa selezionata e mostra le indicazioni
+  function drawRouteFromUserToStop(stopIndex) {
+    if (typeof google === "undefined" || !directionsService || !stops[stopIndex]) return;
+    if (!userPosition) return;
+    const destination = stops[stopIndex];
+    const originLatLng = { lat: userPosition.lat, lng: userPosition.lng };
+
+    directionsService.route({
+      origin: originLatLng,
+      destination: { lat: destination.lat, lng: destination.lng },
+      travelMode: google.maps.TravelMode.WALKING
+    }, (result, status) => {
+      if (status === "OK") {
+        directionsRenderer.setDirections(result);
+        setStatusMessage(`Verso ${destination.name}`, "status-active");
+        const legs = result.routes && result.routes[0] && result.routes[0].legs;
+        renderDirectionsPanel(legs, 0);
+      }
+    });
+  }
+
+  // Messaggio errore GPS leggibile in console e in italiano per l'utente
+  function handleGeolocationError(err) {
+    const code = err && err.code;
+    const msg = err && err.message ? err.message : "";
+    const codeNames = { 1: "PERMISSION_DENIED", 2: "POSITION_UNAVAILABLE", 3: "TIMEOUT" };
+    const codeName = codeNames[code] || "UNKNOWN";
+    console.error("[GPS] Errore geolocalizzazione:", codeName, "code=" + code, msg);
+
+    let userMsg = "Impossibile usare la posizione.";
+    if (code === 1) userMsg = "Permesso GPS negato. Abilita la posizione nelle impostazioni del browser o del dispositivo.";
+    else if (code === 2) userMsg = "Posizione non disponibile. Controlla che il GPS sia attivo e il segnale sufficiente.";
+    else if (code === 3) userMsg = "Tempo scaduto. Riprova in un luogo con migliore ricezione.";
+
+    setStatusVisible(true);
+    setStatusMessage(userMsg, "status-neutral");
+  }
+
+  // Avvia la navigazione GPS solo al click — permesso richiesto qui, mai al caricamento
+  function startGpsTracking() {
+    if (!navigator.geolocation) {
+      setStatusVisible(true);
+      setStatusMessage("Questo browser non supporta la geolocalizzazione. Usa un browser aggiornato.", "status-neutral");
+      console.error("[GPS] navigator.geolocation non disponibile");
+      return;
+    }
+    if (typeof google === "undefined" || !google.maps) {
+      setStatusVisible(true);
+      setStatusMessage("Mappa non ancora pronta. Attendi qualche secondo e riprova.", "status-neutral");
+      console.error("[GPS] Google Maps API non caricata");
+      return;
+    }
+    if (!stops.length) {
+      setStatusVisible(true);
+      setStatusMessage("Genera prima un itinerario (città + Genera itinerario).", "status-neutral");
+      return;
+    }
+
+    setStatusVisible(true);
+    setStatusMessage("Richiesta posizione in corso… Accetta il permesso nel browser.", "status-active");
+    if (btnStart) btnStart.disabled = true;
+    if (btnStop) btnStop.disabled = false;
+    document.body.classList.add("is-tracking");
+    if (map) map.setZoom(17);
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        userPosition = userPos;
+        if (userMarker) {
+          userMarker.setPosition(userPos);
+          userMarker.setVisible(true);
+        }
+        if (map) {
+          map.panTo(userPos);
+          if (map.getZoom() < 17) map.setZoom(17);
+        }
+        setStatusMessage("Navigazione attiva.", "status-active");
+
+        if (currentLegIndex < stops.length) {
+          const target = stops[currentLegIndex];
+          const distance = google.maps.geometry.spherical.computeDistanceBetween(
+            new google.maps.LatLng(userPos.lat, userPos.lng),
+            new google.maps.LatLng(target.lat, target.lng)
+          );
+          const distEl = document.getElementById("distance-to-next");
+          const legEl = document.getElementById("current-leg");
+          if (distEl) distEl.textContent = `${Math.round(distance)} m`;
+          if (legEl) legEl.textContent = target.name;
+          drawRouteFromUserToStop(currentLegIndex);
+          if (distance < DISTANCE_THRESHOLD_METERS) {
+            stops[currentLegIndex].reached = true;
+            currentLegIndex++;
+            renderStopsList();
+            updateMarkers();
+            if (currentLegIndex >= stops.length) {
+              setStatusMessage("Itinerario completato! 🎉", "status-done");
+              if (watchId) navigator.geolocation.clearWatch(watchId);
+              watchId = null;
+              if (btnStop) btnStop.disabled = true;
+              if (btnStart) btnStart.disabled = false;
+              document.body.classList.remove("is-tracking");
+            }
+          }
+        }
+      },
+      (err) => {
+        handleGeolocationError(err);
+        if (btnStart) btnStart.disabled = false;
+        if (btnStop) btnStop.disabled = true;
+        if (watchId) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+        document.body.classList.remove("is-tracking");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
+  // Click su una tappa: imposta destinazione, disegna percorso e avvia navigazione vera
+  if (stopsList) {
+    stopsList.addEventListener("click", (event) => {
+      const item = event.target.closest(".stop-item");
+      if (!item) return;
+      const index = Number(item.getAttribute("data-index"));
+      if (Number.isNaN(index) || !stops[index]) return;
+
+      currentLegIndex = index;
+      document.getElementById("current-leg").textContent = stops[index].name;
+      renderStopsList();
+      updateMarkers();
+
+      const buildAndStartNavigation = () => {
+        if (map) {
+          map.setZoom(17);
+          map.panTo(userPosition);
+        }
+        drawRouteFromUserToStop(index);
+        if (!watchId) startGpsTracking();
+      };
+
+      if (userPosition) {
+        buildAndStartNavigation();
+      } else if (navigator.geolocation) {
+        setStatusVisible(true);
+        setStatusMessage("Rilevamento posizione in corso…", "status-active");
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            if (userMarker) {
+              userMarker.setPosition(userPosition);
+              userMarker.setVisible(true);
+            }
+            buildAndStartNavigation();
+          },
+          (err) => {
+            handleGeolocationError(err);
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      }
+    });
   }
 
   function calculateAndDisplayRoute() {
@@ -928,61 +1529,25 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  btnStart.addEventListener("click", () => {
-    if (!navigator.geolocation) return alert("GPS non supportato.");
-    if (typeof google === "undefined") return alert("Servizi Google non caricati.");
-
-    trackingStatus.textContent = "Navigazione attiva...";
-    trackingStatus.className = "status-banner status-active";
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-
-    watchId = navigator.geolocation.watchPosition(pos => {
-      const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      userPosition = userPos;
-      if (userMarker) {
-        userMarker.setPosition(userPos);
-        userMarker.setVisible(true);
-      }
-      map.panTo(userPos);
-      
-      if (currentLegIndex < stops.length) {
-        const target = stops[currentLegIndex];
-        const distance = google.maps.geometry.spherical.computeDistanceBetween(
-          new google.maps.LatLng(userPos.lat, userPos.lng),
-          new google.maps.LatLng(target.lat, target.lng)
-        );
-
-        document.getElementById("distance-to-next").textContent = `${Math.round(distance)} m`;
-        document.getElementById("current-leg").textContent = target.name;
-
-        if (distance < DISTANCE_THRESHOLD_METERS) {
-          stops[currentLegIndex].reached = true;
-          currentLegIndex++;
-          renderStopsList();
-          updateMarkers();
-          
-          if (currentLegIndex >= stops.length) {
-            trackingStatus.textContent = "Itinerario completato! 🎉";
-            trackingStatus.className = "status-banner status-done";
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            btnStop.disabled = true;
-          }
-        }
-      }
-    }, (err) => {
-      console.error("GPS Error:", err);
-      trackingStatus.textContent = "Errore GPS. Controlla i permessi.";
-    }, { enableHighAccuracy: true, timeout: 5000 });
+  if (btnStart) btnStart.addEventListener("click", () => {
+    startGpsTracking();
   });
 
-  btnStop.addEventListener("click", () => {
-    if (watchId) navigator.geolocation.clearWatch(watchId);
+  if (btnStop) btnStop.addEventListener("click", () => {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
     if (userMarker) userMarker.setVisible(false);
-    trackingStatus.textContent = "Navigazione sospesa.";
-    trackingStatus.className = "status-banner status-neutral";
-    btnStart.disabled = false;
-    btnStop.disabled = true;
+    setStatusMessage("Navigazione sospesa.", "status-neutral");
+    if (btnStart) btnStart.disabled = false;
+    if (btnStop) btnStop.disabled = true;
+    document.body.classList.remove("is-tracking");
+    if (map && stops.length) {
+      const bounds = new google.maps.LatLngBounds();
+      stops.forEach(s => bounds.extend({ lat: s.lat, lng: s.lng }));
+      map.fitBounds(bounds);
+    }
   });
 
   const btnShowLocation = document.getElementById("show-my-location");
@@ -1007,7 +1572,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // === ANTEPRIMA PERCORSO (PLAY) ===
-  const btnPlay = document.getElementById("play-simulation");
+  const btnPlay = document.getElementById("btn-preview");
   const overlay = document.getElementById("simulation-overlay");
   const simPhoto = document.getElementById("simulation-photo-img");
   const simPoiName = document.getElementById("simulation-poi-name");
@@ -1068,7 +1633,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  btnPlay.addEventListener("click", () => {
+  if (btnPlay) btnPlay.addEventListener("click", () => {
     const flatStops = allStops.flat();
     if (flatStops.length === 0) return;
 
@@ -1120,5 +1685,243 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   btnSimClose.addEventListener("click", stopSimulation);
+
+  // === AGGIUNGI META (geocoding + inserimento in ordine sensato) ===
+  const addMetaInput = document.getElementById("add-meta-input");
+  const addMetaBtn = document.getElementById("add-meta-btn");
+  if (addMetaInput && addMetaBtn) {
+    addMetaBtn.addEventListener("click", () => {
+      const query = addMetaInput.value.trim();
+      if (!query) {
+        addMetaInput.focus();
+        return;
+      }
+      if (!allStops.length) {
+        setStatusVisible(true);
+        setStatusMessage("Genera prima un itinerario (città + Genera itinerario), poi aggiungi la meta.", "status-neutral");
+        return;
+      }
+      if (typeof google === "undefined" || !google.maps) {
+        setStatusVisible(true);
+        setStatusMessage("Mappa non pronta. Attendi il caricamento.", "status-neutral");
+        return;
+      }
+      const dayIndex = currentDay - 1;
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: query + ", Europe" }, (results, status) => {
+        if (status !== "OK" || !results || !results[0]) {
+          setStatusVisible(true);
+          setStatusMessage("Luogo non trovato. Prova un altro nome o indirizzo.", "status-neutral");
+          return;
+        }
+        const loc = results[0].geometry.location;
+        const newPoi = {
+          name: results[0].formatted_address || query,
+          lat: loc.lat(),
+          lng: loc.lng(),
+          cityName: ""
+        };
+        allStops[dayIndex] = allStops[dayIndex] || [];
+        allStops[dayIndex].push(newPoi);
+        const dayStops = allStops[dayIndex];
+        const start = dayStops[0];
+        allStops[dayIndex] = optimizeRouteFromPosition(dayStops, start.lat, start.lng);
+        loadDay(currentDay);
+        addMetaInput.value = "";
+        setStatusVisible(true);
+        setStatusMessage("Meta aggiunta al giorno " + currentDay + " e ordinata nel percorso.", "status-active");
+      });
+    });
+  }
+
+  // === SALVA PERCORSO e Percorsi salvati ===
+  const SAVED_ROUTES_KEY = "360step_saved_routes";
+  const saveRouteBtn = document.getElementById("save-route-btn");
+  const savedRoutesList = document.getElementById("saved-routes-list");
+
+  function getSavedRoutes() {
+    try {
+      const raw = localStorage.getItem(SAVED_ROUTES_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setSavedRoutes(routes) {
+    try {
+      localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(routes));
+    } catch (e) {
+      console.warn("Impossibile salvare i percorsi", e);
+    }
+  }
+
+  function renderSavedRoutes() {
+    if (!savedRoutesList) return;
+    const routes = getSavedRoutes();
+    if (!routes.length) {
+      savedRoutesList.innerHTML = "<li class=\"saved-route-empty\">Nessun percorso salvato.</li>";
+      return;
+    }
+    savedRoutesList.innerHTML = routes.map((r, i) => `
+      <li class="saved-route-item" data-index="${i}">
+        <div class="saved-route-main">
+          <span class="saved-route-name">${r.name || "Percorso " + (i + 1)}</span>
+          <span class="saved-route-meta">${r.cities || ""} · ${r.days || 0} giorni</span>
+        </div>
+        <div class="saved-route-actions">
+          <button type="button" class="btn btn-outline saved-route-load">Carica</button>
+          <button type="button" class="btn btn-outline planned-remove">Elimina</button>
+        </div>
+      </li>
+    `).join("");
+  }
+
+  if (saveRouteBtn) {
+    saveRouteBtn.addEventListener("click", () => {
+      if (!allStops.length) {
+        setStatusVisible(true);
+        setStatusMessage("Non c'è alcun itinerario da salvare. Genera prima un percorso.", "status-neutral");
+        return;
+      }
+      const name = prompt("Nome del percorso (es. Weekend Roma):", cityInput ? cityInput.value.trim() || "Itinerario" : "Itinerario");
+      if (name == null) return;
+      const routes = getSavedRoutes();
+      const route = {
+        id: Date.now(),
+        name: (name || "Itinerario").trim(),
+        cities: cityInput ? cityInput.value.trim() : "",
+        days: allStops.length,
+        allStops: allStops.map(day => day.map(s => ({ name: s.name, lat: s.lat, lng: s.lng, cityName: s.cityName || "" }))),
+        createdAt: new Date().toISOString()
+      };
+      routes.push(route);
+      setSavedRoutes(routes);
+      renderSavedRoutes();
+      setStatusVisible(true);
+      setStatusMessage("Percorso salvato. Lo trovi in \"Percorsi salvati\".", "status-active");
+    });
+  }
+
+  if (savedRoutesList) {
+    renderSavedRoutes();
+    savedRoutesList.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const item = target.closest(".saved-route-item");
+      if (!item) return;
+      const idx = Number(item.getAttribute("data-index"));
+      if (Number.isNaN(idx)) return;
+      const routes = getSavedRoutes();
+      const route = routes[idx];
+      if (target.classList.contains("saved-route-load") && route && route.allStops) {
+        allStops = route.allStops.map(day => day.map(s => ({ ...s })));
+        renderTabs(allStops.length);
+        loadDay(1);
+        if (cityInput && route.cities) cityInput.value = route.cities;
+        setStatusVisible(true);
+        setStatusMessage("Percorso caricato. Puoi avviare la navigazione.", "status-active");
+        return;
+      }
+      if (target.classList.contains("planned-remove")) {
+        routes.splice(idx, 1);
+        setSavedRoutes(routes);
+        renderSavedRoutes();
+      }
+    });
+  }
+
+  // === VIAGGI MESSI DA PARTE ===
+  const plannedForm = document.getElementById("planned-form");
+  const plannedList = document.getElementById("planned-list");
+  const plannedNameInput = document.getElementById("planned-name");
+  const plannedCitiesInput = document.getElementById("planned-cities");
+  const plannedDateInput = document.getElementById("planned-date");
+
+  const PLANNED_STORAGE_KEY = "360step_planned_trips";
+  let plannedTrips = [];
+
+  function loadPlannedTrips() {
+    try {
+      const raw = localStorage.getItem(PLANNED_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        plannedTrips = parsed;
+      }
+    } catch (e) {
+      console.warn("Impossibile leggere i viaggi salvati", e);
+    }
+  }
+
+  function savePlannedTrips() {
+    try {
+      localStorage.setItem(PLANNED_STORAGE_KEY, JSON.stringify(plannedTrips));
+    } catch (e) {
+      console.warn("Impossibile salvare i viaggi", e);
+    }
+  }
+
+  function renderPlannedTrips() {
+    if (!plannedList) return;
+    if (!plannedTrips.length) {
+      plannedList.innerHTML = "";
+      return;
+    }
+    plannedList.innerHTML = plannedTrips.map((trip, index) => {
+      const dateLabel = trip.date ? ` · ${trip.date}` : "";
+      const citiesLabel = trip.cities ? trip.cities : "Città da definire";
+      return `
+        <li class="planned-item" data-index="${index}">
+          <div class="planned-main">
+            <span class="planned-name">${trip.name}</span>
+            <span class="planned-meta">${citiesLabel}${dateLabel}</span>
+          </div>
+          <div class="planned-actions">
+            <button type="button" class="btn btn-outline planned-remove">✕</button>
+          </div>
+        </li>
+      `;
+    }).join("");
+  }
+
+  if (plannedForm && plannedList) {
+    loadPlannedTrips();
+    renderPlannedTrips();
+
+    plannedForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = plannedNameInput.value.trim();
+      const cities = plannedCitiesInput.value.trim();
+      const date = plannedDateInput.value;
+      if (!name) {
+        plannedNameInput.focus();
+        return;
+      }
+      plannedTrips.push({ name, cities, date });
+      savePlannedTrips();
+      renderPlannedTrips();
+      plannedNameInput.value = "";
+      plannedCitiesInput.value = "";
+      plannedDateInput.value = "";
+    });
+
+    plannedList.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.classList.contains("planned-remove")) {
+        const item = target.closest(".planned-item");
+        if (!item) return;
+        const idx = Number(item.getAttribute("data-index"));
+        if (!Number.isNaN(idx)) {
+          plannedTrips.splice(idx, 1);
+          savePlannedTrips();
+          renderPlannedTrips();
+        }
+      }
+    });
+  }
 
 });

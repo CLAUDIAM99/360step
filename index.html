@@ -3,82 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <title>360step – Il tuo Navigatore Urbano</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="app.js" defer></script>
   <script
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9z_2qS4TFOMXcjlJMhf_oJ0ABG78THgI&libraries=geometry&callback=initMap"
     async defer></script>
-  <script src="app.js" defer></script>
 </head>
 <body>
 
-<header class="hero">
+<header class="app-header">
   <div class="hero-inner">
     <p class="hero-label">Il tuo navigatore urbano</p>
     <h1 class="hero-title">Non giocare al turismo a caso.</h1>
     <p class="hero-subtitle">Pianifica l'itinerario perfetto a piedi, tappa dopo tappa. Solo poche città alla volta, attenzione totale, e la mappa al tuo fianco.</p>
   </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1200 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,30 C300,60 900,0 1200,30 L1200,60 L0,60 Z" fill="#f5f0eb"/>
+    </svg>
+  </div>
 </header>
 
 <main class="main">
+  <section class="home-section">
+    <div class="home-inner">
+      <h2 class="home-title">Organizza, salva, parti.</h2>
+      <p class="home-subtitle">Crea itinerari a piedi in pochi secondi, metti da parte percorsi per il viaggio, e poi usa la navigazione in grande quando sei sul posto.</p>
+      <div class="home-cards">
+        <div class="home-card">
+          <h3>Homepage chiara</h3>
+          <p>Un flusso semplice: scegli città e giorni, genera, salva, avvia navigazione.</p>
+        </div>
+        <div class="home-card">
+          <h3>Itinerari “AI”</h3>
+          <p>Generazione smart e riordino tappe per vicinanza (stile Google Maps).</p>
+        </div>
+        <div class="home-card">
+          <h3>Percorsi salvati</h3>
+          <p>Salva itinerari e ricaricali quando parti.</p>
+        </div>
+      </div>
+      <a class="btn btn-primary home-cta" href="#planner">Apri il navigatore</a>
+    </div>
+  </section>
+
   <div class="content-wrapper">
 
-    <section class="section planner-section">
+    <section id="planner" class="section planner-section">
       <div class="section-label">Pianifica il viaggio</div>
       <h2 class="section-title">Scegli la meta e la durata</h2>
 
       <div class="form-block">
         <label for="city-input" class="field-label">Città europea</label>
-        <input id="city-input" type="text" placeholder="Es. Roma, Leuven, Brussels, Anversa…" list="city-suggestions" autocomplete="off" class="field-input">
-        <p class="field-hint">Città singola o multiple separate da virgola</p>
-        <datalist id="city-suggestions">
-          <option value="Roma"><option value="Paris"><option value="London"><option value="Amsterdam">
-          <option value="Barcelona"><option value="Berlin"><option value="Brussels"><option value="Madrid">
-          <option value="Lisbon"><option value="Prague"><option value="Leuven"><option value="Mechelen">
-          <option value="Anversa"><option value="Ottignies"><option value="Gand"><option value="Bruges">
-          <option value="Liège"><option value="Namur"><option value="Milano"><option value="Firenze">
-          <option value="Venezia"><option value="Vienna"><option value="Monaco"><option value="Zurigo">
-          <option value="Dublin"><option value="Edinburgh"><option value="Lyon"><option value="Nice">
-        </datalist>
+        <div class="city-search-wrap">
+          <input id="city-input" type="text" placeholder="Es. Roma, Parigi, Leuven…" autocomplete="off" class="field-input">
+          <div id="city-suggestions-dropdown" class="city-suggestions-dropdown" aria-hidden="true"></div>
+        </div>
+        <div id="city-catalog" class="city-catalog city-catalog-visible" aria-live="polite"><div class="city-catalog-card city-catalog-placeholder">Caricamento catalogo città…</div></div>
       </div>
 
       <div class="form-block">
         <label for="days-input" class="field-label">Quanti giorni</label>
-        <select id="days-input" class="field-input field-select">
-          <option value="1">1 giorno — tour rapido</option>
-          <option value="2" selected>2 giorni — completo</option>
-          <option value="3">3 giorni — relax</option>
-        </select>
+        <input id="days-input" type="number" min="1" max="14" value="2" class="field-input" placeholder="Es. 2" aria-label="Quanti giorni">
       </div>
 
-      <div class="actions">
-        <button id="generate-city-itinerary" class="btn btn-primary">Genera itinerario</button>
-        <button id="recalc-from-position" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola da mia posizione</button>
+      <div class="actions actions-toolbar">
+        <button id="btn-generate" class="btn btn-primary">Genera itinerario</button>
+        <button id="generate-ai-itinerary" class="btn btn-outline">Itinerario AI</button>
+        <button id="btn-start" class="btn btn-accent" disabled>Avvia navigazione</button>
+        <button id="btn-preview" class="btn btn-outline" disabled>Anteprima</button>
+        <button id="btn-recalc" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola</button>
+        <button id="btn-stop" class="btn btn-outline" disabled>Sospendi</button>
       </div>
 
       <div id="days-tabs" class="days-tabs"></div>
       <ul id="stops-list" class="stops-list"></ul>
+
+      <div class="add-meta-block">
+        <label for="add-meta-input" class="field-label">Aggiungi una meta</label>
+        <p class="field-hint">Luogo che vuoi inserire nell'itinerario (verrà messo nel giorno selezionato in ordine sensato).</p>
+        <div class="add-meta-row">
+          <input id="add-meta-input" type="text" class="field-input" placeholder="Es. Colosseo, bar in centro, museo…">
+          <button type="button" id="add-meta-btn" class="btn btn-outline">Aggiungi meta</button>
+        </div>
+      </div>
+
+      <div class="save-route-block">
+        <button type="button" id="save-route-btn" class="btn btn-outline">Salva questo percorso</button>
+        <p class="field-hint">Salva l'itinerario per averlo pronto quando parti.</p>
+      </div>
+
+      <div class="saved-routes-section">
+        <h3 class="planned-title">Percorsi salvati</h3>
+        <p class="planned-hint">Carica un percorso salvato per usarlo con la navigazione.</p>
+        <ul id="saved-routes-list" class="saved-routes-list"></ul>
+      </div>
     </section>
 
     <section class="section navigator-section">
-      <div class="section-label">Navigatore live</div>
-      <h2 class="section-title">Mappa e tracking GPS</h2>
-
-      <div id="tracking-status" class="status-banner status-neutral">
-        Inserisci una città e genera l'itinerario.
+        <div class="navigator-header">
+        <div id="tracking-status" class="status-banner status-neutral" aria-live="polite"></div>
+        <div class="tracking-row">
+          <div class="tracking-item">
+            <span class="tracking-label">Destinazione</span>
+            <span id="current-leg" class="tracking-value">—</span>
+          </div>
+          <div class="tracking-item">
+            <span class="tracking-label">Distanza</span>
+            <span id="distance-to-next" class="tracking-value">—</span>
+          </div>
+        </div>
       </div>
 
-      <div class="tracking-row">
-        <div class="tracking-item">
-          <span class="tracking-label">Prossima meta</span>
-          <span id="current-leg" class="tracking-value">—</span>
-        </div>
-        <div class="tracking-item">
-          <span class="tracking-label">Distanza</span>
-          <span id="distance-to-next" class="tracking-value">—</span>
-        </div>
+      <div id="directions-panel" class="directions-panel" aria-hidden="true">
+        <h3 class="directions-panel-title">Indicazioni</h3>
+        <div id="directions-steps" class="directions-steps"></div>
       </div>
 
       <div class="map-and-sim">
@@ -86,7 +129,6 @@
           <div id="map" class="map"></div>
           <button id="show-my-location" class="btn-map-location" title="Mostra la mia posizione">📍</button>
         </div>
-
         <div id="simulation-overlay" class="sim-overlay hidden">
         <p class="sim-hint">Clicca sui numeri sulla mappa per saltare a una tappa</p>
         <div class="sim-card">
@@ -105,13 +147,20 @@
             <button id="sim-close" class="btn btn-small btn-close">Chiudi</button>
           </div>
         </div>
+        </div>
       </div>
 
-      <div class="actions actions-stack">
-        <button id="play-simulation" class="btn btn-primary" disabled>Anteprima percorso</button>
-        <button id="start-tracking" class="btn btn-primary" disabled>Avvia navigazione GPS</button>
-        <button id="stop-tracking" class="btn btn-outline" disabled>Sospendi</button>
-      </div>
+      <section class="planned-section">
+        <h3 class="planned-title">Viaggi messi da parte</h3>
+        <p class="planned-hint">Segna gli itinerari che vuoi tenere pronti per quando partirai davvero.</p>
+        <form id="planned-form" class="planned-form">
+          <input id="planned-name" type="text" class="field-input planned-input" placeholder="Nome viaggio (es. Weekend a Roma)">
+          <input id="planned-cities" type="text" class="field-input planned-input" placeholder="Città o tappe principali">
+          <input id="planned-date" type="date" class="field-input planned-input planned-input-date">
+          <button type="submit" class="btn btn-outline planned-add">Aggiungi</button>
+        </form>
+        <ul id="planned-list" class="planned-list" aria-live="polite"></ul>
+      </section>
     </section>
 
   </div>

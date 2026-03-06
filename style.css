@@ -45,12 +45,7 @@ body {
   background: var(--color-bg);
   margin: 0;
   padding: 0;
-<<<<<<< HEAD
   width: 100%;
-  overflow-x: hidden;
-=======
-  min-height: 100vh;
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -61,13 +56,8 @@ body {
   overflow: hidden;
   padding: 40px 20px 35px;
   text-align: center;
-<<<<<<< HEAD
   background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
   width: 100%;
-=======
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
 }
 
 .app-header::before {
@@ -109,24 +99,14 @@ body {
 }
 
 .hero-inner {
-<<<<<<< HEAD
   max-width: 640px;
   width: 100%;
   margin: 0 auto;
   padding: 0 var(--space-sm);
   position: relative;
   z-index: 1;
-=======
-  max-width: 680px;
-  margin: 0 auto;
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
 }
 
-.app-header h1,
-.app-header p,
-.app-header .hero-label {
-  color: #ffffff;
-}
 .app-header .hero-label {
   color: #e8c77d;
 }
@@ -195,7 +175,7 @@ body {
   font-size: clamp(1.4rem, 3.5vw, 2rem);
   font-weight: 600;
   line-height: 1.2;
-  color: #ffffff;
+  color: #dbeafe;
   margin: 0 0 6px;
   letter-spacing: -0.02em;
   animation: fadeInDown 0.9s ease both;
@@ -203,7 +183,7 @@ body {
 
 .app-header .hero-subtitle {
   font-size: 0.98rem;
-  color: rgba(255,255,255,0.75);
+  color: rgba(219,234,254,0.78);
   margin: 0;
   font-weight: 400;
   animation: fadeInDown 1.1s ease both;
@@ -216,23 +196,16 @@ body {
 
 /* === Main content === */
 .main {
-<<<<<<< HEAD
   padding: 24px 16px;
   width: 100%;
   max-width: 100%;
   min-height: 0;
-=======
-  padding: var(--space-2xl) var(--space-lg);
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
 }
 
 .content-wrapper {
   max-width: 1200px;
   margin: 0 auto;
-<<<<<<< HEAD
   padding: 0;
-=======
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
@@ -249,13 +222,10 @@ body {
 /* === Sections === */
 .section {
   animation: fadeIn 0.6s var(--transition-slow) both;
-<<<<<<< HEAD
   min-width: 0;
   min-height: 0;
   overflow-wrap: break-word;
   padding-bottom: 0;
-=======
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
 }
 
 .section:nth-child(2) { animation-delay: 0.1s; }
@@ -785,14 +755,9 @@ body {
 /* === Map === */
 .map-wrapper {
   position: relative;
-<<<<<<< HEAD
   height: 380px;
   min-height: 280px;
   max-width: 100%;
-=======
-  height: 520px;
-  min-height: 400px;
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--color-border);
@@ -823,7 +788,6 @@ body {
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
 }
 
-<<<<<<< HEAD
 /* Modalità navigazione: mappa più grande */
 body.is-tracking .map-wrapper {
   height: 70vh;
@@ -858,17 +822,12 @@ body.is-tracking .map-wrapper {
 }
 
 /* === Simulation panel (integrato nel layout) === */
-=======
-/* === Simulation overlay === */
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
 .sim-overlay {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(400px, 90vw);
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
   background: var(--color-surface);
-<<<<<<< HEAD
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 0;
@@ -884,20 +843,9 @@ body.is-tracking .map-wrapper {
   width: min(340px, 100%);
   min-width: min(300px, 100%);
   padding: var(--space-md);
-=======
-  border-left: 1px solid var(--color-border);
-  padding: var(--space-lg);
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
   overflow-y: auto;
-  z-index: 1000;
-  box-shadow: -8px 0 40px rgba(0,0,0,0.08);
-  transition: transform 0.35s var(--transition-slow);
-}
-
-.sim-overlay.hidden {
-  transform: translateX(100%);
-  pointer-events: none;
-  visibility: hidden;
+  opacity: 1;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
 }
 
 /* === Aggiungi meta + Salva percorso + Percorsi salvati === */
@@ -1119,7 +1067,6 @@ body.is-tracking .map-wrapper {
   font-size: 0.875rem;
   color: var(--color-text-soft);
   border-top: 1px solid var(--color-border);
-<<<<<<< HEAD
   width: 100%;
 }
 
@@ -1149,6 +1096,4 @@ body.is-tracking .map-wrapper {
   .planned-form {
     grid-template-columns: 1fr;
   }
-=======
->>>>>>> 3834827ae05239bfbbfb44b07d62a2b3059f0abe
 }

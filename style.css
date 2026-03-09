@@ -575,6 +575,25 @@ body {
   display: none;
 }
 
+.route-summary {
+  display: none;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: var(--color-bg-alt);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--color-accent);
+}
+.route-summary-label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+.route-summary-km,
+.route-summary-time {
+  font-weight: 500;
+}
+
 .stop-item {
   display: flex;
   align-items: center;

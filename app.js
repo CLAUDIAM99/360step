@@ -1245,10 +1245,15 @@ document.addEventListener("DOMContentLoaded", () => {
     currentDay = day;
     stops = (allStops[day - 1] || []).map(s => ({ ...s, reached: false }));
     currentLegIndex = 0;
-    
+
+    const summaryEl = document.getElementById("route-summary");
+    if (summaryEl) {
+      summaryEl.innerHTML = "";
+      summaryEl.style.display = "none";
+    }
     document.getElementById("distance-to-next").textContent = "--";
     document.getElementById("current-leg").textContent = stops.length > 0 ? stops[0].name : "--";
-    
+
     renderStopsList();
     calculateAndDisplayRoute();
     updateLeafletFromStops(stops);
@@ -1283,19 +1288,38 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function renderRouteSummary(totalMeters, totalSeconds) {
+    const el = document.getElementById("route-summary");
+    if (!el) return;
+    if (!totalMeters && !totalSeconds) {
+      el.innerHTML = "";
+      el.style.display = "none";
+      return;
+    }
+    const km = (totalMeters / 1000).toFixed(1);
+    const mins = Math.round(totalSeconds / 60);
+    const timeStr = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
+    el.innerHTML = `<span class="route-summary-label">Totale percorso:</span> <span class="route-summary-km">${km} km</span> · <span class="route-summary-time">~${timeStr}</span>`;
+    el.style.display = "block";
+  }
+
   function renderStopsList() {
-    stopsList.innerHTML = stops.map((s, i) => `
-      <li class="stop-item ${s.reached ? 'reached' : ''} ${i === currentLegIndex ? 'current' : ''}" data-index="${i}">
+    stopsList.innerHTML = stops.map((s, i) => {
+      const legInfo = s.distanceToNext || s.durationToNext
+        ? `<span class="stop-duration">→ ${[s.distanceToNext, s.durationToNext].filter(Boolean).join(" · ")}</span>`
+        : "";
+      return `
+      <li class="stop-item ${s.reached ? "reached" : ""} ${i === currentLegIndex ? "current" : ""}" data-index="${i}">
         <div class="stop-info">
           <span class="stop-number">${i + 1}</span>
           <div>
             <span class="stop-name">${s.name}</span>
-            ${s.durationToNext ? `<span class="stop-duration">→ ~${s.durationToNext}</span>` : ''}
+            ${legInfo}
           </div>
         </div>
-        <span class="stop-status">${s.reached ? '✅' : '⏳'}</span>
+        <span class="stop-status">${s.reached ? "✅" : "⏳"}</span>
       </li>
-    `).join("");
+    `}).join("");
     
     if (btnStart) btnStart.disabled = stops.length < 1;
     const btnPreview = document.getElementById("btn-preview");
@@ -1751,6 +1775,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (stops.length === 1) {
       stops[0].durationToNext = null;
+      stops[0].distanceToNext = null;
+      renderRouteSummary(0, 0);
       directionsRenderer.setDirections({ routes: [] });
       updateMarkers();
       return;
@@ -1769,9 +1795,20 @@ document.addEventListener("DOMContentLoaded", () => {
       if (status === "OK") {
         directionsRenderer.setDirections(result);
         const legs = result.routes?.[0]?.legs || [];
+        let totalMeters = 0;
+        let totalSeconds = 0;
         for (let i = 0; i < stops.length; i++) {
-          stops[i].durationToNext = i < legs.length && legs[i].duration ? legs[i].duration.text : null;
+          if (i < legs.length && legs[i]) {
+            stops[i].durationToNext = legs[i].duration ? legs[i].duration.text : null;
+            stops[i].distanceToNext = legs[i].distance ? legs[i].distance.text : null;
+            if (legs[i].distance && legs[i].distance.value) totalMeters += legs[i].distance.value;
+            if (legs[i].duration && legs[i].duration.value) totalSeconds += legs[i].duration.value;
+          } else {
+            stops[i].durationToNext = null;
+            stops[i].distanceToNext = null;
+          }
         }
+        renderRouteSummary(totalMeters, totalSeconds);
         renderStopsList();
         updateMarkers();
         if (typeof updateLeafletFromStops === "function") updateLeafletFromStops(stops);

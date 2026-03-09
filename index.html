@@ -2,11 +2,10 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>360step – Il tuo Navigatore Urbano</title>
+  <title>360step – Esplora le città a piedi</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
-  <!-- Leaflet CSS per la mappa alternativa -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -15,13 +14,11 @@
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-  <!-- Leaflet JS (mappa interattiva) -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIJ5TFnbCdm0GKa1I/b+gC2BMC3mB8M="
     crossorigin=""
   ></script>
-  <!-- SortableJS per riordinare le tappe con drag-and-drop -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" crossorigin="anonymous"></script>
   <script src="app.js" defer></script>
   <script
@@ -31,97 +28,125 @@
 <body>
 
 <header class="app-header">
-  <div class="hero-inner">
-    <p class="hero-label">Il tuo navigatore urbano</p>
-    <h1 class="hero-title">Non giocare al turismo a caso.</h1>
-    <p class="hero-subtitle">Pianifica l'itinerario perfetto a piedi, tappa dopo tappa. Solo poche città alla volta, attenzione totale, e la mappa al tuo fianco.</p>
-  </div>
-  <div class="hero-wave">
-    <svg viewBox="0 0 1200 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M0,30 C300,60 900,0 1200,30 L1200,60 L0,60 Z" fill="#f5f0eb"/>
-    </svg>
+  <div class="header-inner">
+    <div class="header-brand">
+      <h1 class="brand-title">360step</h1>
+      <p class="brand-tagline">Esplora le città a piedi. Un passo alla volta.</p>
+    </div>
+    <nav class="main-nav" id="main-nav">
+      <a href="#home" class="nav-link active" data-page="home">Home</a>
+      <a href="#pianifica" class="nav-link" data-page="planner">Pianifica</a>
+      <a href="#mappa" class="nav-link" data-page="map">Mappa</a>
+      <a href="#percorsi" class="nav-link" data-page="saved">I miei percorsi</a>
+    </nav>
   </div>
 </header>
 
 <main class="main">
-  <section class="home-section">
-    <div class="home-inner">
-      <h2 class="home-title">Organizza, salva, parti.</h2>
-      <p class="home-subtitle">Crea itinerari a piedi in pochi secondi, metti da parte percorsi per il viaggio, e poi usa la navigazione in grande quando sei sul posto.</p>
-      <div class="home-cards">
-        <div class="home-card">
-          <h3>Homepage chiara</h3>
-          <p>Un flusso semplice: scegli città e giorni, genera, salva, avvia navigazione.</p>
-        </div>
-        <div class="home-card">
-          <h3>Itinerari “AI”</h3>
-          <p>Generazione smart e riordino tappe per vicinanza (stile Google Maps).</p>
-        </div>
-        <div class="home-card">
-          <h3>Percorsi salvati</h3>
-          <p>Salva itinerari e ricaricali quando parti.</p>
-        </div>
-      </div>
-      <a class="btn btn-primary home-cta" href="#planner">Apri il navigatore</a>
+
+  <!-- PAGE: HOME -->
+  <section class="page page-home active" id="page-home">
+    <div class="page-inner page-center">
+      <h2 class="page-hero-title">Pianifica, esplora, cammina.</h2>
+      <p class="page-hero-subtitle">Crea itinerari a piedi per le più belle città europee. Scegli le tappe, segui il percorso sulla mappa, vivi ogni passo.</p>
+      <button class="btn btn-primary btn-lg" id="cta-start-planning">Inizia a pianificare</button>
     </div>
   </section>
 
-  <div class="content-wrapper">
+  <!-- PAGE: PIANIFICA -->
+  <section class="page page-planner" id="page-planner">
+    <div class="page-inner">
 
-    <section id="planner" class="section planner-section">
-      <div class="section-label">Pianifica il viaggio</div>
-      <h2 class="section-title">Scegli la meta e la durata</h2>
-
-      <div class="form-block">
-        <label for="city-input" class="field-label">Città europea</label>
-        <div class="city-search-wrap">
-          <input id="city-input" type="text" placeholder="Es. Roma, Parigi, Leuven…" autocomplete="off" class="field-input">
-          <div id="city-suggestions-dropdown" class="city-suggestions-dropdown" aria-hidden="true"></div>
+      <!-- Step 1 -->
+      <div class="step-block" data-step="1">
+        <div class="step-indicator">
+          <span class="step-number">1</span>
+          <span class="step-label">Scegli la città</span>
         </div>
-        <div id="city-catalog" class="city-catalog city-catalog-visible" aria-live="polite"><div class="city-catalog-card city-catalog-placeholder">Caricamento catalogo città…</div></div>
-      </div>
-
-      <div class="form-block">
-        <label for="days-input" class="field-label">Quanti giorni</label>
-        <input id="days-input" type="number" min="1" max="14" value="2" class="field-input" placeholder="Es. 2" aria-label="Quanti giorni">
-      </div>
-
-      <div class="actions actions-toolbar">
-        <button id="btn-generate" class="btn btn-primary">Genera itinerario</button>
-        <button id="generate-ai-itinerary" class="btn btn-outline">Itinerario AI</button>
-        <button id="btn-start" class="btn btn-accent" disabled>Avvia navigazione</button>
-        <button id="btn-preview" class="btn btn-outline" disabled>Anteprima</button>
-        <button id="btn-recalc" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola</button>
-        <button id="btn-stop" class="btn btn-outline" disabled>Sospendi</button>
-      </div>
-
-      <div id="days-tabs" class="days-tabs"></div>
-      <ul id="stops-list" class="stops-list"></ul>
-      <div id="route-summary" class="route-summary" aria-live="polite"></div>
-
-      <div class="add-meta-block">
-        <label for="add-meta-input" class="field-label">Aggiungi una meta</label>
-        <p class="field-hint">Luogo che vuoi inserire nell'itinerario (verrà messo nel giorno selezionato in ordine sensato).</p>
-        <div class="add-meta-row">
-          <input id="add-meta-input" type="text" class="field-input" placeholder="Es. Colosseo, bar in centro, museo…">
-          <button type="button" id="add-meta-btn" class="btn btn-outline">Aggiungi meta</button>
+        <div class="step-content">
+          <div class="form-block">
+            <label for="city-input" class="field-label">Città europea</label>
+            <div class="city-search-wrap">
+              <input id="city-input" type="text" placeholder="Es. Roma, Parigi, Leuven…" autocomplete="off" class="field-input">
+              <div id="city-suggestions-dropdown" class="city-suggestions-dropdown" aria-hidden="true"></div>
+            </div>
+            <div id="city-catalog" class="city-catalog city-catalog-visible" aria-live="polite"><div class="city-catalog-card city-catalog-placeholder">Caricamento catalogo città…</div></div>
+          </div>
         </div>
       </div>
 
-      <div class="save-route-block">
-        <button type="button" id="save-route-btn" class="btn btn-outline">Salva questo percorso</button>
-        <p class="field-hint">Salva l'itinerario per averlo pronto quando parti.</p>
+      <!-- Step 2 -->
+      <div class="step-block" data-step="2">
+        <div class="step-indicator">
+          <span class="step-number">2</span>
+          <span class="step-label">Quanti giorni?</span>
+        </div>
+        <div class="step-content">
+          <div class="form-block">
+            <label for="days-input" class="field-label">Durata del viaggio</label>
+            <input id="days-input" type="number" min="1" max="14" value="2" class="field-input field-input-short" placeholder="Es. 2" aria-label="Quanti giorni">
+          </div>
+        </div>
       </div>
 
-      <div class="saved-routes-section">
-        <h3 class="planned-title">Percorsi salvati</h3>
-        <p class="planned-hint">Carica un percorso salvato per usarlo con la navigazione.</p>
-        <ul id="saved-routes-list" class="saved-routes-list"></ul>
+      <!-- Step 3 -->
+      <div class="step-block" data-step="3">
+        <div class="step-indicator">
+          <span class="step-number">3</span>
+          <span class="step-label">Genera itinerario</span>
+        </div>
+        <div class="step-content">
+          <div class="actions actions-generate">
+            <button id="btn-generate" class="btn btn-primary">Genera itinerario</button>
+            <button id="generate-ai-itinerary" class="btn btn-outline">Itinerario AI</button>
+          </div>
+        </div>
       </div>
-    </section>
 
-    <section class="section navigator-section">
-        <div class="navigator-header">
+      <!-- Step 4 -->
+      <div class="step-block" data-step="4">
+        <div class="step-indicator">
+          <span class="step-number">4</span>
+          <span class="step-label">Le tue tappe</span>
+        </div>
+        <div class="step-content">
+          <div id="days-tabs" class="days-tabs"></div>
+          <ul id="stops-list" class="stops-list"></ul>
+          <div id="route-summary" class="route-summary" aria-live="polite"></div>
+
+          <div class="add-meta-block">
+            <label for="add-meta-input" class="field-label">Aggiungi una meta</label>
+            <div class="add-meta-row">
+              <input id="add-meta-input" type="text" class="field-input" placeholder="Es. Colosseo, bar in centro, museo…">
+              <button type="button" id="add-meta-btn" class="btn btn-outline">Aggiungi</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step-block" data-step="5">
+        <div class="step-indicator">
+          <span class="step-number">5</span>
+          <span class="step-label">Salva e parti</span>
+        </div>
+        <div class="step-content">
+          <div class="actions actions-final">
+            <button type="button" id="save-route-btn" class="btn btn-outline">Salva percorso</button>
+            <button id="btn-start" class="btn btn-accent" disabled>Avvia navigazione</button>
+            <button id="btn-preview" class="btn btn-outline" disabled>Anteprima</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PAGE: MAPPA -->
+  <section class="page page-map" id="page-map">
+    <div class="page-inner page-map-inner">
+
+      <div class="navigator-header">
         <div id="tracking-status" class="status-banner status-neutral" aria-live="polite"></div>
         <div class="tracking-row">
           <div class="tracking-item">
@@ -132,6 +157,10 @@
             <span class="tracking-label">Distanza</span>
             <span id="distance-to-next" class="tracking-value">—</span>
           </div>
+        </div>
+        <div class="actions actions-map-controls">
+          <button id="btn-recalc" class="btn btn-outline" disabled title="Riordina dalla tua posizione">Ricalcola</button>
+          <button id="btn-stop" class="btn btn-outline" disabled>Sospendi</button>
         </div>
       </div>
 
@@ -146,35 +175,48 @@
           <button id="show-my-location" class="btn-map-location" title="Mostra la mia posizione">📍</button>
         </div>
         <div id="simulation-overlay" class="sim-overlay hidden">
-        <p class="sim-hint">Clicca sui numeri sulla mappa per saltare a una tappa</p>
-        <div class="sim-card">
-          <div class="sim-photo">
-            <img id="simulation-photo-img" src="" alt="">
+          <p class="sim-hint">Clicca sui numeri sulla mappa per saltare a una tappa</p>
+          <div class="sim-card">
+            <div class="sim-photo">
+              <img id="simulation-photo-img" src="" alt="">
+            </div>
+            <div class="sim-body">
+              <h3 id="simulation-poi-name" class="sim-title"></h3>
+              <p id="simulation-poi-city" class="sim-city"></p>
+              <p class="sim-counter"><span id="sim-current">1</span> / <span id="sim-total">0</span></p>
+            </div>
+            <div class="sim-actions">
+              <button id="sim-prev" class="btn btn-small">Indietro</button>
+              <button id="sim-pause" class="btn btn-small">Pausa</button>
+              <button id="sim-next" class="btn btn-small">Avanti</button>
+              <button id="sim-close" class="btn btn-small btn-close">Chiudi</button>
+            </div>
           </div>
-          <div class="sim-body">
-            <h3 id="simulation-poi-name" class="sim-title"></h3>
-            <p id="simulation-poi-city" class="sim-city"></p>
-            <p class="sim-counter"><span id="sim-current">1</span> / <span id="sim-total">0</span></p>
-          </div>
-          <div class="sim-actions">
-            <button id="sim-prev" class="btn btn-small">Indietro</button>
-            <button id="sim-pause" class="btn btn-small">Pausa</button>
-            <button id="sim-next" class="btn btn-small">Avanti</button>
-            <button id="sim-close" class="btn btn-small btn-close">Chiudi</button>
-          </div>
-        </div>
         </div>
       </div>
 
       <section class="leaflet-section">
-        <h3 class="leaflet-title">Mappa interattiva dell'itinerario</h3>
-        <p class="leaflet-subtitle">Vedi tutte le tappe come marker cliccabili con il percorso collegato.</p>
+        <h3 class="leaflet-title">Mappa interattiva</h3>
+        <p class="leaflet-subtitle">Tappe come marker cliccabili con il percorso collegato.</p>
         <div id="leaflet-map" class="leaflet-map" aria-label="Mappa dell'itinerario generata con Leaflet"></div>
       </section>
 
-      <section class="planned-section">
-        <h3 class="planned-title">Viaggi messi da parte</h3>
-        <p class="planned-hint">Segna gli itinerari che vuoi tenere pronti per quando partirai davvero.</p>
+    </div>
+  </section>
+
+  <!-- PAGE: I MIEI PERCORSI -->
+  <section class="page page-saved" id="page-saved">
+    <div class="page-inner">
+
+      <div class="saved-section-block">
+        <h2 class="page-section-title">Percorsi salvati</h2>
+        <p class="page-section-subtitle">Carica un percorso salvato per usarlo con la navigazione.</p>
+        <ul id="saved-routes-list" class="saved-routes-list"></ul>
+      </div>
+
+      <div class="saved-section-block">
+        <h2 class="page-section-title">Viaggi in programma</h2>
+        <p class="page-section-subtitle">Segna gli itinerari che vuoi tenere pronti per quando partirai.</p>
         <form id="planned-form" class="planned-form">
           <input id="planned-name" type="text" class="field-input planned-input" placeholder="Nome viaggio (es. Weekend a Roma)">
           <input id="planned-cities" type="text" class="field-input planned-input" placeholder="Città o tappe principali">
@@ -182,10 +224,11 @@
           <button type="submit" class="btn btn-outline planned-add">Aggiungi</button>
         </form>
         <ul id="planned-list" class="planned-list" aria-live="polite"></ul>
-      </section>
-    </section>
+      </div>
 
-  </div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="footer">

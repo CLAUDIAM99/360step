@@ -733,6 +733,11 @@ let watchId = null;
 let simulationInterval = null;
 let simIndex = 0;
 
+// Leaflet map (mappa alternativa itinerario)
+let leafletMap;
+let leafletMarkersLayer;
+let leafletRouteLine;
+
 // Inizializzazione Google Maps (callback globale) — nessuna geolocalizzazione al caricamento
 window.initMap = function() {
   if (window._mapsLoadTimeout) {
@@ -851,6 +856,65 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStart = document.getElementById("btn-start");
   const btnStop = document.getElementById("btn-stop");
   const trackingStatus = document.getElementById("tracking-status");
+
+  // === Leaflet helpers (mappa alternativa) ===
+  function initLeafletMap() {
+    if (!window.L) return;
+    if (leafletMap) return;
+    const container = document.getElementById("leaflet-map");
+    if (!container) return;
+
+    leafletMap = L.map(container).setView([48.8, 10], 4);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(leafletMap);
+
+    leafletMarkersLayer = L.layerGroup().addTo(leafletMap);
+  }
+
+  function updateLeafletFromStops(dayStops) {
+    if (!window.L) return;
+    const container = document.getElementById("leaflet-map");
+    if (!container || !dayStops) return;
+    if (!leafletMap) initLeafletMap();
+    if (!leafletMap || !leafletMarkersLayer) return;
+
+    leafletMarkersLayer.clearLayers();
+    if (leafletRouteLine) {
+      leafletMap.removeLayer(leafletRouteLine);
+      leafletRouteLine = null;
+    }
+
+    if (!dayStops.length) return;
+
+    const coords = [];
+    dayStops.forEach((s) => {
+      if (typeof s.lat !== "number" || typeof s.lng !== "number") return;
+      const coord = [s.lat, s.lng];
+      coords.push(coord);
+      const time = s.time || "—";
+      const notes = s.notes || "—";
+      const marker = L.marker(coord);
+      marker.bindPopup(
+        `<strong>${s.name}</strong><br>Orario: ${time}<br>Note: ${notes}`
+      );
+      leafletMarkersLayer.addLayer(marker);
+    });
+
+    if (!coords.length) return;
+
+    if (coords.length >= 2) {
+      leafletRouteLine = L.polyline(coords, {
+        color: "#2563eb",
+        weight: 4,
+        opacity: 0.85
+      }).addTo(leafletMap);
+      leafletMap.fitBounds(leafletRouteLine.getBounds(), { padding: [20, 20] });
+    } else {
+      leafletMap.setView(coords[0], 14);
+    }
+  }
 
   // Nessuna richiesta GPS al caricamento. Il banner di stato è nascosto di default e si mostra solo al click su "Avvia navigazione".
   function setStatusVisible(visible) {
@@ -1187,6 +1251,36 @@ document.addEventListener("DOMContentLoaded", () => {
     
     renderStopsList();
     calculateAndDisplayRoute();
+    updateLeafletFromStops(stops);
+  }
+
+  let sortableInstance = null;
+
+  function initSortableStops() {
+    if (!stopsList || !window.Sortable) return;
+    if (sortableInstance) {
+      sortableInstance.destroy();
+      sortableInstance = null;
+    }
+    if (stops.length < 2) return;
+
+    sortableInstance = new Sortable(stopsList, {
+      animation: 150,
+      ghostClass: "stop-item-dragging",
+      onEnd: function(evt) {
+        const items = stopsList.querySelectorAll(".stop-item");
+        const newOrder = Array.from(items).map(li => parseInt(li.getAttribute("data-index"), 10)).filter(n => !Number.isNaN(n));
+        if (newOrder.length !== stops.length) return;
+        const reordered = newOrder.map(i => stops[i]);
+        stops.length = 0;
+        stops.push(...reordered);
+        allStops[currentDay - 1] = [...stops];
+        setStatusVisible(true);
+        setStatusMessage("Itinerario riordinato. Ricalcolo tempi…", "status-active");
+        calculateAndDisplayRoute();
+        if (typeof updateLeafletFromStops === "function") updateLeafletFromStops(stops);
+      }
+    });
   }
 
   function renderStopsList() {
@@ -1208,6 +1302,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnPreview) btnPreview.disabled = allStops.flat().length < 1;
     const btnRecalc = document.getElementById("btn-recalc");
     if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
+
+    initSortableStops();
   }
 
   // Estrae testo dalle istruzioni HTML delle Directions API
@@ -1458,6 +1554,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         renderStopsList();
         updateMarkers();
+        if (typeof updateLeafletFromStops === "function") updateLeafletFromStops(stops);
       }
     });
   }

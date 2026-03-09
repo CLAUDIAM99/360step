@@ -732,6 +732,7 @@ let currentLegIndex = 0;
 let watchId = null;
 let simulationInterval = null;
 let simIndex = 0;
+let customStartPoint = null; // { lat, lng, label }
 
 // Leaflet map (mappa alternativa itinerario)
 let leafletMap;
@@ -854,8 +855,13 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentPage = "home";
 
   function navigateTo(pageId, pushState = true) {
+    const prevPage = document.getElementById("page-" + currentPage);
+    if (prevPage && currentPage !== pageId) {
+      prevPage.classList.add("page-exit");
+    }
+
     pages.forEach(p => {
-      p.classList.remove("active", "visible");
+      p.classList.remove("active", "visible", "page-exit");
     });
     navLinks.forEach(l => l.classList.remove("active"));
 
@@ -878,6 +884,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (pageId === "map") {
+      setTimeout(() => {
+        if (leafletMap) leafletMap.invalidateSize();
+        if (map) google.maps.event.trigger(map, "resize");
+      }, 400);
+    }
   }
 
   navLinks.forEach(link => {
@@ -969,8 +982,10 @@ document.addEventListener("DOMContentLoaded", () => {
         weight: 4,
         opacity: 0.85
       }).addTo(leafletMap);
+      leafletMap.invalidateSize();
       leafletMap.fitBounds(leafletRouteLine.getBounds(), { padding: [20, 20] });
     } else {
+      leafletMap.invalidateSize();
       leafletMap.setView(coords[0], 14);
     }
   }
@@ -984,6 +999,64 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!trackingStatus) return;
     trackingStatus.textContent = text;
     trackingStatus.className = "status-banner " + (className || "status-neutral");
+  }
+
+  function splitPoisIntoDays(pois, numDays, startLat, startLng) {
+    if (!pois.length) return [];
+    const perDay = Math.ceil(pois.length / numDays);
+    const remaining = [...pois];
+    const result = [];
+    let originLat = startLat;
+    let originLng = startLng;
+
+    for (let d = 0; d < numDays; d++) {
+      if (!remaining.length) break;
+      const count = Math.min(perDay, remaining.length);
+      let dayPois;
+      if (originLat != null && originLng != null) {
+        dayPois = [];
+        let cur = { lat: originLat, lng: originLng };
+        for (let j = 0; j < count; j++) {
+          let nearestIdx = 0;
+          let minDist = Infinity;
+          for (let k = 0; k < remaining.length; k++) {
+            if (typeof google !== "undefined" && google.maps?.geometry?.spherical) {
+              const dd = google.maps.geometry.spherical.computeDistanceBetween(
+                new google.maps.LatLng(cur.lat, cur.lng),
+                new google.maps.LatLng(remaining[k].lat, remaining[k].lng)
+              );
+              if (dd < minDist) { minDist = dd; nearestIdx = k; }
+            } else {
+              const dx = cur.lat - remaining[k].lat;
+              const dy = cur.lng - remaining[k].lng;
+              const dd = dx * dx + dy * dy;
+              if (dd < minDist) { minDist = dd; nearestIdx = k; }
+            }
+          }
+          dayPois.push(remaining[nearestIdx]);
+          cur = remaining[nearestIdx];
+          remaining.splice(nearestIdx, 1);
+        }
+      } else {
+        dayPois = remaining.splice(0, count);
+      }
+      result.push(dayPois);
+      if (dayPois.length) {
+        const last = dayPois[dayPois.length - 1];
+        originLat = last.lat;
+        originLng = last.lng;
+      }
+    }
+    if (remaining.length) {
+      result[result.length - 1].push(...remaining);
+    }
+    return result;
+  }
+
+  function getStartOrigin(userLat, userLng) {
+    if (customStartPoint) return { lat: customStartPoint.lat, lng: customStartPoint.lng };
+    if (userLat != null && userLng != null) return { lat: userLat, lng: userLng };
+    return null;
   }
 
   function doGenerateItinerary(userLat, userLng) {
@@ -1011,20 +1084,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (userLat != null && userLng != null) {
-      pois = optimizeRouteFromPosition(pois, userLat, userLng);
-    }
-
     const numDays = parseInt(daysInput.value);
-    allStops = [];
-    const perDay = Math.ceil(pois.length / numDays);
-    
-    for (let i = 0; i < numDays; i++) {
-      allStops.push(pois.slice(i * perDay, (i + 1) * perDay));
-    }
+    const origin = getStartOrigin(userLat, userLng);
+    allStops = splitPoisIntoDays(pois, numDays, origin?.lat, origin?.lng);
 
     currentDay = 1;
-    renderTabs(numDays);
+    renderTabs(allStops.length);
     loadDay(1);
     
     const citiesLabel = foundCities.join(", ");
@@ -1058,19 +1123,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // “AI” semplice: mix + un po’ di varietà, poi ottimizza per vicinanza
     pois = [...pois].sort(() => Math.random() - 0.5);
-    if (userLat != null && userLng != null) {
-      pois = optimizeRouteFromPosition(pois, userLat, userLng);
-    }
 
     const numDays = parseInt(daysInput.value);
-    allStops = [];
-    const perDay = Math.ceil(pois.length / numDays);
-    for (let i = 0; i < numDays; i++) {
-      allStops.push(pois.slice(i * perDay, (i + 1) * perDay));
-    }
+    const origin = getStartOrigin(userLat, userLng);
+    allStops = splitPoisIntoDays(pois, numDays, origin?.lat, origin?.lng);
 
     currentDay = 1;
-    renderTabs(numDays);
+    renderTabs(allStops.length);
     loadDay(1);
     const citiesLabel = foundCities.join(", ");
     setStatusVisible(true);
@@ -1253,6 +1312,49 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // === STARTING POINT GEOCODING ===
+  const startPointInput = document.getElementById("start-point-input");
+  const startPointBtn = document.getElementById("start-point-btn");
+  const startPointStatus = document.getElementById("start-point-status");
+
+  if (startPointInput && startPointBtn) {
+    startPointBtn.addEventListener("click", () => {
+      const query = startPointInput.value.trim();
+      if (!query) {
+        customStartPoint = null;
+        if (startPointStatus) startPointStatus.textContent = "Punto di partenza rimosso. Verrà usata la posizione GPS.";
+        return;
+      }
+      if (typeof google === "undefined" || !google.maps) {
+        if (startPointStatus) startPointStatus.textContent = "Mappa non pronta. Attendi il caricamento.";
+        return;
+      }
+      if (startPointStatus) startPointStatus.textContent = "Ricerca in corso...";
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: query }, (results, status) => {
+        if (status !== "OK" || !results || !results[0]) {
+          if (startPointStatus) startPointStatus.textContent = "Luogo non trovato. Prova con un indirizzo più specifico.";
+          customStartPoint = null;
+          return;
+        }
+        const loc = results[0].geometry.location;
+        customStartPoint = {
+          lat: loc.lat(),
+          lng: loc.lng(),
+          label: results[0].formatted_address || query
+        };
+        if (startPointStatus) startPointStatus.textContent = "Partenza: " + customStartPoint.label;
+      });
+    });
+
+    startPointInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        startPointBtn.click();
+      }
+    });
+  }
+
   const btnRecalcFromPosition = document.getElementById("btn-recalc");
   if (btnRecalcFromPosition) {
     btnRecalcFromPosition.addEventListener("click", () => {
@@ -1331,8 +1433,9 @@ document.addEventListener("DOMContentLoaded", () => {
     sortableInstance = new Sortable(stopsList, {
       animation: 150,
       ghostClass: "stop-item-dragging",
+      filter: ".stop-item-start",
       onEnd: function(evt) {
-        const items = stopsList.querySelectorAll(".stop-item");
+        const items = stopsList.querySelectorAll(".stop-item:not(.stop-item-start)");
         const newOrder = Array.from(items).map(li => parseInt(li.getAttribute("data-index"), 10)).filter(n => !Number.isNaN(n));
         if (newOrder.length !== stops.length) return;
         const reordered = newOrder.map(i => stops[i]);
@@ -1362,10 +1465,23 @@ document.addEventListener("DOMContentLoaded", () => {
     el.style.display = "block";
   }
 
+  function getDayStartLabel(day) {
+    if (day === 1 && customStartPoint) return `Partenza: ${customStartPoint.label}`;
+    if (day > 1) {
+      const prevDay = allStops[day - 2];
+      if (prevDay && prevDay.length) {
+        return `Prosegui da: ${prevDay[prevDay.length - 1].name}`;
+      }
+    }
+    return null;
+  }
+
   function renderStopsList() {
-    stopsList.innerHTML = stops.map((s, i) => {
+    let startLabel = getDayStartLabel(currentDay);
+    let startHtml = startLabel ? `<li class="stop-item stop-item-start"><div class="stop-info"><span class="stop-number-start">📍</span><div><span class="stop-name stop-name-muted">${startLabel}</span></div></div></li>` : "";
+    stopsList.innerHTML = startHtml + stops.map((s, i) => {
       const legInfo = s.distanceToNext || s.durationToNext
-        ? `<span class="stop-duration">→ ${[s.distanceToNext, s.durationToNext].filter(Boolean).join(" · ")}</span>`
+        ? `<span class="stop-duration">\u2192 ${[s.distanceToNext, s.durationToNext].filter(Boolean).join(" \u00b7 ")}</span>`
         : "";
       return `
       <li class="stop-item ${s.reached ? "reached" : ""} ${i === currentLegIndex ? "current" : ""}" data-index="${i}">
@@ -1376,7 +1492,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ${legInfo}
           </div>
         </div>
-        <span class="stop-status">${s.reached ? "✅" : "⏳"}</span>
+        <span class="stop-status">${s.reached ? "\u2705" : "\u23f3"}</span>
       </li>
     `}).join("");
     

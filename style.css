@@ -126,6 +126,23 @@ body {
   background: rgba(255,255,255,0.1);
 }
 
+.nav-link::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.7);
+  transform: translateX(-50%);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 1px;
+}
+
+.nav-link.active::after {
+  width: 60%;
+}
+
 /* ========================================
    PAGES (show/hide + transitions)
    ======================================== */
@@ -139,8 +156,9 @@ body {
 .page {
   display: none;
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transform: translateY(20px) scale(0.99);
+  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .page.active {
@@ -149,7 +167,13 @@ body {
 
 .page.visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
+}
+
+.page.page-exit {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.99);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .page-inner {
@@ -252,6 +276,44 @@ body {
 
 .field-input-short {
   max-width: 160px;
+}
+
+/* Starting point */
+.step-block-sub {
+  padding: var(--space-md) 0;
+}
+
+.step-number-alt {
+  background: transparent;
+  font-size: 1.1rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.start-point-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.start-point-row .field-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.start-point-status {
+  font-size: 0.82rem;
+  margin-top: 6px;
+  color: var(--color-success);
+  min-height: 0;
+}
+
+.start-point-status:empty {
+  display: none;
 }
 
 /* ========================================
@@ -543,6 +605,34 @@ body {
 .stop-item:hover { border-color: var(--color-border-soft); cursor: pointer; }
 .stop-item.current { border-color: var(--color-accent); background: var(--color-neutral-bg); }
 .stop-item.reached { opacity: 0.7; background: var(--color-success-bg); border-color: rgba(45,90,74,0.2); }
+
+.stop-item-start {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  opacity: 0.7;
+  cursor: default;
+}
+
+.stop-item-start:hover {
+  border-color: var(--color-border);
+  cursor: default;
+}
+
+.stop-number-start {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.stop-name-muted {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
 
 .stop-info {
   display: flex;
@@ -1070,30 +1160,65 @@ body.is-tracking .map-wrapper {
    ======================================== */
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.page.visible .step-block {
-  animation: fadeInUp 0.4s ease both;
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.page.visible .step-block:nth-child(1) { animation-delay: 0s; }
-.page.visible .step-block:nth-child(2) { animation-delay: 0.06s; }
-.page.visible .step-block:nth-child(3) { animation-delay: 0.12s; }
-.page.visible .step-block:nth-child(4) { animation-delay: 0.18s; }
-.page.visible .step-block:nth-child(5) { animation-delay: 0.24s; }
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.page.visible .step-block {
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.page.visible .step-block:nth-child(1) { animation-delay: 0.05s; }
+.page.visible .step-block:nth-child(2) { animation-delay: 0.1s; }
+.page.visible .step-block:nth-child(3) { animation-delay: 0.15s; }
+.page.visible .step-block:nth-child(4) { animation-delay: 0.2s; }
+.page.visible .step-block:nth-child(5) { animation-delay: 0.25s; }
+.page.visible .step-block:nth-child(6) { animation-delay: 0.3s; }
 
 .page.visible .page-hero-title {
-  animation: fadeInUp 0.5s ease both;
+  animation: fadeInScale 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .page.visible .page-hero-subtitle {
-  animation: fadeInUp 0.5s ease 0.1s both;
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.15s both;
 }
 
 .page.visible .btn-lg {
-  animation: fadeInUp 0.5s ease 0.2s both;
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.25s both;
+}
+
+.page.visible .navigator-header {
+  animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.page.visible .map-and-sim {
+  animation: fadeInScale 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+}
+
+.page.visible .leaflet-section {
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+}
+
+.page.visible .saved-section-block {
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.page.visible .saved-section-block:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.page.visible .page-section-title {
+  animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 /* ========================================

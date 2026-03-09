@@ -89,6 +89,25 @@
         </div>
       </div>
 
+      <!-- Step 2b: Punto di partenza -->
+      <div class="step-block step-block-sub" data-step="2b">
+        <div class="step-indicator">
+          <span class="step-number step-number-alt">📍</span>
+          <span class="step-label">Da dove parti?</span>
+        </div>
+        <div class="step-content">
+          <div class="form-block">
+            <label for="start-point-input" class="field-label">Punto di partenza</label>
+            <p class="field-hint">Aeroporto, hotel, stazione... Lascia vuoto per usare la tua posizione GPS.</p>
+            <div class="start-point-row">
+              <input id="start-point-input" type="text" class="field-input" placeholder="Es. Aeroporto Fiumicino, Hotel Colosseum…" autocomplete="off">
+              <button type="button" id="start-point-btn" class="btn btn-outline">Imposta</button>
+            </div>
+            <div id="start-point-status" class="start-point-status"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Step 3 -->
       <div class="step-block" data-step="3">
         <div class="step-indicator">

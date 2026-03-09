@@ -733,6 +733,11 @@ let watchId = null;
 let simulationInterval = null;
 let simIndex = 0;
 
+// Leaflet map (mappa alternativa itinerario)
+let leafletMap;
+let leafletMarkersLayer;
+let leafletRouteLine;
+
 // Inizializzazione Google Maps (callback globale) — nessuna geolocalizzazione al caricamento
 window.initMap = function() {
   if (window._mapsLoadTimeout) {
@@ -851,6 +856,65 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStart = document.getElementById("btn-start");
   const btnStop = document.getElementById("btn-stop");
   const trackingStatus = document.getElementById("tracking-status");
+
+  // === Leaflet helpers (mappa alternativa) ===
+  function initLeafletMap() {
+    if (!window.L) return;
+    if (leafletMap) return;
+    const container = document.getElementById("leaflet-map");
+    if (!container) return;
+
+    leafletMap = L.map(container).setView([48.8, 10], 4);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(leafletMap);
+
+    leafletMarkersLayer = L.layerGroup().addTo(leafletMap);
+  }
+
+  function updateLeafletFromStops(dayStops) {
+    if (!window.L) return;
+    const container = document.getElementById("leaflet-map");
+    if (!container || !dayStops) return;
+    if (!leafletMap) initLeafletMap();
+    if (!leafletMap || !leafletMarkersLayer) return;
+
+    leafletMarkersLayer.clearLayers();
+    if (leafletRouteLine) {
+      leafletMap.removeLayer(leafletRouteLine);
+      leafletRouteLine = null;
+    }
+
+    if (!dayStops.length) return;
+
+    const coords = [];
+    dayStops.forEach((s) => {
+      if (typeof s.lat !== "number" || typeof s.lng !== "number") return;
+      const coord = [s.lat, s.lng];
+      coords.push(coord);
+      const time = s.time || "—";
+      const notes = s.notes || "—";
+      const marker = L.marker(coord);
+      marker.bindPopup(
+        `<strong>${s.name}</strong><br>Orario: ${time}<br>Note: ${notes}`
+      );
+      leafletMarkersLayer.addLayer(marker);
+    });
+
+    if (!coords.length) return;
+
+    if (coords.length >= 2) {
+      leafletRouteLine = L.polyline(coords, {
+        color: "#2563eb",
+        weight: 4,
+        opacity: 0.85
+      }).addTo(leafletMap);
+      leafletMap.fitBounds(leafletRouteLine.getBounds(), { padding: [20, 20] });
+    } else {
+      leafletMap.setView(coords[0], 14);
+    }
+  }
 
   // Nessuna richiesta GPS al caricamento. Il banner di stato è nascosto di default e si mostra solo al click su "Avvia navigazione".
   function setStatusVisible(visible) {
@@ -1187,6 +1251,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     renderStopsList();
     calculateAndDisplayRoute();
+    updateLeafletFromStops(stops);
   }
 
   function renderStopsList() {

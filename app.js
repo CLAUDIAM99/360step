@@ -1074,7 +1074,9 @@ function ensureLeafletReady() {
   const container = document.getElementById("leaflet-map");
   if (!container) return false;
   if (!leafletMap) {
-    initLeafletMap();
+    if (typeof window.__initLeafletMap === "function") {
+      window.__initLeafletMap();
+    }
   }
   if (!leafletMap) return false;
   return true;
@@ -1132,7 +1134,9 @@ function renderWalk(data) {
 
   // Fit bounds (preview-like) se abbiamo una mappa
   if (ensureLeafletReady()) {
-    updateLeafletFromStops(stops);
+    if (typeof window.__updateLeafletFromStops === "function") {
+      window.__updateLeafletFromStops(stops);
+    }
     invalidateLeafletSizeSoon();
   }
 }
@@ -1333,6 +1337,10 @@ document.addEventListener("DOMContentLoaded", () => {
       leafletMap.setView(coords[0], 14);
     }
   }
+
+  // Espone helper a funzioni globali (renderWalk/openWalkScreen)
+  window.__initLeafletMap = initLeafletMap;
+  window.__updateLeafletFromStops = updateLeafletFromStops;
 
   // Nessuna richiesta GPS al caricamento. Il banner di stato è nascosto di default e si mostra solo al click su "Avvia navigazione".
   function setStatusVisible(visible) {
@@ -2365,7 +2373,9 @@ document.addEventListener("DOMContentLoaded", () => {
     openWalkScreen();
     setNavStatus("preview");
     if (ensureLeafletReady()) {
-      updateLeafletFromStops(itineraryData.stops);
+      if (typeof window.__updateLeafletFromStops === "function") {
+        window.__updateLeafletFromStops(itineraryData.stops);
+      }
       invalidateLeafletSizeSoon();
     }
     setStatusVisible(true);

@@ -32,8 +32,6 @@
   let currentMovies = [];
   let likedMovies = [];
   let stackIndex = 0;
-  let dragStartX = 0;
-  let dragStartY = 0;
 
   const $ = (id) => document.getElementById(id);
   const showScreen = (id) => {
@@ -51,7 +49,7 @@
 
   function checkApiKey() {
     if (!apiKey || !apiKey.trim()) {
-      showApiHint("Per usare la ricerca film inserisci una API key TMDB gratuita in movie-picker/config.js (vedi themoviedb.org/settings/api)", true);
+      showApiHint("Inserisci una API key TMDB in movie-picker/config.js (gratuita su themoviedb.org/settings/api)", true);
       return false;
     }
     showApiHint("");
@@ -103,17 +101,20 @@
     const wrap = $("genre-chips");
     if (!wrap) return;
     wrap.innerHTML = GENRES_IT.map(
-      (g) =>
-        `<button type="button" class="chip" data-id="${g.id}">${g.name}</button>`
+      (g) => `<button type="button" class="chip" data-id="${g.id}">${g.name}</button>`
     ).join("");
     wrap.querySelectorAll(".chip").forEach((btn) => {
       btn.addEventListener("click", () => {
         btn.classList.toggle("selected");
-        genreIds = Array.from(wrap.querySelectorAll(".chip.selected")).map(
-          (e) => +e.dataset.id
-        );
+        genreIds = Array.from(wrap.querySelectorAll(".chip.selected")).map((e) => +e.dataset.id);
       });
     });
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
   }
 
   function renderCardsStack() {
@@ -149,22 +150,13 @@
     updateSwipeCounts();
   }
 
-  function escapeHtml(s) {
-    const div = document.createElement("div");
-    div.textContent = s;
-    return div.innerHTML;
-  }
-
   function attachSwipeListeners(cardEl, movie) {
-    let startX = 0,
-      startY = 0,
-      currentX = 0;
+    let startX = 0, currentX = 0;
 
-    function onStart(clientX, clientY) {
+    function onStart(clientX) {
       if (!cardEl.classList.contains("stack-0")) return;
       cardEl.classList.add("dragging");
       startX = clientX;
-      startY = clientY;
       currentX = 0;
     }
 
@@ -190,17 +182,16 @@
       }
     }
 
-    cardEl.addEventListener("mousedown", (e) => onStart(e.clientX, e.clientY));
+    cardEl.addEventListener("mousedown", (e) => onStart(e.clientX));
     cardEl.addEventListener("touchstart", (e) => {
       e.preventDefault();
-      onStart(e.touches[0].clientX, e.touches[0].clientY);
+      onStart(e.touches[0].clientX);
     }, { passive: false });
     window.addEventListener("mousemove", (e) => {
       if (cardEl.classList.contains("dragging")) onMove(e.clientX);
     });
     window.addEventListener("touchmove", (e) => {
-      if (cardEl.classList.contains("dragging") && e.touches[0])
-        onMove(e.touches[0].clientX);
+      if (cardEl.classList.contains("dragging") && e.touches[0]) onMove(e.touches[0].clientX);
     }, { passive: true });
     window.addEventListener("mouseup", () => onEnd());
     window.addEventListener("touchend", () => onEnd());
@@ -279,39 +270,29 @@
     renderCardsStack();
   }
 
-  // --- Setup: per stile
-  const btnByStyle = $("btn-by-style");
-  const btnBySimilar = $("btn-by-similar");
+  const setupCards = document.querySelector(".setup-cards");
   const formStyle = $("form-style");
   const formSimilar = $("form-similar");
 
-  const setupCards = document.querySelector(".setup-cards");
-  if (btnByStyle) {
-    btnByStyle.addEventListener("click", () => {
-      btnByStyle.classList.add("hidden");
-      btnBySimilar.classList.add("hidden");
-      setupCards?.classList.add("hidden");
-      formStyle.classList.remove("hidden");
-      renderGenreChips();
-    });
-  }
+  $("btn-by-style")?.addEventListener("click", () => {
+    $("btn-by-style")?.classList.add("hidden");
+    $("btn-by-similar")?.classList.add("hidden");
+    setupCards?.classList.add("hidden");
+    formStyle?.classList.remove("hidden");
+    renderGenreChips();
+  });
 
-  if (btnBySimilar) {
-    btnBySimilar.addEventListener("click", () => {
-      btnByStyle.classList.add("hidden");
-      btnBySimilar.classList.add("hidden");
-      setupCards?.classList.add("hidden");
-      formSimilar.classList.remove("hidden");
-      $("similar-input").focus();
-    });
-  }
+  $("btn-by-similar")?.addEventListener("click", () => {
+    $("btn-by-style")?.classList.add("hidden");
+    $("btn-by-similar")?.classList.add("hidden");
+    setupCards?.classList.add("hidden");
+    formSimilar?.classList.remove("hidden");
+    $("similar-input")?.focus();
+  });
 
-  const includeAnimationEl = $("include-animation");
-  if (includeAnimationEl) {
-    includeAnimationEl.addEventListener("change", () => {
-      includeAnimation = includeAnimationEl.checked;
-    });
-  }
+  $("include-animation")?.addEventListener("change", (e) => {
+    includeAnimation = e.target.checked;
+  });
 
   $("btn-start-style")?.addEventListener("click", async () => {
     if (!checkApiKey()) return;
@@ -330,7 +311,6 @@
     }
   });
 
-  // --- Setup: simile a
   const similarInput = $("similar-input");
   const similarSuggestions = $("similar-suggestions");
   let similarDebounce = null;
@@ -350,13 +330,9 @@
       if (!apiKey) return;
       try {
         const list = await searchMovie(q);
-        similarSuggestions.innerHTML = list
-          .slice(0, 6)
-          .map(
-            (m) =>
-              `<div class="similar-suggestion" data-id="${m.id}">${escapeHtml(m.title)}${m.year ? " (" + m.year + ")" : ""}</div>`
-          )
-          .join("");
+        similarSuggestions.innerHTML = list.slice(0, 6).map(
+          (m) => `<div class="similar-suggestion" data-id="${m.id}">${escapeHtml(m.title)}${m.year ? " (" + m.year + ")" : ""}</div>`
+        ).join("");
         similarSuggestions.classList.remove("hidden");
         similarSuggestions.querySelectorAll(".similar-suggestion").forEach((el) => {
           el.addEventListener("click", () => {
@@ -376,9 +352,10 @@
     if (!checkApiKey()) return;
     if (!selectedMovieId) {
       const q = similarInput?.value?.trim();
-      if (!q) return;
-      const list = await searchMovie(q);
-      if (list.length) selectedMovieId = list[0].id;
+      if (q) {
+        const list = await searchMovie(q);
+        if (list.length) selectedMovieId = list[0].id;
+      }
     }
     if (!selectedMovieId) {
       showApiHint("Nessun film trovato. Prova un altro titolo.", true);
@@ -396,12 +373,10 @@
     }
   });
 
-  // --- Bottoni swipe
   $("btn-nope")?.addEventListener("click", () => {
     const top = document.querySelector(".cards-stack .movie-card.stack-0");
     if (top) {
-      const id = +top.dataset.movieId;
-      const movie = currentMovies.find((m) => m.id === id);
+      const movie = currentMovies.find((m) => m.id === +top.dataset.movieId);
       if (movie) nopeCard(top, movie);
     }
   });
@@ -409,8 +384,7 @@
   $("btn-like")?.addEventListener("click", () => {
     const top = document.querySelector(".cards-stack .movie-card.stack-0");
     if (top) {
-      const id = +top.dataset.movieId;
-      const movie = currentMovies.find((m) => m.id === id);
+      const movie = currentMovies.find((m) => m.id === +top.dataset.movieId);
       if (movie) likeCard(top, movie);
     }
   });
@@ -421,18 +395,18 @@
   });
 
   $("btn-back-to-swipe")?.addEventListener("click", () => showScreen("screen-swipe"));
+
   $("btn-new-search")?.addEventListener("click", () => {
     showScreen("screen-setup");
     setupCards?.classList.remove("hidden");
-    btnByStyle?.classList.remove("hidden");
-    btnBySimilar?.classList.remove("hidden");
+    $("btn-by-style")?.classList.remove("hidden");
+    $("btn-by-similar")?.classList.remove("hidden");
     formStyle?.classList.add("hidden");
     formSimilar?.classList.add("hidden");
-    similarInput.value = "";
+    if (similarInput) similarInput.value = "";
     selectedMovieId = null;
     showApiHint("");
   });
 
-  // Init
   if (apiKey && apiKey.trim()) showApiHint("API key configurata. Scegli come cercare i film.");
 })();

@@ -40,7 +40,6 @@ body {
   flex-direction: column;
 }
 
-/* ========== SCREEN (pagine) ========== */
 .screen {
   display: none;
   flex-direction: column;
@@ -51,7 +50,7 @@ body {
   display: flex;
 }
 
-/* ========== SETUP (scelta modalità) ========== */
+/* ========== SETUP ========== */
 .screen-setup {
   position: relative;
   justify-content: center;
@@ -121,16 +120,8 @@ body {
 }
 .setup-card:active { transform: scale(0.98); }
 
-.setup-card-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.setup-card-title {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
+.setup-card-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.setup-card-title { font-weight: 600; margin-bottom: 0.25rem; }
 .setup-card-desc {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.75);
@@ -202,12 +193,8 @@ body {
   left: 2px;
   transition: transform 0.25s ease;
 }
-.toggle-input:checked + .toggle-slider {
-  background: var(--accent);
-}
-.toggle-input:checked + .toggle-slider::after {
-  transform: translateX(20px);
-}
+.toggle-input:checked + .toggle-slider { background: var(--accent); }
+.toggle-input:checked + .toggle-slider::after { transform: translateX(20px); }
 .toggle-label { color: rgba(255,255,255,0.9); font-size: 0.95rem; }
 
 .field-input {
@@ -288,7 +275,7 @@ body {
 }
 .setup-api-hint.error { color: #ff6b6b; }
 
-/* ========== SWIPE (card stack Tinder) ========== */
+/* ========== SWIPE ========== */
 .screen-swipe {
   padding: 1rem 1rem 2rem;
   align-items: center;
@@ -411,7 +398,6 @@ body {
   overflow: hidden;
 }
 
-/* Card in stack: la prima è in cima */
 .movie-card.stack-0 { z-index: 10; }
 .movie-card.stack-1 { z-index: 9; transform: translateX(-50%) scale(0.96); opacity: 0.95; }
 .movie-card.stack-2 { z-index: 8; transform: translateX(-50%) scale(0.92); opacity: 0.9; }
@@ -440,22 +426,13 @@ body {
 .action-btn:hover { transform: scale(1.08); }
 .action-btn:active { transform: scale(0.95); }
 
-.action-nope {
-  background: #fff;
-  color: var(--nope-color);
-}
-.action-like {
-  background: #fff;
-  color: var(--like-color);
-}
+.action-nope { background: #fff; color: var(--nope-color); }
+.action-like { background: #fff; color: var(--like-color); }
 .action-like:hover { box-shadow: 0 6px 24px rgba(0, 200, 83, 0.4); }
 .action-nope:hover { box-shadow: 0 6px 24px rgba(255, 23, 68, 0.3); }
+.action-icon { line-height: 1; }
 
-.action-icon {
-  line-height: 1;
-}
-
-/* ========== MATCHES (lista scelte) ========== */
+/* ========== MATCHES ========== */
 .screen-matches {
   padding: 2rem 1.5rem 3rem;
   align-items: center;
@@ -465,16 +442,8 @@ body {
   text-align: center;
   margin-bottom: 1.5rem;
 }
-.matches-header h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
-}
-.matches-header p {
-  color: rgba(255, 255, 255, 0.7);
-  margin: 0;
-  font-size: 1rem;
-}
+.matches-header h2 { font-size: 1.75rem; font-weight: 700; margin: 0 0 0.5rem; }
+.matches-header p { color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 1rem; }
 
 .matches-list {
   width: 100%;
@@ -522,7 +491,6 @@ body {
 }
 .matches-empty.hidden { display: none !important; }
 .matches-empty .btn { margin-top: 1rem; }
-
 .matches-empty p { margin: 0 0 1rem; }
 
 .hidden { display: none !important; }

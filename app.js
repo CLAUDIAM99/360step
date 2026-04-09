@@ -718,6 +718,128 @@ const CITY_CATALOG = {
   }
 };
 
+// === Preferenze walk (city break / premium UX) ===
+const TIME_STOP_CAPS = { "2h": 4, "4h": 6, half: 9, full: 14 };
+const PACE_MULT = { relaxed: 0.78, balanced: 1, intense: 1.18 };
+
+const WALK_BEST_TIME = {
+  romantic: "Tardo pomeriggio fino al tramonto",
+  iconic: "Mattina presto, prima della folla",
+  hidden: "Metà mattina o dopo pranzo",
+  chill: "Quando preferisci — il ritmo è lento",
+  food: "Pranzo leggero o aperitivo"
+};
+
+const WALK_WHY_FALLBACK = {
+  romantic: "Un angolo dove fermarsi, respirare e godersi la città in due.",
+  iconic: "Tra i punti che raccontano meglio questa destinazione.",
+  hidden: "Fuori dal solito percorso turistico — più autentico.",
+  chill: "Pensato per camminare senza fretta.",
+  food: "Legato a gusto, mercati o pause conviviali."
+};
+
+let lastWalkMeta = {
+  walkType: "iconic",
+  timeBudget: "half",
+  pace: "balanced",
+  citiesLabel: ""
+};
+
+function readWalkPreferences() {
+  const typeEl = document.querySelector('input[name="walk-type"]:checked');
+  const timeEl = document.querySelector('input[name="time-budget"]:checked');
+  const paceEl = document.querySelector('input[name="pace"]:checked');
+  const daysEl = document.getElementById("days-input");
+  return {
+    walkType: typeEl ? typeEl.value : "iconic",
+    timeBudget: timeEl ? timeEl.value : "half",
+    pace: paceEl ? paceEl.value : "balanced",
+    days: Math.max(1, Math.min(3, parseInt(daysEl && daysEl.value ? daysEl.value : "1", 10) || 1))
+  };
+}
+
+function applyWalkMood(pois, mood) {
+  if (!pois.length) return pois;
+  const n = pois.length;
+  const copy = [...pois];
+  switch (mood) {
+    case "romantic":
+      return copy.filter((_, i) => i % 2 === 0 || i === n - 1);
+    case "hidden":
+      return copy.slice(Math.max(0, Math.floor(n * 0.28)));
+    case "chill":
+      return copy.filter((_, i) => i % 2 === 0);
+    case "food": {
+      const foodish = copy.filter((p) =>
+        /mercat|market|food|tapas|bistr|café|caffe|osteria|trattoria|ristor|wein|bier|chocolat|cioccolat|kulinar|viktualien|san miguel|fondouk/i.test(p.name)
+      );
+      return foodish.length >= 3 ? foodish : copy.slice(0, Math.min(7, n));
+    }
+    case "iconic":
+    default:
+      return copy.slice(0, Math.max(4, Math.ceil(n * 0.72)));
+  }
+}
+
+function applyTimeAndPaceCap(pois, timeBudget, pace) {
+  const base = TIME_STOP_CAPS[timeBudget] != null ? TIME_STOP_CAPS[timeBudget] : 9;
+  const mult = PACE_MULT[pace] != null ? PACE_MULT[pace] : 1;
+  const cap = Math.max(3, Math.round(base * mult));
+  return pois.slice(0, Math.min(cap, pois.length));
+}
+
+function enrichStopsWithWhy(stops, mood) {
+  const fallback = WALK_WHY_FALLBACK[mood] || WALK_WHY_FALLBACK.iconic;
+  return stops.map((s, i) => {
+    let why = fallback;
+    const catKey = Object.keys(CITY_TEMPLATES).find((k) => CITY_TEMPLATES[k].displayName === s.cityName);
+    if (catKey && CITY_CATALOG[catKey] && CITY_CATALOG[catKey].highlights && CITY_CATALOG[catKey].highlights[i % CITY_CATALOG[catKey].highlights.length]) {
+      why = `Nel cuore di ${s.cityName}: ${CITY_CATALOG[catKey].highlights[i % CITY_CATALOG[catKey].highlights.length]}.`;
+    }
+    return { ...s, why };
+  });
+}
+
+function setGenerationLoading(on) {
+  const el = document.getElementById("generation-loading");
+  if (el) {
+    el.classList.toggle("is-visible", !!on);
+    el.setAttribute("aria-busy", on ? "true" : "false");
+  }
+}
+
+function setWalkViewEnabled(enabled) {
+  const navWalk = document.querySelector('.bottom-nav__btn[data-view="walk"]');
+  if (navWalk) {
+    navWalk.disabled = !enabled;
+    navWalk.removeAttribute("aria-disabled");
+  }
+}
+
+function updateItineraryHeadline(totalMeters, totalSeconds) {
+  const root = document.getElementById("itinerary-headline");
+  if (!root) return;
+  const flat = allStops.length ? allStops.flat() : [];
+  const n = flat.length;
+  const km = totalMeters > 0 ? (totalMeters / 1000).toFixed(1) : "—";
+  const mins = totalSeconds > 0 ? Math.round(totalSeconds / 60) : 0;
+  const timeStr = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : mins > 0 ? `${mins} min` : "—";
+  const best = WALK_BEST_TIME[lastWalkMeta.walkType] || WALK_BEST_TIME.iconic;
+  root.innerHTML = `
+    <div class="headline-stat"><span class="headline-stat__val">${n}</span><span class="headline-stat__lbl">tappe</span></div>
+    <div class="headline-stat"><span class="headline-stat__val">${km}</span><span class="headline-stat__lbl">km ca.</span></div>
+    <div class="headline-stat"><span class="headline-stat__val">${timeStr}</span><span class="headline-stat__lbl">a piedi</span></div>
+    <div class="headline-stat headline-stat--wide"><span class="headline-stat__val headline-stat__val--sm">${best}</span><span class="headline-stat__lbl">momento ideale</span></div>
+  `;
+}
+
+function escHtml(text) {
+  if (text == null) return "";
+  const d = document.createElement("div");
+  d.textContent = String(text);
+  return d.innerHTML;
+}
+
 // Stato Applicazione
 let map;
 let directionsService;
@@ -765,7 +887,7 @@ window.initMap = function() {
     directionsRenderer = new google.maps.DirectionsRenderer({
       map: map,
       suppressMarkers: true,
-      polylineOptions: { strokeColor: "#6366f1", strokeWeight: 6, strokeOpacity: 0.8 }
+      polylineOptions: { strokeColor: "#2d4a3e", strokeWeight: 5, strokeOpacity: 0.92 }
     });
     userMarker = new google.maps.Marker({
       map: map,
@@ -849,51 +971,70 @@ function loadGoogleMapsScriptIfNeeded() {
 
 document.addEventListener("DOMContentLoaded", () => {
 
-  // === PAGE NAVIGATION ===
-  const pages = document.querySelectorAll(".page");
-  const navLinks = document.querySelectorAll(".nav-link");
-  let currentPage = "home";
+  // === Viste app: pianifica | itinerario | salvati ===
+  const viewSections = document.querySelectorAll("[data-app-view]");
+  const bottomNavBtns = document.querySelectorAll(".bottom-nav__btn[data-view]");
 
-  function navigateTo(pageId, pushState = true) {
-    const prevPage = document.getElementById("page-" + currentPage);
-    if (prevPage && currentPage !== pageId) {
-      prevPage.classList.add("page-exit");
-    }
+  function mapHashToViewId(hash) {
+    const h = (hash || "").toLowerCase();
+    const legacy = { "#pianifica": "plan", "#mappa": "walk", "#percorsi": "saved", "#home": "plan" };
+    if (legacy[h]) return legacy[h];
+    if (h === "#walk" || h === "#plan" || h === "#saved") return h.slice(1);
+    return "plan";
+  }
 
-    pages.forEach(p => {
-      p.classList.remove("active", "visible", "page-exit");
+  function setAppView(viewId, pushState = true) {
+    const id = viewId;
+    viewSections.forEach((section) => {
+      const v = section.getAttribute("data-app-view");
+      const on = v === id;
+      section.classList.toggle("view--active", on);
+      section.toggleAttribute("hidden", !on);
     });
-    navLinks.forEach(l => l.classList.remove("active"));
-
-    const target = document.getElementById("page-" + pageId);
-    const link = document.querySelector(`.nav-link[data-page="${pageId}"]`);
-    if (target) {
-      target.classList.add("active");
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          target.classList.add("visible");
-        });
-      });
+    bottomNavBtns.forEach((btn) => {
+      const v = btn.getAttribute("data-view");
+      btn.classList.toggle("bottom-nav__btn--active", v === id);
+    });
+    if (pushState) {
+      const urls = { plan: "#plan", walk: "#walk", saved: "#saved" };
+      if (urls[id]) history.pushState(null, "", urls[id]);
     }
-    if (link) link.classList.add("active");
-    currentPage = pageId;
-
-    const hashMap = { home: "#home", planner: "#pianifica", map: "#mappa", saved: "#percorsi" };
-    if (pushState && hashMap[pageId]) {
-      history.pushState(null, "", hashMap[pageId]);
-    }
-
     window.scrollTo({ top: 0, behavior: "smooth" });
-
-    if (pageId === "map") {
+    if (id === "walk") {
       setTimeout(() => {
-        if (leafletMap) leafletMap.invalidateSize();
-        if (map) google.maps.event.trigger(map, "resize");
+        if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
+        if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
       }, 400);
     }
   }
 
-  navLinks.forEach(link => {
+  window.__setAppView = setAppView;
+
+  function navigateTo(pageId, pushState = true) {
+    const legacy = { map: "walk", planner: "plan", home: "plan", saved: "saved" };
+    setAppView(legacy[pageId] || "plan", pushState);
+  }
+
+  bottomNavBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.disabled) return;
+      const v = btn.getAttribute("data-view");
+      if (v) setAppView(v);
+    });
+  });
+
+  const backToPlanBtn = document.getElementById("back-to-plan");
+  if (backToPlanBtn) {
+    backToPlanBtn.addEventListener("click", () => setAppView("plan"));
+  }
+
+  const ctaStartPlanning = document.getElementById("cta-start-planning");
+  if (ctaStartPlanning) {
+    ctaStartPlanning.addEventListener("click", () => setAppView("plan"));
+  }
+
+  const legacyNavLinks = document.querySelectorAll(".nav-link[data-page]");
+  legacyNavLinks.forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
       const page = link.getAttribute("data-page");
@@ -901,28 +1042,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  const ctaStartPlanning = document.getElementById("cta-start-planning");
-  if (ctaStartPlanning) {
-    ctaStartPlanning.addEventListener("click", () => navigateTo("planner"));
+  function resolveHashView() {
+    return mapHashToViewId(window.location.hash);
   }
 
-  function resolveHashPage() {
-    const hash = window.location.hash;
-    const map = { "#home": "home", "#pianifica": "planner", "#mappa": "map", "#percorsi": "saved" };
-    return map[hash] || "home";
+  if (viewSections.length) {
+    setAppView(resolveHashView(), false);
+    window.addEventListener("popstate", () => setAppView(resolveHashView(), false));
   }
-
-  navigateTo(resolveHashPage(), false);
-
-  window.addEventListener("popstate", () => {
-    navigateTo(resolveHashPage(), false);
-  });
 
   // === ELEMENT REFERENCES ===
   const cityInput = document.getElementById("city-input");
   const daysInput = document.getElementById("days-input");
-  const btnGenerate = document.getElementById("btn-generate");
+  const btnGenerate = document.getElementById("btn-generate") || document.getElementById("generate-city-itinerary");
   const btnGenerateAi = document.getElementById("generate-ai-itinerary");
+  const btnRegenerate = document.getElementById("btn-regenerate");
   const stopsList = document.getElementById("stops-list");
   const daysTabsContainer = document.getElementById("days-tabs");
   const btnStart = document.getElementById("btn-start");
@@ -1060,12 +1194,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function doGenerateItinerary(userLat, userLng) {
+    setGenerationLoading(true);
+    const prefs = readWalkPreferences();
     const rawInput = cityInput.value.trim();
     const cityParts = rawInput.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-    
+
     let pois = [];
     const foundCities = [];
-    
+
     for (const part of cityParts) {
       const cityKey = resolveCityKey(part);
       if (cityKey && CITY_TEMPLATES[cityKey]) {
@@ -1077,27 +1213,39 @@ document.addEventListener("DOMContentLoaded", () => {
         foundCities.push(template.displayName);
       }
     }
-    
+
     if (pois.length === 0) {
+      setGenerationLoading(false);
       setStatusVisible(true);
-      setStatusMessage("Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).", "status-neutral");
+      setStatusMessage("Non abbiamo trovato questa città. Scegline una dall'elenco suggerito.", "status-neutral");
       return;
     }
 
-    const numDays = parseInt(daysInput.value);
+    let filtered = applyWalkMood(pois, prefs.walkType);
+    filtered = applyTimeAndPaceCap(filtered, prefs.timeBudget, prefs.pace);
+    filtered = enrichStopsWithWhy(filtered, prefs.walkType);
+
+    const numDays = prefs.days;
     const origin = getStartOrigin(userLat, userLng);
-    allStops = splitPoisIntoDays(pois, numDays, origin?.lat, origin?.lng);
+    allStops = splitPoisIntoDays(filtered, numDays, origin?.lat, origin?.lng);
+
+    lastWalkMeta = { ...prefs, citiesLabel: foundCities.join(", ") };
 
     currentDay = 1;
     renderTabs(allStops.length);
     loadDay(1);
-    
+
     const citiesLabel = foundCities.join(", ");
     setStatusVisible(true);
-    setStatusMessage(pois.length > 0 ? `Itinerario per ${citiesLabel} pronto!` : "Nessun itinerario generato.", "status-active");
+    setStatusMessage(`Il tuo walk a ${citiesLabel} è pronto. Buon viaggio.`, "status-active");
+    setWalkViewEnabled(true);
+    if (typeof window.__setAppView === "function") window.__setAppView("walk", true);
+    setTimeout(() => setGenerationLoading(false), 900);
   }
 
   function doGenerateAiItinerary(userLat, userLng) {
+    setGenerationLoading(true);
+    const prefs = readWalkPreferences();
     const rawInput = cityInput.value.trim();
     const cityParts = rawInput.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
     let pois = [];
@@ -1116,48 +1264,58 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (!pois.length) {
+      setGenerationLoading(false);
       setStatusVisible(true);
-      setStatusMessage("Città non trovata. Inserisci una città valida (es: Roma, Anversa, Leuven, Brussels).", "status-neutral");
+      setStatusMessage("Non abbiamo trovato questa città. Scegline una dall'elenco suggerito.", "status-neutral");
       return;
     }
 
-    // “AI” semplice: mix + un po’ di varietà, poi ottimizza per vicinanza
     pois = [...pois].sort(() => Math.random() - 0.5);
+    let filtered = applyWalkMood(pois, prefs.walkType);
+    filtered = applyTimeAndPaceCap(filtered, prefs.timeBudget, prefs.pace);
+    filtered = enrichStopsWithWhy(filtered, prefs.walkType);
 
-    const numDays = parseInt(daysInput.value);
+    const numDays = prefs.days;
     const origin = getStartOrigin(userLat, userLng);
-    allStops = splitPoisIntoDays(pois, numDays, origin?.lat, origin?.lng);
+    allStops = splitPoisIntoDays(filtered, numDays, origin?.lat, origin?.lng);
+
+    lastWalkMeta = { ...prefs, citiesLabel: foundCities.join(", ") };
 
     currentDay = 1;
     renderTabs(allStops.length);
     loadDay(1);
     const citiesLabel = foundCities.join(", ");
     setStatusVisible(true);
-    setStatusMessage(`Itinerario AI per ${citiesLabel} pronto!`, "status-active");
+    setStatusMessage(`Nuovo mix per ${citiesLabel}. Esplora l'itinerario aggiornato.`, "status-active");
+    setWalkViewEnabled(true);
+    if (typeof window.__setAppView === "function") window.__setAppView("walk", true);
+    setTimeout(() => setGenerationLoading(false), 900);
   }
 
-  btnGenerate.addEventListener("click", () => {
-    if (!navigator.geolocation) {
-      doGenerateItinerary(null, null);
-      return;
-    }
-    setStatusVisible(true);
-    setStatusMessage("Rilevamento posizione in corso…", "status-active");
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        userPosition = { lat, lng };
-        if (userMarker) {
-          userMarker.setPosition({ lat, lng });
-          userMarker.setVisible(true);
-        }
-        doGenerateItinerary(lat, lng);
-      },
-      () => doGenerateItinerary(null, null),
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  });
+  if (btnGenerate) {
+    btnGenerate.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        doGenerateItinerary(null, null);
+        return;
+      }
+      setStatusVisible(true);
+      setStatusMessage("Un attimo: usiamo la tua posizione per ordinare le tappe in modo sensato.", "status-active");
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          userPosition = { lat, lng };
+          if (userMarker) {
+            userMarker.setPosition({ lat, lng });
+            userMarker.setVisible(true);
+          }
+          doGenerateItinerary(lat, lng);
+        },
+        () => doGenerateItinerary(null, null),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+  }
 
   if (btnGenerateAi) {
     btnGenerateAi.addEventListener("click", () => {
@@ -1184,15 +1342,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Se è presente config con chiave (es. server), carica Maps dinamicamente; altrimenti lo script in HTML chiama initMap
-  if (window.__360STEP_CONFIG__?.googleMapsApiKey) {
-    loadGoogleMapsScriptIfNeeded().catch((err) => {
-      if (err?.message === "missing_google_maps_key") {
-        setStatusVisible(true);
-        setStatusMessage("Manca la chiave Google Maps. Imposta GOOGLE_MAPS_API_KEY in .env.", "status-neutral");
-      }
-    });
-  }
+  loadGoogleMapsScriptIfNeeded().catch((err) => {
+    if (err?.message === "missing_google_maps_key") {
+      setStatusVisible(true);
+      setStatusMessage("Aggiungi la chiave Google Maps in config.js (o .env con npm start).", "status-neutral");
+    }
+  });
 
   // Permette di lanciare la generazione con Invio
   if (cityInput) {
@@ -1203,10 +1358,38 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dropdown && dropdown.classList.contains("visible")) {
           const first = dropdown.querySelector(".city-suggestion-item");
           if (first) first.click();
-        } else {
+        } else if (btnGenerate) {
           btnGenerate.click();
         }
       }
+    });
+  }
+
+  if (btnRegenerate) {
+    btnRegenerate.addEventListener("click", () => {
+      if (!cityInput || !cityInput.value.trim()) {
+        setStatusVisible(true);
+        setStatusMessage("Scegli prima una città, poi rigenera il percorso.", "status-neutral");
+        return;
+      }
+      setStatusVisible(true);
+      setStatusMessage("Stiamo mescolando le tappe in un nuovo ordine…", "status-active");
+      if (!navigator.geolocation) {
+        doGenerateAiItinerary(null, null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          if (userMarker) {
+            userMarker.setPosition(userPosition);
+            userMarker.setVisible(true);
+          }
+          doGenerateAiItinerary(pos.coords.latitude, pos.coords.longitude);
+        },
+        () => doGenerateAiItinerary(null, null),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
     });
   }
 
@@ -1388,7 +1571,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderTabs(n) {
+    if (!daysTabsContainer) return;
     daysTabsContainer.innerHTML = "";
+    if (n <= 1) {
+      daysTabsContainer.classList.add("days-tabs--hidden");
+      return;
+    }
+    daysTabsContainer.classList.remove("days-tabs--hidden");
     for (let i = 1; i <= n; i++) {
       const btn = document.createElement("button");
       btn.className = `day-tab ${i === 1 ? 'active' : ''}`;
@@ -1412,8 +1601,10 @@ document.addEventListener("DOMContentLoaded", () => {
       summaryEl.innerHTML = "";
       summaryEl.style.display = "none";
     }
-    document.getElementById("distance-to-next").textContent = "--";
-    document.getElementById("current-leg").textContent = stops.length > 0 ? stops[0].name : "--";
+    const distNext = document.getElementById("distance-to-next");
+    const curLeg = document.getElementById("current-leg");
+    if (distNext) distNext.textContent = "—";
+    if (curLeg) curLeg.textContent = stops.length > 0 ? stops[0].name : "—";
 
     renderStopsList();
     calculateAndDisplayRoute();
@@ -1461,8 +1652,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const km = (totalMeters / 1000).toFixed(1);
     const mins = Math.round(totalSeconds / 60);
     const timeStr = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
-    el.innerHTML = `<span class="route-summary-label">Totale percorso:</span> <span class="route-summary-km">${km} km</span> · <span class="route-summary-time">~${timeStr}</span>`;
-    el.style.display = "block";
+    el.innerHTML = `<span class="route-summary-km">${km} km</span><span class="route-summary-sep">·</span><span class="route-summary-time">~${timeStr} a piedi</span>`;
+    el.style.display = "flex";
+    updateItineraryHeadline(totalMeters, totalSeconds);
   }
 
   function getDayStartLabel(day) {
@@ -1477,22 +1669,27 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderStopsList() {
+    if (!stopsList) return;
     let startLabel = getDayStartLabel(currentDay);
-    let startHtml = startLabel ? `<li class="stop-item stop-item-start"><div class="stop-info"><span class="stop-number-start">📍</span><div><span class="stop-name stop-name-muted">${startLabel}</span></div></div></li>` : "";
+    let startHtml = startLabel
+      ? `<li class="stop-item stop-card stop-card--start stop-item-start" aria-hidden="false"><div class="stop-card__inner"><span class="stop-card__num" aria-hidden="true">↦</span><div class="stop-card__body"><p class="stop-card__start-label">${escHtml(startLabel)}</p></div></div></li>`
+      : "";
     stopsList.innerHTML = startHtml + stops.map((s, i) => {
       const legInfo = s.distanceToNext || s.durationToNext
-        ? `<span class="stop-duration">\u2192 ${[s.distanceToNext, s.durationToNext].filter(Boolean).join(" \u00b7 ")}</span>`
+        ? `<p class="stop-card__leg">\u2192 ${escHtml([s.distanceToNext, s.durationToNext].filter(Boolean).join(" · "))}</p>`
         : "";
+      const whyBlock = s.why ? `<p class="stop-card__why">${escHtml(s.why)}</p>` : "";
       return `
-      <li class="stop-item ${s.reached ? "reached" : ""} ${i === currentLegIndex ? "current" : ""}" data-index="${i}">
-        <div class="stop-info">
-          <span class="stop-number">${i + 1}</span>
-          <div>
-            <span class="stop-name">${s.name}</span>
+      <li class="stop-item stop-card ${s.reached ? "reached" : ""} ${i === currentLegIndex ? "current" : ""}" data-index="${i}">
+        <div class="stop-card__inner">
+          <span class="stop-card__num" aria-hidden="true">${i + 1}</span>
+          <div class="stop-card__body">
+            <h3 class="stop-card__title">${escHtml(s.name)}</h3>
+            ${whyBlock}
             ${legInfo}
           </div>
+          <span class="stop-card__status" aria-label="${s.reached ? "Visitata" : "Da visitare"}">${s.reached ? "\u2713" : "\u00b7\u00b7\u00b7"}</span>
         </div>
-        <span class="stop-status">${s.reached ? "\u2705" : "\u23f3"}</span>
       </li>
     `}).join("");
     
@@ -1501,6 +1698,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnPreview) btnPreview.disabled = allStops.flat().length < 1;
     const btnRecalc = document.getElementById("btn-recalc");
     if (btnRecalc) btnRecalc.disabled = allStops.flat().length < 1;
+    const regen = document.getElementById("btn-regenerate");
+    if (regen) regen.disabled = allStops.flat().length < 1;
+    const saveWalk = document.getElementById("save-route-btn");
+    if (saveWalk) saveWalk.disabled = allStops.flat().length < 1;
 
     initSortableStops();
   }
@@ -1689,7 +1890,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (Number.isNaN(index) || !stops[index]) return;
 
       currentLegIndex = index;
-      document.getElementById("current-leg").textContent = stops[index].name;
+      const curLegEl = document.getElementById("current-leg");
+      if (curLegEl) curLegEl.textContent = stops[index].name;
       renderStopsList();
       updateMarkers();
 
@@ -1776,6 +1978,7 @@ document.addEventListener("DOMContentLoaded", () => {
       google.maps.event.clearInstanceListeners(m);
       m.setMap(null);
     });
+    if (!map) return;
     markers = stops.map((s, i) => new google.maps.Marker({
         position: { lat: s.lat, lng: s.lng },
         map: map,
@@ -1783,7 +1986,7 @@ document.addEventListener("DOMContentLoaded", () => {
         title: s.name,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          fillColor: s.reached ? "#10b981" : (i === currentLegIndex ? "#6366f1" : "#94a3b8"),
+          fillColor: s.reached ? "#2d6a4f" : (i === currentLegIndex ? "#2d4a3e" : "#94a3b8"),
           fillOpacity: 1,
           strokeWeight: 2,
           strokeColor: "white",
@@ -1797,6 +2000,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateMarkersForSimulation(flatStops, currentIdx, onMarkerClick) {
+    if (!map) return;
     markers.forEach(m => {
       google.maps.event.clearInstanceListeners(m);
       m.setMap(null);
@@ -1810,7 +2014,7 @@ document.addEventListener("DOMContentLoaded", () => {
         cursor: "pointer",
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          fillColor: i === currentIdx ? "#6366f1" : "#94a3b8",
+          fillColor: i === currentIdx ? "#2d4a3e" : "#94a3b8",
           fillOpacity: 1,
           strokeWeight: 2,
           strokeColor: "white",
@@ -1829,7 +2033,7 @@ document.addEventListener("DOMContentLoaded", () => {
     markers.forEach((m, i) => {
       m.setIcon({
         path: google.maps.SymbolPath.CIRCLE,
-        fillColor: i === currentIdx ? "#6366f1" : "#94a3b8",
+        fillColor: i === currentIdx ? "#2d4a3e" : "#94a3b8",
         fillOpacity: 1,
         strokeWeight: 2,
         strokeColor: "white",
@@ -1872,8 +2076,10 @@ document.addEventListener("DOMContentLoaded", () => {
             userMarker.setPosition(p);
             userMarker.setVisible(true);
           }
-          map.panTo(p);
-          map.setZoom(16);
+          if (map) {
+            map.panTo(p);
+            map.setZoom(16);
+          }
         },
         err => alert("Impossibile ottenere la posizione."),
         { enableHighAccuracy: true }
@@ -1899,8 +2105,8 @@ document.addEventListener("DOMContentLoaded", () => {
       clearInterval(simulationInterval);
       simulationInterval = null;
     }
-    overlay.classList.add("hidden");
-    btnSimPause.textContent = "⏸ Pausa";
+    if (overlay) overlay.classList.add("hidden");
+    if (btnSimPause) btnSimPause.textContent = "⏸ Pausa";
     loadDay(currentDay);
   }
 
@@ -1918,15 +2124,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (flatStops[index] === s) simPhoto.src = realUrl;
       simPhoto.style.opacity = "1";
     }
-    simPoiName.textContent = s.name;
-    simPoiCity.textContent = s.cityName ? `📍 ${s.cityName}` : "";
-    simCurrent.textContent = index + 1;
-    simTotal.textContent = flatStops.length;
+    if (simPoiName) simPoiName.textContent = s.name;
+    if (simPoiCity) simPoiCity.textContent = s.cityName ? s.cityName : "";
+    if (simCurrent) simCurrent.textContent = index + 1;
+    if (simTotal) simTotal.textContent = flatStops.length;
 
     // Pan mappa e mostra percorso fino a questa tappa
     const stopsSoFar = flatStops.slice(0, index + 1);
-    map.panTo({ lat: s.lat, lng: s.lng });
-    map.setZoom(15);
+    if (map) {
+      map.panTo({ lat: s.lat, lng: s.lng });
+      map.setZoom(15);
+    }
 
     if (typeof google !== "undefined" && directionsService && stopsSoFar.length >= 2) {
       const origin = { lat: stopsSoFar[0].lat, lng: stopsSoFar[0].lng };
@@ -1943,59 +2151,67 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  if (btnPlay) btnPlay.addEventListener("click", () => {
-    const flatStops = allStops.flat();
-    if (flatStops.length === 0) return;
-    navigateTo("map");
-
-    simIndex = 0;
-    updateMarkersForSimulation(flatStops, 0, (i) => {
-      updateSimulationUI(i, flatStops);
-    });
-    overlay.classList.remove("hidden");
-    simTotal.textContent = flatStops.length;
-    updateSimulationUI(0, flatStops);
-
-    if (simulationInterval) clearInterval(simulationInterval);
-    simulationInterval = setInterval(() => {
-      simIndex = (simIndex + 1) % flatStops.length;
-      updateSimulationUI(simIndex, flatStops);
-      if (simIndex === flatStops.length - 1) {
-        clearInterval(simulationInterval);
-        simulationInterval = null;
-        btnSimPause.textContent = "⏸ Fine";
-      }
-    }, 3500);
-  });
-
-  btnSimPrev.addEventListener("click", () => {
-    const flatStops = allStops.flat();
-    simIndex = Math.max(0, simIndex - 1);
-    updateSimulationUI(simIndex, flatStops);
-  });
-
-  btnSimNext.addEventListener("click", () => {
-    const flatStops = allStops.flat();
-    simIndex = Math.min(flatStops.length - 1, simIndex + 1);
-    updateSimulationUI(simIndex, flatStops);
-  });
-
-  btnSimPause.addEventListener("click", () => {
-    if (simulationInterval) {
-      clearInterval(simulationInterval);
-      simulationInterval = null;
-      btnSimPause.textContent = "▶ Riprendi";
-    } else {
+  if (btnPlay && overlay) {
+    btnPlay.addEventListener("click", () => {
       const flatStops = allStops.flat();
+      if (flatStops.length === 0) return;
+      navigateTo("map");
+
+      simIndex = 0;
+      updateMarkersForSimulation(flatStops, 0, (i) => {
+        updateSimulationUI(i, flatStops);
+      });
+      overlay.classList.remove("hidden");
+      if (simTotal) simTotal.textContent = flatStops.length;
+      updateSimulationUI(0, flatStops);
+
+      if (simulationInterval) clearInterval(simulationInterval);
       simulationInterval = setInterval(() => {
         simIndex = (simIndex + 1) % flatStops.length;
         updateSimulationUI(simIndex, flatStops);
+        if (simIndex === flatStops.length - 1) {
+          clearInterval(simulationInterval);
+          simulationInterval = null;
+          if (btnSimPause) btnSimPause.textContent = "⏸ Fine";
+        }
       }, 3500);
-      btnSimPause.textContent = "⏸ Pausa";
-    }
-  });
+    });
+  }
 
-  btnSimClose.addEventListener("click", stopSimulation);
+  if (btnSimPrev) {
+    btnSimPrev.addEventListener("click", () => {
+      const flatStops = allStops.flat();
+      simIndex = Math.max(0, simIndex - 1);
+      updateSimulationUI(simIndex, flatStops);
+    });
+  }
+
+  if (btnSimNext) {
+    btnSimNext.addEventListener("click", () => {
+      const flatStops = allStops.flat();
+      simIndex = Math.min(flatStops.length - 1, simIndex + 1);
+      updateSimulationUI(simIndex, flatStops);
+    });
+  }
+
+  if (btnSimPause) {
+    btnSimPause.addEventListener("click", () => {
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        btnSimPause.textContent = "▶ Riprendi";
+      } else {
+        const flatStops = allStops.flat();
+        simulationInterval = setInterval(() => {
+          simIndex = (simIndex + 1) % flatStops.length;
+          updateSimulationUI(simIndex, flatStops);
+        }, 3500);
+        btnSimPause.textContent = "⏸ Pausa";
+      }
+    });
+  }
+
+  if (btnSimClose) btnSimClose.addEventListener("click", stopSimulation);
 
   // === AGGIUNGI META (geocoding + inserimento in ordine sensato) ===
   const addMetaInput = document.getElementById("add-meta-input");
@@ -2072,10 +2288,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderSavedRoutes() {
     if (!savedRoutesList) return;
     const routes = getSavedRoutes();
+    const emptyEl = document.getElementById("saved-empty");
     if (!routes.length) {
-      savedRoutesList.innerHTML = "<li class=\"saved-route-empty\">Nessun percorso salvato.</li>";
+      savedRoutesList.innerHTML = "";
+      if (emptyEl) emptyEl.hidden = false;
       return;
     }
+    if (emptyEl) emptyEl.hidden = true;
     savedRoutesList.innerHTML = routes.map((r, i) => `
       <li class="saved-route-item" data-index="${i}">
         <div class="saved-route-main">
@@ -2094,10 +2313,14 @@ document.addEventListener("DOMContentLoaded", () => {
     saveRouteBtn.addEventListener("click", () => {
       if (!allStops.length) {
         setStatusVisible(true);
-        setStatusMessage("Non c'è alcun itinerario da salvare. Genera prima un percorso.", "status-neutral");
+        setStatusMessage("Genera un itinerario prima di salvarlo nei preferiti.", "status-neutral");
         return;
       }
-      const name = prompt("Nome del percorso (es. Weekend Roma):", cityInput ? cityInput.value.trim() || "Itinerario" : "Itinerario");
+      const nameInput = document.getElementById("walk-save-name");
+      const defaultName = (cityInput && cityInput.value.trim()) || lastWalkMeta.citiesLabel || "Il mio walk";
+      const name = nameInput && nameInput.value.trim()
+        ? nameInput.value.trim()
+        : (typeof prompt === "function" ? prompt("Nome per questo walk (es. Weekend a Roma):", defaultName) : defaultName);
       if (name == null) return;
       const routes = getSavedRoutes();
       const route = {
@@ -2112,7 +2335,8 @@ document.addEventListener("DOMContentLoaded", () => {
       setSavedRoutes(routes);
       renderSavedRoutes();
       setStatusVisible(true);
-      setStatusMessage("Percorso salvato. Lo trovi in \"Percorsi salvati\".", "status-active");
+      setStatusMessage("Salvato. Lo ritrovi in Salvati, pronto per il prossimo weekend.", "status-active");
+      if (nameInput) nameInput.value = "";
     });
   }
 
@@ -2134,7 +2358,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cityInput && route.cities) cityInput.value = route.cities;
         setStatusVisible(true);
         setStatusMessage("Percorso caricato. Puoi avviare la navigazione.", "status-active");
-        navigateTo("planner");
+        if (typeof window.__setAppView === "function") window.__setAppView("walk");
+        else navigateTo("planner");
         return;
       }
       if (target.classList.contains("planned-remove")) {
@@ -2233,6 +2458,27 @@ document.addEventListener("DOMContentLoaded", () => {
           renderPlannedTrips();
         }
       }
+    });
+  }
+
+  const themeToggle = document.getElementById("theme-toggle");
+  if (themeToggle) {
+    try {
+      const saved = localStorage.getItem("360step-theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+        themeToggle.textContent = saved === "dark" ? "☀️" : "🌙";
+      }
+    } catch (e) { /* ignore */ }
+    themeToggle.addEventListener("click", () => {
+      const root = document.documentElement;
+      const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      themeToggle.textContent = next === "dark" ? "☀️" : "🌙";
+      themeToggle.setAttribute("aria-label", next === "dark" ? "Attiva tema chiaro" : "Attiva tema scuro");
+      try {
+        localStorage.setItem("360step-theme", next);
+      } catch (e) { /* ignore */ }
     });
   }
 

@@ -1059,7 +1059,7 @@ function formatWalkTimeFromMeters(m) {
 
 function setWalkEmptyState(on) {
   const empty = document.getElementById("walk-empty");
-  const content = document.querySelector("#walk-sheet .sheet__header")?.closest(".sheet__content");
+  const content = document.querySelector("#walk-sheet .sheet__content");
   if (!empty || !content) return;
   empty.hidden = !on;
   // nasconde il resto in modo semplice (tutto tranne il blocco empty)

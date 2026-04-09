@@ -1154,7 +1154,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // === Leaflet helpers (mappa alternativa) ===
   function initLeafletMap() {
-    if (!window.L) return;
+    if (!window.L) {
+      setStatusVisible(true);
+      setStatusMessage("La mappa non si è caricata (Leaflet). Ricarica la pagina o controlla estensioni che bloccano script/CDN.", "status-neutral");
+      return;
+    }
     if (leafletMap) return;
     const container = document.getElementById("leaflet-map");
     if (!container) return;

@@ -1085,11 +1085,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (id === "walk") {
-      setTimeout(() => {
-        if (typeof initLeafletMap === "function") initLeafletMap();
-        if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
-        if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
-      }, 400);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (typeof initLeafletMap === "function") initLeafletMap();
+          if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
+          if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
+        });
+      });
     }
   }
 
@@ -1164,6 +1166,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }).addTo(leafletMap);
 
     leafletMarkersLayer = L.layerGroup().addTo(leafletMap);
+
+    // Se il container era hidden/collapsed al mount, Leaflet può renderizzare male:
+    // invalida dopo il primo paint.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try { leafletMap.invalidateSize(); } catch (e) { /* ignore */ }
+      });
+    });
   }
 
   function updateLeafletFromStops(dayStops) {

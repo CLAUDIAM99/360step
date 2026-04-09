@@ -738,6 +738,14 @@ const WALK_WHY_FALLBACK = {
   food: "Legato a gusto, mercati o pause conviviali."
 };
 
+const WALK_LABELS = {
+  romantic: "Romantic",
+  iconic: "Iconic",
+  hidden: "Hidden gems",
+  chill: "Chill walk",
+  food: "Food walk"
+};
+
 let lastWalkMeta = {
   walkType: "iconic",
   timeBudget: "half",
@@ -831,6 +839,53 @@ function updateItineraryHeadline(totalMeters, totalSeconds) {
     <div class="headline-stat"><span class="headline-stat__val">${timeStr}</span><span class="headline-stat__lbl">a piedi</span></div>
     <div class="headline-stat headline-stat--wide"><span class="headline-stat__val headline-stat__val--sm">${best}</span><span class="headline-stat__lbl">momento ideale</span></div>
   `;
+}
+
+function updateWalkHero() {
+  const titleEl = document.getElementById("walk-hero-title");
+  const eyebrowEl = document.getElementById("walk-hero-eyebrow");
+  const moodEl = document.getElementById("walk-hero-mood");
+  const descEl = document.getElementById("walk-hero-desc");
+  const walkSubtitle = document.getElementById("walk-subtitle");
+  if (!titleEl || !moodEl || !descEl) return;
+
+  const cities = lastWalkMeta.citiesLabel || "Europa";
+  const moodLabel = WALK_LABELS[lastWalkMeta.walkType] || "City walk";
+  const best = WALK_BEST_TIME[lastWalkMeta.walkType] || WALK_BEST_TIME.iconic;
+
+  const vibe =
+    lastWalkMeta.walkType === "romantic"
+      ? "Pause lente, punti scenografici e un ritmo che invita a fermarsi."
+      : lastWalkMeta.walkType === "hidden"
+        ? "Un percorso meno ovvio, per vedere la città con occhi più curiosi."
+        : lastWalkMeta.walkType === "food"
+          ? "Pensato per alternare cammino e soste: mercati, strade vive, piccoli rituali."
+          : lastWalkMeta.walkType === "chill"
+            ? "Poche tappe, più respiro: una passeggiata che non stanca."
+            : "I classici che valgono: essenziale, pulito, super walkable.";
+
+  if (eyebrowEl) eyebrowEl.textContent = "City walk";
+  titleEl.textContent = cities;
+  moodEl.textContent = moodLabel;
+  descEl.textContent = `${vibe} Ideale: ${best}.`;
+  if (walkSubtitle) walkSubtitle.textContent = "Controllo semplice, in strada: mappa + prossima tappa + tappe scansionabili.";
+}
+
+function updateNextStopCardFromStops() {
+  const titleEl = document.getElementById("current-leg");
+  const distEl = document.getElementById("distance-to-next");
+  const timeEl = document.getElementById("time-to-next");
+  const startInline = document.getElementById("btn-start-inline");
+  const stopInline = document.getElementById("btn-stop-inline");
+  if (titleEl) titleEl.textContent = stops && stops[currentLegIndex] ? stops[currentLegIndex].name : "—";
+
+  const cur = stops && stops[currentLegIndex] ? stops[currentLegIndex] : null;
+  if (distEl) distEl.textContent = cur && cur.distanceToNext ? cur.distanceToNext : "—";
+  if (timeEl) timeEl.textContent = cur && cur.durationToNext ? cur.durationToNext : "—";
+
+  const canStart = !!(stops && stops.length);
+  if (startInline) startInline.disabled = !canStart;
+  if (stopInline) stopInline.disabled = !watchId;
 }
 
 function escHtml(text) {
@@ -1062,6 +1117,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStart = document.getElementById("btn-start");
   const btnStop = document.getElementById("btn-stop");
   const trackingStatus = document.getElementById("tracking-status");
+  const btnStartInline = document.getElementById("btn-start-inline");
+  const btnStopInline = document.getElementById("btn-stop-inline");
 
   // === Leaflet helpers (mappa alternativa) ===
   function initLeafletMap() {
@@ -1607,6 +1664,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (curLeg) curLeg.textContent = stops.length > 0 ? stops[0].name : "—";
 
     renderStopsList();
+    updateWalkHero();
+    updateNextStopCardFromStops();
     calculateAndDisplayRoute();
     updateLeafletFromStops(stops);
   }
@@ -1675,8 +1734,11 @@ document.addEventListener("DOMContentLoaded", () => {
       ? `<li class="stop-item stop-card stop-card--start stop-item-start" aria-hidden="false"><div class="stop-card__inner"><span class="stop-card__num" aria-hidden="true">↦</span><div class="stop-card__body"><p class="stop-card__start-label">${escHtml(startLabel)}</p></div></div></li>`
       : "";
     stopsList.innerHTML = startHtml + stops.map((s, i) => {
-      const legInfo = s.distanceToNext || s.durationToNext
-        ? `<p class="stop-card__leg">\u2192 ${escHtml([s.distanceToNext, s.durationToNext].filter(Boolean).join(" · "))}</p>`
+      const fromPrev = i > 0 && (s.distanceFromPrev || s.durationFromPrev)
+        ? `<p class="stop-card__fromprev">Da prima: ${escHtml([s.distanceFromPrev, s.durationFromPrev].filter(Boolean).join(" · "))}</p>`
+        : "";
+      const toNext = s.distanceToNext || s.durationToNext
+        ? `<p class="stop-card__leg">\u2192 Poi: ${escHtml([s.distanceToNext, s.durationToNext].filter(Boolean).join(" · "))}</p>`
         : "";
       const whyBlock = s.why ? `<p class="stop-card__why">${escHtml(s.why)}</p>` : "";
       return `
@@ -1686,7 +1748,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="stop-card__body">
             <h3 class="stop-card__title">${escHtml(s.name)}</h3>
             ${whyBlock}
-            ${legInfo}
+            ${fromPrev}
+            ${toNext}
           </div>
           <span class="stop-card__status" aria-label="${s.reached ? "Visitata" : "Da visitare"}">${s.reached ? "\u2713" : "\u00b7\u00b7\u00b7"}</span>
         </div>
@@ -1848,13 +1911,19 @@ document.addEventListener("DOMContentLoaded", () => {
           );
           const distEl = document.getElementById("distance-to-next");
           const legEl = document.getElementById("current-leg");
+          const timeEl = document.getElementById("time-to-next");
           if (distEl) distEl.textContent = `${Math.round(distance)} m`;
           if (legEl) legEl.textContent = target.name;
+          if (timeEl) {
+            const mins = Math.max(1, Math.round(distance / 80)); // ~4.8 km/h
+            timeEl.textContent = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
+          }
           drawRouteFromUserToStop(currentLegIndex);
           if (distance < DISTANCE_THRESHOLD_METERS) {
             stops[currentLegIndex].reached = true;
             currentLegIndex++;
             renderStopsList();
+            updateNextStopCardFromStops();
             updateMarkers();
             if (currentLegIndex >= stops.length) {
               setStatusMessage("Itinerario completato! 🎉", "status-done");
@@ -1933,9 +2002,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (stops.length === 1) {
       stops[0].durationToNext = null;
       stops[0].distanceToNext = null;
+      stops[0].durationFromPrev = null;
+      stops[0].distanceFromPrev = null;
       renderRouteSummary(0, 0);
       directionsRenderer.setDirections({ routes: [] });
       updateMarkers();
+      updateNextStopCardFromStops();
       return;
     }
 
@@ -1958,15 +2030,26 @@ document.addEventListener("DOMContentLoaded", () => {
           if (i < legs.length && legs[i]) {
             stops[i].durationToNext = legs[i].duration ? legs[i].duration.text : null;
             stops[i].distanceToNext = legs[i].distance ? legs[i].distance.text : null;
+            // Distanza/tempo dalla tappa precedente (per card scansionabili)
+            if (i > 0 && legs[i - 1]) {
+              stops[i].durationFromPrev = legs[i - 1].duration ? legs[i - 1].duration.text : null;
+              stops[i].distanceFromPrev = legs[i - 1].distance ? legs[i - 1].distance.text : null;
+            } else {
+              stops[i].durationFromPrev = null;
+              stops[i].distanceFromPrev = null;
+            }
             if (legs[i].distance && legs[i].distance.value) totalMeters += legs[i].distance.value;
             if (legs[i].duration && legs[i].duration.value) totalSeconds += legs[i].duration.value;
           } else {
             stops[i].durationToNext = null;
             stops[i].distanceToNext = null;
+            stops[i].durationFromPrev = null;
+            stops[i].distanceFromPrev = null;
           }
         }
         renderRouteSummary(totalMeters, totalSeconds);
         renderStopsList();
+        updateNextStopCardFromStops();
         updateMarkers();
         if (typeof updateLeafletFromStops === "function") updateLeafletFromStops(stops);
       }
@@ -2047,6 +2130,14 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => startGpsTracking(), 400);
   });
 
+  if (btnStartInline) btnStartInline.addEventListener("click", () => {
+    if (btnStart) btnStart.click();
+  });
+
+  if (btnStopInline) btnStopInline.addEventListener("click", () => {
+    if (btnStop) btnStop.click();
+  });
+
   if (btnStop) btnStop.addEventListener("click", () => {
     if (watchId) {
       navigator.geolocation.clearWatch(watchId);
@@ -2062,6 +2153,7 @@ document.addEventListener("DOMContentLoaded", () => {
       stops.forEach(s => bounds.extend({ lat: s.lat, lng: s.lng }));
       map.fitBounds(bounds);
     }
+    updateNextStopCardFromStops();
   });
 
   const btnShowLocation = document.getElementById("show-my-location");

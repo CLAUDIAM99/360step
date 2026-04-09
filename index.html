@@ -115,25 +115,57 @@
   <!-- Itinerario + mappa -->
   <section id="view-walk" class="view" data-app-view="walk" hidden aria-labelledby="walk-title">
     <div class="view__inner view__inner--walk">
-      <div class="walk-topbar">
-        <button type="button" id="back-to-plan" class="btn btn-text">← Pianifica</button>
-        <h2 id="walk-title" class="walk-title">Il tuo percorso</h2>
+      <div class="walk-topbar" role="banner">
+        <button type="button" id="back-to-plan" class="icon-btn" aria-label="Torna a Pianifica">
+          <span aria-hidden="true">←</span>
+        </button>
+        <div class="walk-topbar__center">
+          <h2 id="walk-title" class="walk-title">Il tuo walk</h2>
+          <p class="walk-subtitle" id="walk-subtitle">Pronto da vivere, tappa dopo tappa</p>
+        </div>
+        <div class="walk-topbar__actions">
+          <button type="button" class="icon-btn" id="walk-favorite" aria-label="Aggiungi ai preferiti" disabled title="Prossimamente">
+            <span aria-hidden="true">♡</span>
+          </button>
+          <button type="button" class="icon-btn" id="walk-share" aria-label="Condividi itinerario" disabled title="Prossimamente">
+            <span aria-hidden="true">⤴</span>
+          </button>
+        </div>
       </div>
 
-      <div id="itinerary-headline" class="itinerary-headline" aria-live="polite"></div>
+      <section class="walk-hero" aria-label="Riepilogo walk">
+        <div class="walk-hero__header">
+          <div>
+            <p class="walk-hero__eyebrow" id="walk-hero-eyebrow">City walk</p>
+            <h3 class="walk-hero__title" id="walk-hero-title">—</h3>
+          </div>
+          <span class="badge" id="walk-hero-mood">—</span>
+        </div>
+        <p class="walk-hero__desc" id="walk-hero-desc">—</p>
+        <div class="walk-hero__stats" id="itinerary-headline" aria-live="polite"></div>
+      </section>
 
       <div id="tracking-status" class="status-banner status-neutral" role="status"></div>
 
-      <div class="walk-summary-row">
-        <div class="walk-summary-item">
-          <span class="walk-summary-item__label">Prossima tappa</span>
-          <span id="current-leg" class="walk-summary-item__value">—</span>
+      <section class="next-stop" aria-label="Prossima tappa">
+        <div class="next-stop__left">
+          <p class="next-stop__label">Prossima tappa</p>
+          <p id="current-leg" class="next-stop__title">—</p>
+          <p class="next-stop__meta">
+            <span id="distance-to-next" class="next-stop__meta-item">—</span>
+            <span class="next-stop__meta-sep" aria-hidden="true">·</span>
+            <span id="time-to-next" class="next-stop__meta-item">—</span>
+          </p>
         </div>
-        <div class="walk-summary-item">
-          <span class="walk-summary-item__label">Distanza</span>
-          <span id="distance-to-next" class="walk-summary-item__value">—</span>
+        <div class="next-stop__right">
+          <button type="button" id="btn-start-inline" class="btn btn-primary btn-next-stop" disabled>
+            Avvia
+          </button>
+          <button type="button" id="btn-stop-inline" class="btn btn-secondary btn-next-stop" disabled>
+            Pausa
+          </button>
         </div>
-      </div>
+      </section>
 
       <div id="route-summary" class="route-summary-strip" style="display:none"></div>
 
@@ -141,6 +173,10 @@
         <div class="map-wrapper">
           <div id="map" class="map" role="application" aria-label="Mappa itinerario"></div>
           <button type="button" id="show-my-location" class="btn-map-location" aria-label="Centra sulla mia posizione">⌁</button>
+          <div class="map-badges" aria-hidden="true">
+            <span class="map-badge">A piedi</span>
+            <span class="map-badge">Europe</span>
+          </div>
         </div>
       </div>
 
@@ -162,14 +198,18 @@
       </div>
     </div>
 
-    <div class="sticky-cta" role="toolbar" aria-label="Azioni itinerario">
-      <button type="button" id="btn-preview" class="btn btn-secondary sticky-cta__btn" disabled>Anteprima</button>
-      <button type="button" id="btn-regenerate" class="btn btn-secondary sticky-cta__btn" disabled>Rigenera</button>
-      <button type="button" id="save-route-btn" class="btn btn-secondary sticky-cta__btn" disabled>Salva walk</button>
-      <button type="button" id="btn-start" class="btn btn-primary sticky-cta__btn sticky-cta__btn--main" disabled>Inizia il percorso</button>
+    <div class="action-dock" role="toolbar" aria-label="Azioni itinerario">
+      <div class="action-dock__row">
+        <button type="button" id="btn-regenerate" class="btn btn-secondary action-dock__btn" disabled>Nuovo mix</button>
+        <button type="button" id="btn-recalc" class="btn btn-secondary action-dock__btn" disabled>Ricalcola</button>
+        <button type="button" id="save-route-btn" class="btn btn-secondary action-dock__btn" disabled>Salva nei salvati</button>
+      </div>
+      <div class="action-dock__main">
+        <button type="button" id="btn-preview" class="btn btn-secondary action-dock__btn action-dock__btn--ghost" disabled>Anteprima</button>
+        <button type="button" id="btn-start" class="btn btn-primary action-dock__btn action-dock__btn--primary" disabled>Inizia il walk</button>
+        <button type="button" id="btn-stop" class="btn btn-outline action-dock__btn action-dock__btn--outline" disabled>Pausa</button>
+      </div>
     </div>
-    <button type="button" id="btn-stop" class="btn btn-outline walk-suspend" disabled>Sospendi navigazione</button>
-    <button type="button" id="btn-recalc" class="btn btn-text walk-recalc" disabled>Ricalcola dalla mia posizione</button>
 
     <div id="simulation-overlay" class="sim-overlay hidden">
       <p class="sim-hint">Tocca i numeri sulla mappa per saltare a una tappa</p>

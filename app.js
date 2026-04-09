@@ -1024,6 +1024,35 @@ function loadGoogleMapsScriptIfNeeded() {
   });
 }
 
+function haversineMeters(a, b) {
+  if (!a || !b) return 0;
+  const toRad = (x) => (x * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const s =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+  return R * c;
+}
+
+function formatDistance(m) {
+  if (!m || m <= 0) return null;
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
+function formatWalkTimeFromMeters(m) {
+  if (!m || m <= 0) return null;
+  // 1.25 m/s ~ 4.5 km/h
+  const seconds = m / 1.25;
+  const mins = Math.max(1, Math.round(seconds / 60));
+  return mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
   // === Viste app: pianifica | itinerario | salvati ===
@@ -1057,6 +1086,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (id === "walk") {
       setTimeout(() => {
+        if (typeof initLeafletMap === "function") initLeafletMap();
         if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
         if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
       }, 400);
@@ -1399,12 +1429,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  loadGoogleMapsScriptIfNeeded().catch((err) => {
-    if (err?.message === "missing_google_maps_key") {
+  // Map-first static: Leaflet è il default (nessuna chiave necessaria).
+  // Google Maps resta opzionale: caricalo solo se è presente una key (utile per directions più precisi).
+  if (window.__360STEP_CONFIG__?.googleMapsApiKey) {
+    loadGoogleMapsScriptIfNeeded().catch(() => {
       setStatusVisible(true);
-      setStatusMessage("Aggiungi la chiave Google Maps in config.js (o .env con npm start).", "status-neutral");
-    }
-  });
+      setStatusMessage("Mappa avanzata non disponibile. Continuo con la mappa standard.", "status-neutral");
+    });
+  }
 
   // Permette di lanciare la generazione con Invio
   if (cityInput) {
@@ -1997,7 +2029,29 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function calculateAndDisplayRoute() {
-    if (typeof google === "undefined" || !directionsService || stops.length < 1) return;
+    // Se Google Directions non è disponibile (es. GitHub Pages senza key), facciamo fallback con Haversine.
+    if (stops.length < 1) return;
+    if (typeof google === "undefined" || !directionsService) {
+      let totalMeters = 0;
+      for (let i = 0; i < stops.length; i++) {
+        const prev = i > 0 ? stops[i - 1] : null;
+        const cur = stops[i];
+        const next = i < stops.length - 1 ? stops[i + 1] : null;
+        const mFromPrev = prev ? haversineMeters({ lat: prev.lat, lng: prev.lng }, { lat: cur.lat, lng: cur.lng }) : 0;
+        const mToNext = next ? haversineMeters({ lat: cur.lat, lng: cur.lng }, { lat: next.lat, lng: next.lng }) : 0;
+        cur.distanceFromPrev = prev ? formatDistance(mFromPrev) : null;
+        cur.durationFromPrev = prev ? formatWalkTimeFromMeters(mFromPrev) : null;
+        cur.distanceToNext = next ? formatDistance(mToNext) : null;
+        cur.durationToNext = next ? formatWalkTimeFromMeters(mToNext) : null;
+        if (next) totalMeters += mToNext;
+      }
+      const totalSeconds = Math.round(totalMeters / 1.25);
+      renderRouteSummary(totalMeters, totalSeconds);
+      renderStopsList();
+      updateNextStopCardFromStops();
+      updateLeafletFromStops(stops);
+      return;
+    }
 
     if (stops.length === 1) {
       stops[0].durationToNext = null;

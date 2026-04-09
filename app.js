@@ -1170,22 +1170,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setAppView(viewId, pushState = true) {
     const id = viewId;
+    const hasView = Array.from(viewSections).some((s) => s.getAttribute("data-app-view") === id);
+    const safeId = hasView ? id : "plan";
     viewSections.forEach((section) => {
       const v = section.getAttribute("data-app-view");
-      const on = v === id;
+      const on = v === safeId;
       section.classList.toggle("view--active", on);
       section.toggleAttribute("hidden", !on);
     });
     bottomNavBtns.forEach((btn) => {
       const v = btn.getAttribute("data-view");
-      btn.classList.toggle("bottom-nav__btn--active", v === id);
+      btn.classList.toggle("bottom-nav__btn--active", v === safeId);
     });
     if (pushState) {
       const urls = { plan: "#plan", walk: "#walk", saved: "#saved" };
-      if (urls[id]) history.pushState(null, "", urls[id]);
+      if (urls[safeId]) history.pushState(null, "", urls[safeId]);
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
-    if (id === "walk") {
+    if (safeId === "walk") {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           if (typeof initLeafletMap === "function") initLeafletMap();

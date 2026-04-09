@@ -121,6 +121,10 @@ body {
   max-height: inherit;
 }
 
+#walk-empty{
+  margin: 0.75rem 0 1rem;
+}
+
 .sheet__header{
   display: flex;
   justify-content: space-between;

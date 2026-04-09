@@ -875,17 +875,11 @@ function updateNextStopCardFromStops() {
   const titleEl = document.getElementById("current-leg");
   const distEl = document.getElementById("distance-to-next");
   const timeEl = document.getElementById("time-to-next");
-  const startInline = document.getElementById("btn-start-inline");
-  const stopInline = document.getElementById("btn-stop-inline");
   if (titleEl) titleEl.textContent = stops && stops[currentLegIndex] ? stops[currentLegIndex].name : "—";
 
   const cur = stops && stops[currentLegIndex] ? stops[currentLegIndex] : null;
   if (distEl) distEl.textContent = cur && cur.distanceToNext ? cur.distanceToNext : "—";
   if (timeEl) timeEl.textContent = cur && cur.durationToNext ? cur.durationToNext : "—";
-
-  const canStart = !!(stops && stops.length);
-  if (startInline) startInline.disabled = !canStart;
-  if (stopInline) stopInline.disabled = !watchId;
 }
 
 function escHtml(text) {
@@ -915,6 +909,16 @@ let customStartPoint = null; // { lat, lng, label }
 let leafletMap;
 let leafletMarkersLayer;
 let leafletRouteLine;
+let leafletUserMarker = null;
+
+// Stato centralizzato della schermata walk (robusto, map-first)
+const navigationState = {
+  status: "idle", // idle | ready | preview | navigating | paused
+  watchId: null,
+  currentLegIndex: 0
+};
+
+let itineraryData = null; // { id, name, mood, citiesLabel, stops: [{name,lat,lng,why,...}], createdAt }
 
 // Inizializzazione Google Maps (callback globale) — nessuna geolocalizzazione al caricamento
 window.initMap = function() {
@@ -1053,6 +1057,103 @@ function formatWalkTimeFromMeters(m) {
   return mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
 }
 
+function setWalkEmptyState(on) {
+  const empty = document.getElementById("walk-empty");
+  const content = document.querySelector("#walk-sheet .sheet__header")?.closest(".sheet__content");
+  if (!empty || !content) return;
+  empty.hidden = !on;
+  // nasconde il resto in modo semplice (tutto tranne il blocco empty)
+  Array.from(content.children).forEach((child) => {
+    if (child === empty) return;
+    child.toggleAttribute("hidden", on);
+  });
+}
+
+function ensureLeafletReady() {
+  if (!window.L) return false;
+  const container = document.getElementById("leaflet-map");
+  if (!container) return false;
+  if (!leafletMap) {
+    initLeafletMap();
+  }
+  if (!leafletMap) return false;
+  return true;
+}
+
+function invalidateLeafletSizeSoon() {
+  if (!leafletMap) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try { leafletMap.invalidateSize(); } catch (e) { /* ignore */ }
+    });
+  });
+}
+
+function setUserMarker(lat, lng) {
+  if (!leafletMap || !window.L) return;
+  const p = [lat, lng];
+  if (!leafletUserMarker) {
+    leafletUserMarker = L.circleMarker(p, {
+      radius: 7,
+      color: "#ffffff",
+      weight: 2,
+      fillColor: "#1d4ed8",
+      fillOpacity: 1
+    }).addTo(leafletMap);
+  } else {
+    leafletUserMarker.setLatLng(p);
+  }
+}
+
+function renderWalk(data) {
+  // Guard: dati mancanti → empty state
+  if (!data || !Array.isArray(data.stops) || data.stops.length === 0) {
+    itineraryData = null;
+    navigationState.status = "idle";
+    setWalkEmptyState(true);
+    setWalkViewEnabled(false);
+    return;
+  }
+
+  itineraryData = data;
+  navigationState.status = "ready";
+  navigationState.currentLegIndex = Math.min(navigationState.currentLegIndex || 0, data.stops.length - 1);
+
+  // Sincronizza lo stato legacy usato da varie funzioni esistenti
+  stops = data.stops.map((s) => ({ ...s, reached: !!s.reached }));
+  currentLegIndex = navigationState.currentLegIndex;
+
+  setWalkEmptyState(false);
+  setWalkViewEnabled(true);
+
+  updateWalkHero();
+  calculateAndDisplayRoute(); // calcola distanze/tempi (Google Directions se presente, altrimenti Haversine) + updateLeafletFromStops
+  updateNextStopCardFromStops();
+
+  // Fit bounds (preview-like) se abbiamo una mappa
+  if (ensureLeafletReady()) {
+    updateLeafletFromStops(stops);
+    invalidateLeafletSizeSoon();
+  }
+}
+
+function openWalkScreen() {
+  if (typeof window.__setAppView === "function") window.__setAppView("walk", true);
+  // aspetta render + layout
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      ensureLeafletReady();
+      invalidateLeafletSizeSoon();
+      // se abbiamo già dati, re-render
+      if (itineraryData && itineraryData.stops && itineraryData.stops.length) {
+        renderWalk(itineraryData);
+      } else {
+        setWalkEmptyState(true);
+      }
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
   // === Viste app: pianifica | itinerario | salvati ===
@@ -1115,6 +1216,11 @@ document.addEventListener("DOMContentLoaded", () => {
     backToPlanBtn.addEventListener("click", () => setAppView("plan"));
   }
 
+  const walkEmptyBack = document.getElementById("walk-empty-back");
+  if (walkEmptyBack) {
+    walkEmptyBack.addEventListener("click", () => setAppView("plan"));
+  }
+
   const ctaStartPlanning = document.getElementById("cta-start-planning");
   if (ctaStartPlanning) {
     ctaStartPlanning.addEventListener("click", () => setAppView("plan"));
@@ -1149,8 +1255,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnStart = document.getElementById("btn-start");
   const btnStop = document.getElementById("btn-stop");
   const trackingStatus = document.getElementById("tracking-status");
-  const btnStartInline = document.getElementById("btn-start-inline");
-  const btnStopInline = document.getElementById("btn-stop-inline");
+  const btnPreview = document.getElementById("btn-preview");
+  const btnRecalc = document.getElementById("btn-recalc");
+  const saveRouteBtnTop = document.getElementById("save-route-btn");
 
   // === Leaflet helpers (mappa alternativa) ===
   function initLeafletMap() {
@@ -1340,7 +1447,17 @@ document.addEventListener("DOMContentLoaded", () => {
     setStatusVisible(true);
     setStatusMessage(`Il tuo walk a ${citiesLabel} è pronto. Buon viaggio.`, "status-active");
     setWalkViewEnabled(true);
-    if (typeof window.__setAppView === "function") window.__setAppView("walk", true);
+    // Stato robusto: salva itineraryData e apri la schermata walk in modo sicuro.
+    itineraryData = {
+      id: Date.now(),
+      name: citiesLabel,
+      mood: prefs.walkType,
+      citiesLabel,
+      stops: allStops[0] ? allStops[0].map((s) => ({ ...s })) : [],
+      createdAt: new Date().toISOString()
+    };
+    openWalkScreen();
+    renderWalk(itineraryData);
     setTimeout(() => setGenerationLoading(false), 900);
   }
 
@@ -1389,7 +1506,16 @@ document.addEventListener("DOMContentLoaded", () => {
     setStatusVisible(true);
     setStatusMessage(`Nuovo mix per ${citiesLabel}. Esplora l'itinerario aggiornato.`, "status-active");
     setWalkViewEnabled(true);
-    if (typeof window.__setAppView === "function") window.__setAppView("walk", true);
+    itineraryData = {
+      id: Date.now(),
+      name: citiesLabel,
+      mood: prefs.walkType,
+      citiesLabel,
+      stops: allStops[0] ? allStops[0].map((s) => ({ ...s })) : [],
+      createdAt: new Date().toISOString()
+    };
+    openWalkScreen();
+    renderWalk(itineraryData);
     setTimeout(() => setGenerationLoading(false), 900);
   }
 
@@ -1916,12 +2042,6 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("[GPS] navigator.geolocation non disponibile");
       return;
     }
-    if (typeof google === "undefined" || !google.maps) {
-      setStatusVisible(true);
-      setStatusMessage("Mappa non ancora pronta. Attendi qualche secondo e riprova.", "status-neutral");
-      console.error("[GPS] Google Maps API non caricata");
-      return;
-    }
     if (!stops.length) {
       setStatusVisible(true);
       setStatusMessage("Genera prima un itinerario (città + Genera itinerario).", "status-neutral");
@@ -1939,6 +2059,12 @@ document.addEventListener("DOMContentLoaded", () => {
       (pos) => {
         const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         userPosition = userPos;
+        // Leaflet marker (default)
+        if (ensureLeafletReady()) {
+          setUserMarker(userPos.lat, userPos.lng);
+          leafletMap.panTo([userPos.lat, userPos.lng], { animate: true });
+        }
+        // Google marker (opzionale)
         if (userMarker) {
           userMarker.setPosition(userPos);
           userMarker.setVisible(true);
@@ -1951,26 +2077,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (currentLegIndex < stops.length) {
           const target = stops[currentLegIndex];
-          const distance = google.maps.geometry.spherical.computeDistanceBetween(
-            new google.maps.LatLng(userPos.lat, userPos.lng),
-            new google.maps.LatLng(target.lat, target.lng)
-          );
+          const distance = (typeof google !== "undefined" && google.maps?.geometry?.spherical)
+            ? google.maps.geometry.spherical.computeDistanceBetween(
+                new google.maps.LatLng(userPos.lat, userPos.lng),
+                new google.maps.LatLng(target.lat, target.lng)
+              )
+            : haversineMeters({ lat: userPos.lat, lng: userPos.lng }, { lat: target.lat, lng: target.lng });
           const distEl = document.getElementById("distance-to-next");
           const legEl = document.getElementById("current-leg");
           const timeEl = document.getElementById("time-to-next");
-          if (distEl) distEl.textContent = `${Math.round(distance)} m`;
+          if (distEl) distEl.textContent = formatDistance(distance) || `${Math.round(distance)} m`;
           if (legEl) legEl.textContent = target.name;
           if (timeEl) {
-            const mins = Math.max(1, Math.round(distance / 80)); // ~4.8 km/h
-            timeEl.textContent = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
+            timeEl.textContent = formatWalkTimeFromMeters(distance) || "—";
           }
-          drawRouteFromUserToStop(currentLegIndex);
+          // Directions solo se Google è disponibile
+          if (typeof google !== "undefined" && directionsService) {
+            drawRouteFromUserToStop(currentLegIndex);
+          }
           if (distance < DISTANCE_THRESHOLD_METERS) {
             stops[currentLegIndex].reached = true;
             currentLegIndex++;
             renderStopsList();
             updateNextStopCardFromStops();
-            updateMarkers();
+            if (map) updateMarkers();
             if (currentLegIndex >= stops.length) {
               setStatusMessage("Itinerario completato! 🎉", "status-done");
               if (watchId) navigator.geolocation.clearWatch(watchId);
@@ -2193,18 +2323,58 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (btnStart) btnStart.addEventListener("click", () => {
-    navigateTo("map");
-    setTimeout(() => startGpsTracking(), 400);
-  });
+  // --- Walk screen actions (robuste, state-based) ---
+  function setNavStatus(next) {
+    navigationState.status = next;
+    navigationState.watchId = watchId;
+    updateNextStopCardFromStops();
+    // Bottoni: Pausa attiva solo se stiamo navigando
+    if (btnStop) btnStop.disabled = !(watchId || navigationState.status === "navigating");
+  }
 
-  if (btnStartInline) btnStartInline.addEventListener("click", () => {
-    if (btnStart) btnStart.click();
-  });
+  function startNavigation() {
+    if (!itineraryData || !itineraryData.stops || !itineraryData.stops.length) {
+      setStatusVisible(true);
+      setStatusMessage("Crea prima un itinerario, poi avvia il walk.", "status-neutral");
+      setWalkEmptyState(true);
+      return;
+    }
+    openWalkScreen();
+    setNavStatus("navigating");
+    startGpsTracking(); // usa GPS; se Google non c'è, calcoliamo distanze con Haversine
+  }
 
-  if (btnStopInline) btnStopInline.addEventListener("click", () => {
-    if (btnStop) btnStop.click();
-  });
+  function pauseNavigation() {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+    setNavStatus("paused");
+    setStatusVisible(true);
+    setStatusMessage("In pausa. Riprendi quando vuoi.", "status-neutral");
+    document.body.classList.remove("is-tracking");
+  }
+
+  function previewRoute() {
+    if (!itineraryData || !itineraryData.stops || !itineraryData.stops.length) {
+      setWalkEmptyState(true);
+      return;
+    }
+    openWalkScreen();
+    setNavStatus("preview");
+    if (ensureLeafletReady()) {
+      updateLeafletFromStops(itineraryData.stops);
+      invalidateLeafletSizeSoon();
+    }
+    setStatusVisible(true);
+    setStatusMessage("Anteprima: tappe e percorso sulla mappa.", "status-active");
+  }
+
+  if (btnStart) btnStart.addEventListener("click", startNavigation);
+  if (btnStop) btnStop.addEventListener("click", pauseNavigation);
+  if (btnPreview) btnPreview.addEventListener("click", previewRoute);
+
+  // Inline buttons removed (map-first sheet uses btnStart/btnStop directly)
 
   if (btnStop) btnStop.addEventListener("click", () => {
     if (watchId) {

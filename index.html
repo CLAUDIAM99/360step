@@ -142,6 +142,12 @@
     <section class="sheet" id="walk-sheet" aria-label="Dettagli itinerario">
       <div class="sheet__handle" id="sheet-handle" aria-hidden="true"></div>
       <div class="sheet__content">
+        <div id="walk-empty" class="empty-state" hidden>
+          <p class="empty-state__title">Nessun itinerario attivo</p>
+          <p class="empty-state__text">Torna in Pianifica e crea un walk: qui vedrai mappa, tappe e navigazione.</p>
+          <button type="button" class="btn btn-primary" id="walk-empty-back">Vai a Pianifica</button>
+        </div>
+
         <header class="sheet__header">
           <div>
             <p class="sheet__eyebrow" id="walk-hero-eyebrow">City walk</p>

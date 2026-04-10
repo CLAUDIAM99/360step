@@ -1174,31 +1174,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setAppView(viewId, pushState = true) {
     const id = viewId;
-    const hasView = Array.from(viewSections).some((s) => s.getAttribute("data-app-view") === id);
-    const safeId = hasView ? id : "plan";
-    viewSections.forEach((section) => {
-      const v = section.getAttribute("data-app-view");
-      const on = v === safeId;
-      section.classList.toggle("view--active", on);
-      section.toggleAttribute("hidden", !on);
-    });
-    bottomNavBtns.forEach((btn) => {
-      const v = btn.getAttribute("data-view");
-      btn.classList.toggle("bottom-nav__btn--active", v === safeId);
-    });
-    if (pushState) {
-      const urls = { plan: "#plan", walk: "#walk", saved: "#saved" };
-      if (urls[safeId]) history.pushState(null, "", urls[safeId]);
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    if (safeId === "walk") {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (typeof initLeafletMap === "function") initLeafletMap();
-          if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
-          if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
-        });
+    const safeId = Array.from(viewSections).some((s) => s.getAttribute("data-app-view") === id) ? id : "plan";
+    try {
+      const target = Array.from(viewSections).find((s) => s.getAttribute("data-app-view") === safeId);
+      if (!target) return;
+
+      // Prima rendiamo visibile la view target, poi nascondiamo le altre:
+      // evita stati “tutto hidden” se qualcosa va storto.
+      target.classList.add("view--active");
+      target.toggleAttribute("hidden", false);
+
+      viewSections.forEach((section) => {
+        if (section === target) return;
+        section.classList.remove("view--active");
+        section.toggleAttribute("hidden", true);
       });
+
+      bottomNavBtns.forEach((btn) => {
+        const v = btn.getAttribute("data-view");
+        btn.classList.toggle("bottom-nav__btn--active", v === safeId);
+      });
+      if (pushState) {
+        const urls = { plan: "#plan", walk: "#walk", saved: "#saved" };
+        if (urls[safeId]) history.pushState(null, "", urls[safeId]);
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (safeId === "walk") {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (typeof window.__initLeafletMap === "function") window.__initLeafletMap();
+            if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
+            if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
+          });
+        });
+      }
+    } catch (e) {
+      console.error("[360step] setAppView error", e);
+      const plan = Array.from(viewSections).find((s) => s.getAttribute("data-app-view") === "plan");
+      if (plan) {
+        plan.classList.add("view--active");
+        plan.toggleAttribute("hidden", false);
+      }
     }
   }
 

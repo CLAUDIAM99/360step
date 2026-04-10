@@ -1164,6 +1164,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const viewSections = document.querySelectorAll("[data-app-view]");
   const bottomNavBtns = document.querySelectorAll(".bottom-nav__btn[data-view]");
 
+  function queueMapResize() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          if (typeof window.__initLeafletMap === "function") window.__initLeafletMap();
+          if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
+        } catch (e) {
+          console.warn("[360step] leaflet resize failed", e);
+        }
+        try {
+          if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
+        } catch (e) {
+          // ignore
+        }
+      });
+    });
+  }
+
   function mapHashToViewId(hash) {
     const h = (hash || "").toLowerCase();
     const legacy = { "#pianifica": "plan", "#mappa": "walk", "#percorsi": "saved", "#home": "plan" };
@@ -1200,13 +1218,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
       if (safeId === "walk") {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (typeof window.__initLeafletMap === "function") window.__initLeafletMap();
-            if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
-            if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
-          });
-        });
+        queueMapResize();
       }
     } catch (e) {
       console.error("[360step] setAppView error", e);
@@ -1357,6 +1369,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // Espone helper a funzioni globali (renderWalk/openWalkScreen)
   window.__initLeafletMap = initLeafletMap;
   window.__updateLeafletFromStops = updateLeafletFromStops;
+
+  // Se siamo già nella view walk (es. reload su #walk), inizializza la mappa ora che Leaflet è disponibile
+  try {
+    const curView = (window.location.hash || "").toLowerCase();
+    if (curView === "#walk") {
+      initLeafletMap();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (leafletMap) leafletMap.invalidateSize();
+        });
+      });
+    }
+  } catch (e) { /* ignore */ }
 
   // Nessuna richiesta GPS al caricamento. Il banner di stato è nascosto di default e si mostra solo al click su "Avvia navigazione".
   function setStatusVisible(visible) {

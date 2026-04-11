@@ -5,9 +5,50 @@ import {
   buildInsertStopPrompt,
 } from "@/lib/itinerary/prompts";
 import type { GenerateItineraryRequest } from "@/lib/itinerary/schema";
+import { GEMINI_PLAN_RESPONSE_SCHEMA } from "@/lib/itinerary/gemini-response-schema";
 
 /** Default: Gemini 3 Flash (preview). Override con GEMINI_MODEL se serve (es. gemini-3.1-flash-lite-preview). */
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+
+function extractJsonText(raw: string): string {
+  const t = raw.trim();
+  const m = /^```(?:json)?\s*([\s\S]*?)```$/m.exec(t);
+  if (m) return m[1].trim();
+  return t;
+}
+
+function logPlanSchemaFailure(
+  location: string,
+  parsed: unknown,
+  issues: { path: (string | number)[]; message: string }[]
+): void {
+  // #region agent log
+  const topKeys =
+    parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? Object.keys(parsed as Record<string, unknown>)
+      : [];
+  fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "570e4d",
+    },
+    body: JSON.stringify({
+      sessionId: "570e4d",
+      location,
+      message: "GeminiPlanSchema safeParse failed",
+      data: {
+        issueCount: issues.length,
+        issues: issues.slice(0, 12),
+        topKeys,
+      },
+      hypothesisId: "H1",
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+  console.error("[gemini] GeminiPlanSchema", JSON.stringify({ issues, topKeys }));
+}
 
 function normalizePlan(plan: GeminiPlan): GeminiPlan {
   return {
@@ -35,11 +76,12 @@ export async function runGeminiPlanner(
     model: process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
     generationConfig: {
       responseMimeType: "application/json",
+      responseSchema: GEMINI_PLAN_RESPONSE_SCHEMA,
     },
   });
   const prompt = buildPlannerPrompt(req);
   const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = extractJsonText(result.response.text());
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -48,6 +90,11 @@ export async function runGeminiPlanner(
   }
   const out = GeminiPlanSchema.safeParse(parsed);
   if (!out.success) {
+    logPlanSchemaFailure(
+      "gemini.ts:runGeminiPlanner",
+      parsed,
+      out.error.issues
+    );
     throw new Error("Schema itinerario Gemini non valido");
   }
   return normalizePlan(out.data);
@@ -63,7 +110,10 @@ export async function runGeminiInsertStop(
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({
     model: process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
-    generationConfig: { responseMimeType: "application/json" },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: GEMINI_PLAN_RESPONSE_SCHEMA,
+    },
   });
   const prompt = buildInsertStopPrompt(
     JSON.stringify(plan),
@@ -71,7 +121,7 @@ export async function runGeminiInsertStop(
     language
   );
   const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = extractJsonText(result.response.text());
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -80,6 +130,11 @@ export async function runGeminiInsertStop(
   }
   const out = GeminiPlanSchema.safeParse(parsed);
   if (!out.success) {
+    logPlanSchemaFailure(
+      "gemini.ts:runGeminiInsertStop",
+      parsed,
+      out.error.issues
+    );
     throw new Error("Schema dopo insert non valido");
   }
   return normalizePlan(out.data);

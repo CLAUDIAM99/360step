@@ -73,7 +73,7 @@ export type GenerateItineraryRequest = z.infer<
   typeof GenerateItineraryRequestSchema
 >;
 
-export const StopTypeSchema = z.enum([
+const STOP_TYPE_VALUES = [
   "visit",
   "meal",
   "sleep",
@@ -82,26 +82,34 @@ export const StopTypeSchema = z.enum([
   "scenic",
   "fuel",
   "other",
-]);
+] as const;
+
+export const StopTypeSchema = z.preprocess((val) => {
+  if (typeof val !== "string") return val;
+  const t = val.toLowerCase().trim();
+  return STOP_TYPE_VALUES.includes(t as (typeof STOP_TYPE_VALUES)[number])
+    ? t
+    : "other";
+}, z.enum(STOP_TYPE_VALUES));
 
 /** Output Gemini (prima del grounding) */
 export const GeminiPlannedStopSchema = z.object({
   title: z.string(),
   type: StopTypeSchema,
   searchQuery: z.string(),
-  dayIndex: z.number().int().min(1),
-  orderInDay: z.number().int().min(0),
-  notes: z.string().optional(),
+  dayIndex: z.coerce.number().int().min(1),
+  orderInDay: z.coerce.number().int().min(0),
+  notes: z.string().nullish(),
 });
 
 export const GeminiPlanSchema = z.object({
   summary: z.string(),
-  bestPeriodNote: z.string().optional(),
+  bestPeriodNote: z.string().nullish(),
   days: z
     .array(
       z.object({
-        dayIndex: z.number().int().min(1),
-        label: z.string().optional(),
+        dayIndex: z.coerce.number().int().min(1),
+        label: z.string().nullish(),
         stops: z.array(GeminiPlannedStopSchema),
       })
     )

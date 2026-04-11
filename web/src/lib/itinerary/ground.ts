@@ -72,7 +72,8 @@ export async function groundGeminiPlan(
       grounded.push({
         ...s,
         groundingStatus: "not_found",
-        notes: (s.notes ? s.notes + " — " : "") + "Non verificato (limite API).",
+        notes:
+          (s.notes ? `${s.notes} — ` : "") + "Non verificato (limite API).",
       });
       continue;
     }
@@ -86,7 +87,7 @@ export async function groundGeminiPlan(
         type: s.type,
         dayIndex: s.dayIndex,
         orderInDay: s.orderInDay,
-        notes: s.notes,
+        notes: s.notes ?? undefined,
         groundingStatus: "not_found",
       });
       continue;
@@ -101,7 +102,7 @@ export async function groundGeminiPlan(
       placeId: hit.placeId,
       formattedAddress: hit.formattedAddress,
       mapsUrl: mapsPlaceUrl(hit.placeId),
-      notes: s.notes,
+      notes: s.notes ?? undefined,
       groundingStatus: "ok",
     });
   }
@@ -117,7 +118,7 @@ export async function groundGeminiPlan(
     const stops = sortStops(byDay.get(d.dayIndex) ?? []);
     return {
       dayIndex: d.dayIndex,
-      label: d.label,
+      label: d.label ?? undefined,
       stops,
     };
   });
@@ -172,7 +173,7 @@ export async function groundGeminiPlan(
           if (!leg && a.groundingStatus === "ok") {
             a.groundingStatus = "approximate";
             a.notes =
-              (a.notes ? a.notes + " — " : "") +
+              (a.notes ? `${a.notes} — ` : "") +
               "Verifica percorso verso la tappa successiva.";
           }
         }
@@ -183,7 +184,7 @@ export async function groundGeminiPlan(
   return {
     id: randomUUID(),
     summary: plan.summary,
-    bestPeriodNote: plan.bestPeriodNote,
+    bestPeriodNote: plan.bestPeriodNote ?? undefined,
     transport: ctx.transport,
     days,
     createdAt: new Date().toISOString(),

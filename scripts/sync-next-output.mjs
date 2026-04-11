@@ -1,4 +1,4 @@
-import { cpSync, existsSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, readlinkSync, rmSync, symlinkSync } from "node:fs";
 import { resolve } from "node:path";
 
 const rootNextDir = resolve(".next");
@@ -31,6 +31,9 @@ debugLog("pre-fix", "H1-H3", "scripts/sync-next-output.mjs:30", "sync-start", {
   webNextExists: existsSync(webNextDir),
   rootNextExists: existsSync(rootNextDir),
 });
+console.log(
+  `[sync-next-output] start cwd=${process.cwd()} webNextExists=${existsSync(webNextDir)} rootNextExists=${existsSync(rootNextDir)}`
+);
 
 if (!existsSync(webNextDir)) {
   debugLog("pre-fix", "H1-H3", "scripts/sync-next-output.mjs:38", "web-next-missing", {
@@ -40,10 +43,19 @@ if (!existsSync(webNextDir)) {
 }
 
 rmSync(rootNextDir, { recursive: true, force: true });
-cpSync(webNextDir, rootNextDir, { recursive: true });
+symlinkSync("web/.next", rootNextDir, "dir");
 
 debugLog("pre-fix", "H1-H3", "scripts/sync-next-output.mjs:47", "sync-done", {
   rootNextExists: existsSync(rootNextDir),
   rootRoutesManifestExists: existsSync(rootRoutesManifest),
   rootRoutesManifest,
 });
+const rootNextIsSymlink = lstatSync(rootNextDir).isSymbolicLink();
+const rootNextTarget = rootNextIsSymlink ? readlinkSync(rootNextDir) : null;
+debugLog("pre-fix", "H5", "scripts/sync-next-output.mjs:57", "symlink-status", {
+  rootNextIsSymlink,
+  rootNextTarget,
+});
+console.log(
+  `[sync-next-output] done rootNextExists=${existsSync(rootNextDir)} routesManifestExists=${existsSync(rootRoutesManifest)} symlink=${rootNextIsSymlink} target=${rootNextTarget ?? "n/a"}`
+);

@@ -66,6 +66,10 @@ export const GenerateItineraryRequestSchema = z.object({
   transport: TransportSchema,
   time: TIME_SPEC_SCHEMA,
   area: GEOGRAPHIC_AREA_SCHEMA,
+  /** Luogo di partenza: la prima tappa del giorno 1 deve partire da qui. */
+  startPlaceQuery: z.string().min(2),
+  /** Ultima tappa desiderata (ultimo giorno), opzionale. */
+  endPlaceQuery: z.string().optional(),
   language: z.enum(["it", "en"]).default("it"),
 });
 
@@ -177,6 +181,8 @@ export const InsertStopRequestSchema = z.object({
     themes: z.array(TripThemeSchema).min(1),
     pace: PaceSchema,
   }),
+  startPlaceQuery: z.string().min(2).optional(),
+  endPlaceQuery: z.string().optional(),
   language: z.enum(["it", "en"]).default("it"),
 });
 

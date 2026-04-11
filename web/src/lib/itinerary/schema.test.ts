@@ -16,6 +16,7 @@ describe("GenerateItineraryRequestSchema", () => {
         centerLng: 9,
         radiusKm: 30,
       },
+      startPlaceQuery: "Milano",
       language: "it",
     });
     expect(parsed.success).toBe(true);

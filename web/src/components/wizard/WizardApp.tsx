@@ -7,6 +7,7 @@ import type { DateRange } from "react-day-picker";
 import {
   ArrowDown,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Fuel,
   Loader2,
@@ -53,7 +54,7 @@ import type {
 } from "@/lib/itinerary/schema";
 import {
   STOP_TYPE_BADGE_CLASS,
-  daySectionBorderClass,
+  dayListAccentClass,
 } from "@/lib/itinerary/colors";
 import { cn } from "@/lib/utils";
 
@@ -171,6 +172,11 @@ export function WizardApp() {
   const [corridorStart, setCorridorStart] = useState("Milano");
   const [corridorEnd, setCorridorEnd] = useState("Genova");
   const [corridorVia, setCorridorVia] = useState("");
+  /** Partenza / arrivo finale per Area disegnata e Raggio (A→B usa corridor). */
+  const [tripStartQuery, setTripStartQuery] = useState("");
+  const [tripEndQuery, setTripEndQuery] = useState("");
+  /** Giorni espansi nella lista step 4 (default: tutti aperti). */
+  const [dayListOpen, setDayListOpen] = useState<Record<number, boolean>>({});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,6 +212,9 @@ export function WizardApp() {
         });
       }
       if (d.area) setArea(d.area as GeographicArea);
+      if (typeof d.tripStartQuery === "string")
+        setTripStartQuery(d.tripStartQuery);
+      if (typeof d.tripEndQuery === "string") setTripEndQuery(d.tripEndQuery);
     } catch {
       /* ignore */
     }
@@ -222,13 +231,15 @@ export function WizardApp() {
           ? { from: range.from.toISOString(), to: range.to.toISOString() }
           : undefined,
       area,
+      tripStartQuery,
+      tripEndQuery,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
-  }, [themes, pace, transport, days, range, area]);
+  }, [themes, pace, transport, days, range, area, tripStartQuery, tripEndQuery]);
 
   const progress = useMemo(() => ((step + 1) / 5) * 100, [step]);
 
@@ -283,6 +294,16 @@ export function WizardApp() {
     }
     return [...byDay.entries()].sort((a, b) => a[0] - b[0]);
   }, [itineraryFlatRows]);
+
+  useEffect(() => {
+    setDayListOpen((prev) => {
+      const next = { ...prev };
+      rowsByDay.forEach(([d]) => {
+        if (next[d] === undefined) next[d] = true;
+      });
+      return next;
+    });
+  }, [rowsByDay]);
 
   useEffect(() => {
     if (!itineraryFlatRows.length) {
@@ -357,7 +378,9 @@ export function WizardApp() {
       if (areaTab === "corridor") {
         return corridorStart.trim().length > 1 && corridorEnd.trim().length > 1;
       }
-      return area !== null;
+      return (
+        area !== null && tripStartQuery.trim().length >= 2
+      );
     }
     return true;
   }, [
@@ -370,6 +393,7 @@ export function WizardApp() {
     corridorStart,
     corridorEnd,
     area,
+    tripStartQuery,
   ]);
 
   const buildRequest = useCallback((): GenerateItineraryRequest | null => {
@@ -385,19 +409,43 @@ export function WizardApp() {
             }
           : null;
     if (!time) return null;
+    const startPlaceQuery =
+      areaTab === "corridor"
+        ? corridorStart.trim()
+        : tripStartQuery.trim();
+    if (startPlaceQuery.length < 2) return null;
+    const endRaw =
+      areaTab === "corridor" ? corridorEnd.trim() : tripEndQuery.trim();
     return {
       preferences: { themes, pace },
       transport,
       time,
       area,
+      startPlaceQuery,
+      endPlaceQuery: endRaw.length > 0 ? endRaw : undefined,
       language: "it",
     };
-  }, [area, timeTab, days, range, themes, pace, transport]);
+  }, [
+    area,
+    areaTab,
+    timeTab,
+    days,
+    range,
+    themes,
+    pace,
+    transport,
+    corridorStart,
+    corridorEnd,
+    tripStartQuery,
+    tripEndQuery,
+  ]);
 
   const onGenerate = async () => {
     const body = buildRequest();
     if (!body) {
-      setError("Completa data e area.");
+      setError(
+        "Completa date, area e luogo di partenza (almeno 2 caratteri)."
+      );
       return;
     }
     setLoading(true);
@@ -437,6 +485,13 @@ export function WizardApp() {
     setInsertLoading(true);
     setError(null);
     try {
+      const startQ =
+        areaTab === "corridor"
+          ? corridorStart.trim()
+          : tripStartQuery.trim();
+      const endQ =
+        (areaTab === "corridor" ? corridorEnd.trim() : tripEndQuery.trim()) ||
+        undefined;
       const res = await fetch("/api/itinerary/insert-stop", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -448,6 +503,8 @@ export function WizardApp() {
           time,
           preferences: { themes, pace },
           language: "it",
+          ...(startQ.length >= 2 ? { startPlaceQuery: startQ } : {}),
+          ...(endQ ? { endPlaceQuery: endQ } : {}),
         }),
       });
       const data = (await res.json()) as ItineraryResult & { error?: string };
@@ -478,7 +535,7 @@ export function WizardApp() {
           <Button
             type="button"
             size="lg"
-            className="mt-8 rounded-full border border-[hsl(355_32%_38%)] bg-primary px-10 text-lg font-semibold text-primary-foreground shadow-md hover:bg-[hsl(355_42%_30%)]"
+            className="mt-8 rounded-full border border-primary/30 bg-primary px-10 text-lg font-semibold text-primary-foreground shadow-md hover:bg-primary/90"
             onClick={() => {
               setHasEntered(true);
               setStep(0);
@@ -493,7 +550,7 @@ export function WizardApp() {
 
   return (
     <div className="roamy-board min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-[hsl(30_22%_72%)] bg-[hsl(40_42%_97%_/_0.88)] backdrop-blur-md dark:bg-[hsl(25_22%_14%_/_0.88)] dark:border-[hsl(25_14%_26%)]">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/88 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
           <div>
             <p className="roamy-scribble-title text-4xl leading-none text-primary">
@@ -507,7 +564,7 @@ export function WizardApp() {
             type="button"
             variant="ghost"
             size="icon"
-            className="rounded-full border border-[hsl(30_22%_72%)] bg-[hsl(40_44%_98%_/_0.9)] dark:border-[hsl(25_14%_28%)] dark:bg-[hsl(25_20%_18%)]"
+            className="rounded-full border border-border bg-card/90"
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Tema chiaro" : "Tema scuro"}
           >
@@ -697,12 +754,30 @@ export function WizardApp() {
                       <TabsTrigger value="corridor">A → B</TabsTrigger>
                     </TabsList>
                     {(areaTab === "polygon" || areaTab === "radius") && (
-                      <div className="mt-4">
-                        <MapAreaPicker
-                          mode={areaTab === "polygon" ? "polygon" : "radius"}
-                          onAreaChange={handleAreaMap}
-                        />
-                      </div>
+                      <>
+                        <div className="mt-4">
+                          <MapAreaPicker
+                            mode={areaTab === "polygon" ? "polygon" : "radius"}
+                            onAreaChange={handleAreaMap}
+                          />
+                        </div>
+                        <div className="mt-4 space-y-3 border-t border-border pt-4">
+                          <PlaceAutocompleteField
+                            id="trip-start"
+                            label="Luogo di partenza (obbligatorio)"
+                            placeholder="Prima tappa: città o indirizzo di partenza"
+                            value={tripStartQuery}
+                            onChange={setTripStartQuery}
+                          />
+                          <PlaceAutocompleteField
+                            id="trip-end"
+                            label="Ultima tappa desiderata (opzionale)"
+                            placeholder="Dove vuoi concludere il viaggio"
+                            value={tripEndQuery}
+                            onChange={setTripEndQuery}
+                          />
+                        </div>
+                      </>
                     )}
                     <TabsContent value="corridor" className="mt-4 space-y-3">
                       <PlaceAutocompleteField
@@ -746,12 +821,38 @@ export function WizardApp() {
                     <TabsTrigger value="corridor">A → B</TabsTrigger>
                   </TabsList>
                   {(areaTab === "polygon" || areaTab === "radius") && (
-                    <div className="mt-4">
-                      <MapAreaPicker
-                        mode={areaTab === "polygon" ? "polygon" : "radius"}
-                        onAreaChange={handleAreaMap}
-                      />
-                    </div>
+                    <>
+                      <div className="mt-4">
+                        <MapAreaPicker
+                          mode={areaTab === "polygon" ? "polygon" : "radius"}
+                          onAreaChange={handleAreaMap}
+                        />
+                      </div>
+                      <div className="mt-4 space-y-3 border-t border-border pt-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="trip-start-fb">
+                            Luogo di partenza (obbligatorio)
+                          </Label>
+                          <Input
+                            id="trip-start-fb"
+                            value={tripStartQuery}
+                            onChange={(e) => setTripStartQuery(e.target.value)}
+                            placeholder="Città o indirizzo di partenza"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="trip-end-fb">
+                            Ultima tappa desiderata (opzionale)
+                          </Label>
+                          <Input
+                            id="trip-end-fb"
+                            value={tripEndQuery}
+                            onChange={(e) => setTripEndQuery(e.target.value)}
+                            placeholder="Opzionale"
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
                   <TabsContent value="corridor" className="mt-4 space-y-3">
                     <div className="space-y-1">
@@ -859,11 +960,26 @@ export function WizardApp() {
                           }}
                           className={cn(
                             "overflow-hidden rounded-xl border border-border/70 bg-card/50 shadow-sm dark:bg-card/40",
-                            "border-l-4 pl-0",
-                            daySectionBorderClass(dayIndex)
+                            "pl-0",
+                            dayListAccentClass(dayIndex)
                           )}
                         >
-                          <header className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-muted/40 px-3 py-2.5 dark:bg-muted/30">
+                          <button
+                            type="button"
+                            className="flex w-full flex-wrap items-center gap-2 border-b border-border/60 bg-muted/40 px-3 py-2.5 text-left dark:bg-muted/30"
+                            onClick={() =>
+                              setDayListOpen((p) => ({
+                                ...p,
+                                [dayIndex]: !(p[dayIndex] ?? true),
+                              }))
+                            }
+                            aria-expanded={dayListOpen[dayIndex] ?? true}
+                          >
+                            {dayListOpen[dayIndex] ?? true ? (
+                              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            )}
                             <Badge variant="secondary" className="text-xs">
                               Giorno {dayIndex}
                             </Badge>
@@ -872,7 +988,8 @@ export function WizardApp() {
                                 {dayRows[0].weatherSummary}
                               </span>
                             )}
-                          </header>
+                          </button>
+                          {(dayListOpen[dayIndex] ?? true) && (
                           <ul className="space-y-2 p-3">
                             {dayRows.map((row) => {
                               const typeMeta = STOP_TYPE_META[row.stop.type];
@@ -918,7 +1035,7 @@ export function WizardApp() {
                                             {typeMeta.label}
                                           </span>
                                           {row.stop.groundingStatus === "not_found" && (
-                                            <span className="text-[11px] text-[hsl(25_40%_38%)] dark:text-[hsl(35_30%_72%)]">
+                                            <span className="text-[11px] text-muted-foreground">
                                               da verificare
                                             </span>
                                           )}
@@ -981,6 +1098,7 @@ export function WizardApp() {
                               );
                             })}
                           </ul>
+                          )}
                         </section>
                       ))}
                     </div>

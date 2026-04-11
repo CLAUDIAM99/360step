@@ -48,6 +48,11 @@ export function buildPlannerPrompt(req: GenerateItineraryRequest): string {
         ? `Area: ${describeArea(req.area)} ${describeAreaBounds(req.area)} Tutte le tappe devono essere entro il cerchio indicato.`
         : `Zona: ${describeArea(req.area)}`;
 
+  const startEnd =
+    req.endPlaceQuery && req.endPlaceQuery.trim().length > 0
+      ? `- Partenza obbligatoria (primo luogo del viaggio): "${req.startPlaceQuery}". La **prima tappa del giorno 1** (orderInDay più basso) deve corrispondere a questo luogo o alle sue immediate vicinanze; imposta title e searchQuery coerenti (stesso comune/zona).\n- Ultima tappa desiderata: "${req.endPlaceQuery.trim()}". L’**ultima tappa dell’ultimo giorno** (ultimo orderInDay dell’ultimo dayIndex) deve corrispondere a questo luogo o alle sue immediate vicinanze.`
+      : `- Partenza obbligatoria (primo luogo del viaggio): "${req.startPlaceQuery}". La **prima tappa del giorno 1** (orderInDay più basso) deve corrispondere a questo luogo o alle sue immediate vicinanze; imposta title e searchQuery coerenti (stesso comune/zona).`;
+
   return `Sei Roamy, un planner di viaggi stradali. ${lang}
 
 Vincoli utente:
@@ -56,6 +61,7 @@ Vincoli utente:
 - Mezzo: ${req.transport}. ${transport}
 - Tempo: ${time}
 - ${areaStrict}
+${startEnd}
 
 Restituisci SOLO JSON valido (nessun markdown) con questa forma esatta:
 {
@@ -84,7 +90,8 @@ Regole:
 - Ogni stop deve avere searchQuery concretamente cercabile (luogo + zona).
 - Non inventare coordinate; servono solo titoli e query.
 - Massimo ~8 tappe/giorno salvo ritmo "relaxed" (meno tappe).
-- Includi pasti dove ha senso (type meal), pernottamento (sleep) se multi-giorno, parcheggio/camper_stop solo se coerenti col mezzo.`;
+- Includi pasti dove ha senso (type meal), pernottamento (sleep) se multi-giorno, parcheggio/camper_stop solo se coerenti col mezzo.
+- Rispetta rigorosamente partenza e (se indicata) ultima tappa come sopra.`;
 }
 
 export function buildInsertStopPrompt(

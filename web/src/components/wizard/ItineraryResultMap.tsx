@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { GoogleMap, LoadScript, Marker, Polyline } from "@react-google-maps/api";
 import type { ItineraryResult, StopType } from "@/lib/itinerary/schema";
-import {
-  MAP_MARKER_MUTED_HEX,
-  STOP_TYPE_MAP_HEX,
-} from "@/lib/itinerary/colors";
+import { MAP_MARKER_MUTED_HEX, dayItineraryHex } from "@/lib/itinerary/colors";
 
 const mapContainerStyle = { width: "100%", height: "min(400px, 50vh)" };
 
@@ -164,7 +161,7 @@ export function ItineraryResultMap({
       }
     >
       <div className="space-y-2">
-        <p className="text-xs text-[hsl(25_35%_32%)] dark:text-[hsl(35_25%_78%)]">
+        <p className="text-xs text-muted-foreground">
           Se la mappa non carica, prova a disattivare blocchi annunci per questo
           sito (spesso bloccano{" "}
           <code className="rounded bg-muted px-1">maps.googleapis.com</code>
@@ -250,7 +247,7 @@ export function ItineraryResultMap({
                     { lat: b.lat, lng: b.lng },
                   ]}
                   options={{
-                    strokeColor: STOP_TYPE_MAP_HEX[b.type],
+                    strokeColor: dayItineraryHex(day.dayIndex),
                     strokeOpacity,
                     strokeWeight,
                     zIndex,
@@ -275,7 +272,7 @@ export function ItineraryResultMap({
                 !dayDimmed;
               const fillHex = dayDimmed
                 ? MAP_MARKER_MUTED_HEX
-                : STOP_TYPE_MAP_HEX[s.type];
+                : dayItineraryHex(day.dayIndex);
               const zMarker = dayDimmed ? 30 : isActive ? 300 : 100;
               out.push(
                 <Marker

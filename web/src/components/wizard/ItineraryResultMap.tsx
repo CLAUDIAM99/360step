@@ -15,13 +15,22 @@ import {
   Marker,
   Polyline,
 } from "@react-google-maps/api";
-import { Maximize2, Minimize2 } from "lucide-react";
-import type { ItineraryResult, StopType } from "@/lib/itinerary/schema";
+import { Info, Maximize2, Minimize2 } from "lucide-react";
+import type {
+  GroundedStop,
+  ItineraryResult,
+  StopType,
+} from "@/lib/itinerary/schema";
 import { MAP_MARKER_MUTED_HEX, dayItineraryHex } from "@/lib/itinerary/colors";
 import {
   decodeGooglePolyline,
   greatCircleSample,
 } from "@/lib/maps/polyline";
+import {
+  easeOutCubic,
+  lerp,
+  shortestLngDelta,
+} from "@/lib/maps/smooth-camera";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +85,27 @@ export type LegSegmentMapInfo = {
   airDistanceOnly?: boolean;
 };
 
+export type MapLayerVisibility = {
+  showConfirmedStops: boolean;
+  showOptionalStops: boolean;
+  showRoute: boolean;
+};
+
+const DEFAULT_MAP_LAYERS: MapLayerVisibility = {
+  showConfirmedStops: true,
+  showOptionalStops: true,
+  showRoute: true,
+};
+
+function stopMatchesLayer(
+  stop: GroundedStop,
+  layers: MapLayerVisibility
+): boolean {
+  const optional = stop.stopStatus === "optional";
+  if (optional) return layers.showOptionalStops;
+  return layers.showConfirmedStops;
+}
+
 type Props = {
   result: ItineraryResult;
   activeStopKey: string | null;
@@ -87,6 +117,8 @@ type Props = {
   onLegSegmentClick?: (info: LegSegmentMapInfo) => void;
   activeStopTitle?: string | null;
   onOpenStopDetail?: () => void;
+  /** Filtri confermati / opzionali e tratte. */
+  layerVisibility?: Partial<MapLayerVisibility>;
 };
 
 export function ItineraryResultMap({
@@ -98,11 +130,19 @@ export function ItineraryResultMap({
   onLegSegmentClick,
   activeStopTitle,
   onOpenStopDetail,
+  layerVisibility: layerVisibilityProp,
 }: Props) {
+  const layers = useMemo(
+    () => ({ ...DEFAULT_MAP_LAYERS, ...layerVisibilityProp }),
+    [layerVisibilityProp]
+  );
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  /** Mostra CTA dettaglio nel callout solo dopo tap su Info. */
+  const [calloutDetailOpen, setCalloutDetailOpen] = useState(false);
+  const cameraAnimRef = useRef<number | null>(null);
 
   const mapContainerStyle = useMemo(
     () => ({
@@ -137,6 +177,8 @@ export function ItineraryResultMap({
       distanceKm?: number;
       durationMin?: number;
       airDistanceOnly?: boolean;
+      stopA: GroundedStop;
+      stopB: GroundedStop;
     }[] = [];
     for (let i = 0; i < globalStops.length - 1; i++) {
       const a = globalStops[i];
@@ -173,6 +215,8 @@ export function ItineraryResultMap({
           distanceKm: leg?.distanceKm,
           durationMin: leg?.durationMin,
           airDistanceOnly: leg?.airDistanceOnly,
+          stopA: a,
+          stopB: b,
         });
       }
     }
@@ -249,23 +293,77 @@ export function ItineraryResultMap({
   }, []);
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || cameraTarget) return;
     fitBoundsForFocus(map, focusedDay);
-  }, [map, focusedDay, fitBoundsForFocus]);
+  }, [map, focusedDay, fitBoundsForFocus, cameraTarget]);
 
   useEffect(() => {
     if (!map || typeof google === "undefined") return;
     const id = window.setTimeout(() => {
       google.maps.event.trigger(map, "resize");
-      fitBoundsForFocus(map, focusedDay);
+      if (!cameraTarget) {
+        fitBoundsForFocus(map, focusedDay);
+      }
     }, fullscreen ? 180 : 0);
     return () => window.clearTimeout(id);
-  }, [fullscreen, map, focusedDay, fitBoundsForFocus]);
+  }, [fullscreen, map, focusedDay, fitBoundsForFocus, cameraTarget]);
+
+  useEffect(() => {
+    setCalloutDetailOpen(false);
+  }, [activeStopKey]);
 
   useEffect(() => {
     if (!map || !cameraTarget) return;
-    map.panTo({ lat: cameraTarget.lat, lng: cameraTarget.lng });
-    map.setZoom(cameraTarget.zoom);
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      map.panTo({ lat: cameraTarget.lat, lng: cameraTarget.lng });
+      map.setZoom(cameraTarget.zoom);
+      return;
+    }
+    const startCenter = map.getCenter();
+    const startZoom = map.getZoom() ?? 10;
+    if (!startCenter) {
+      map.panTo({ lat: cameraTarget.lat, lng: cameraTarget.lng });
+      map.setZoom(cameraTarget.zoom);
+      return;
+    }
+    const fromLat = startCenter.lat();
+    const fromLng = startCenter.lng();
+    const fromZ = startZoom;
+    const toLat = cameraTarget.lat;
+    const toLng = cameraTarget.lng;
+    const toZ = cameraTarget.zoom;
+    const dLng = shortestLngDelta(fromLng, toLng);
+    const durationMs = 820;
+    const t0 = performance.now();
+
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - t0) / durationMs);
+      const e = easeOutCubic(t);
+      const lat = lerp(fromLat, toLat, e);
+      const lng = fromLng + dLng * e;
+      const zoom = lerp(fromZ, toZ, e);
+      map.setCenter({ lat, lng });
+      map.setZoom(zoom);
+      if (t < 1) {
+        cameraAnimRef.current = requestAnimationFrame(tick);
+      } else {
+        cameraAnimRef.current = null;
+      }
+    };
+
+    if (cameraAnimRef.current != null) {
+      cancelAnimationFrame(cameraAnimRef.current);
+    }
+    cameraAnimRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (cameraAnimRef.current != null) {
+        cancelAnimationFrame(cameraAnimRef.current);
+        cameraAnimRef.current = null;
+      }
+    };
   }, [map, cameraTarget]);
 
   useEffect(() => {
@@ -347,6 +445,13 @@ export function ItineraryResultMap({
             }}
           >
             {legPaths.map((seg, idx) => {
+              if (
+                !layers.showRoute ||
+                !stopMatchesLayer(seg.stopA, layers) ||
+                !stopMatchesLayer(seg.stopB, layers)
+              ) {
+                return null;
+              }
               const dayDimmed =
                 focusedDay !== "all" && focusedDay !== seg.dayIndex;
               const edgeTouchesActive =
@@ -412,6 +517,7 @@ export function ItineraryResultMap({
 
               ordered.forEach((s, i) => {
                 if (s.lat == null || s.lng == null) return;
+                if (!stopMatchesLayer(s, layers)) return;
                 const key = stopKey(
                   day.dayIndex,
                   s.orderInDay,
@@ -464,13 +570,28 @@ export function ItineraryResultMap({
                       onCloseClick={() => onStopSelect(null)}
                     >
                       <div className="max-w-[220px] space-y-2 p-1 font-sans text-gray-900">
-                        <p className="m-0 text-sm font-semibold leading-tight">
-                          {activeStopTitle}
-                        </p>
+                        <div className="flex items-start gap-1.5">
+                          <p className="m-0 flex-1 text-sm font-semibold leading-tight">
+                            {activeStopTitle}
+                          </p>
+                          {onOpenStopDetail ? (
+                            <button
+                              type="button"
+                              className="mt-0.5 inline-flex shrink-0 rounded-md border border-gray-300 bg-white p-1 text-gray-800 hover:bg-gray-50"
+                              title="Apri dettagli"
+                              aria-label="Informazioni sulla tappa"
+                              onClick={() =>
+                                setCalloutDetailOpen((v) => !v)
+                              }
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null}
+                        </div>
                         <p className="m-0 text-xs text-gray-600">
                           {typeSymbol(s.type)} · Giorno {day.dayIndex}
                         </p>
-                        {onOpenStopDetail && (
+                        {onOpenStopDetail && calloutDetailOpen ? (
                           <button
                             type="button"
                             className="w-full rounded-md bg-[#B3123F] px-2 py-1.5 text-xs font-medium text-white"
@@ -478,7 +599,7 @@ export function ItineraryResultMap({
                           >
                             Per saperne di più
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </InfoWindow>
                   );

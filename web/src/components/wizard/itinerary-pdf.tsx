@@ -115,23 +115,6 @@ async function imageUrlToDataUri(url: string): Promise<string | null> {
 }
 
 export async function downloadItineraryPdf(result: ItineraryResult) {
-  // #region agent log
-  fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "570e4d",
-    },
-    body: JSON.stringify({
-      sessionId: "570e4d",
-      hypothesisId: "H-pdf-build",
-      location: "itinerary-pdf.tsx:downloadItineraryPdf",
-      message: "pdf export invoked",
-      data: { dayCount: result.days?.length ?? 0 },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   const r = reconcileItineraryLegs(result);
   const analytics = itineraryAnalytics(r);
   const global = sortGlobalStops(r.days);

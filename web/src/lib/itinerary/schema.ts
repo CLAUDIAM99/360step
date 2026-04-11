@@ -62,6 +62,10 @@ export const GenerateItineraryRequestSchema = z.object({
   preferences: z.object({
     themes: z.array(TripThemeSchema).min(1),
     pace: PaceSchema,
+    /** Vincoli testuali non negoziabili (es. “celiachia”, “no autostrada”). */
+    hardConstraints: z.array(z.string().max(200)).max(12).optional(),
+    /** Desideri “morbidi” che l’AI può bilanciare. */
+    softWishes: z.array(z.string().max(200)).max(12).optional(),
   }),
   transport: TransportSchema,
   time: TIME_SPEC_SCHEMA,
@@ -70,6 +74,13 @@ export const GenerateItineraryRequestSchema = z.object({
   startPlaceQuery: z.string().min(2),
   /** Ultima tappa desiderata (ultimo giorno), opzionale. */
   endPlaceQuery: z.string().optional(),
+  /**
+   * Se true: ogni giorno parte e termina alla stessa base (punto di partenza del giorno 1).
+   * Utile per itinerari “a raggiera” con rientro serale.
+   */
+  returnToHubEachNight: z.boolean().optional().default(false),
+  /** Preferisci strade secondarie / panoramiche (Directions con avoid highways). */
+  preferScenicRoutes: z.boolean().optional().default(false),
   language: z.enum(["it", "en"]).default("it"),
 });
 
@@ -106,6 +117,8 @@ export const GeminiPlannedStopSchema = z.object({
   dayIndex: z.coerce.number().int().min(1),
   orderInDay: z.coerce.number().int().min(0),
   notes: z.string().nullish(),
+  /** Breve motivazione della proposta (trasparente per l’utente). */
+  aiRationale: z.string().nullish(),
 });
 
 export const GeminiPlanSchema = z.object({
@@ -133,6 +146,9 @@ export const GroundItineraryRequestSchema =
 export type GroundItineraryRequest = z.infer<typeof GroundItineraryRequestSchema>;
 
 /** Tappa dopo grounding Maps */
+export const StopStatusSchema = z.enum(["confirmed", "optional"]);
+export type StopStatus = z.infer<typeof StopStatusSchema>;
+
 export const GroundedStopSchema = z.object({
   title: z.string(),
   type: StopTypeSchema,
@@ -146,12 +162,20 @@ export const GroundedStopSchema = z.object({
   websiteUri: z.string().optional(),
   notes: z.string().optional(),
   groundingStatus: z.enum(["ok", "approximate", "not_found"]),
+  stopStatus: StopStatusSchema.optional(),
+  aiRationale: z.string().optional(),
 });
 
 export const ItineraryDaySchema = z.object({
   dayIndex: z.number().int(),
   label: z.string().optional(),
   weatherSummary: z.string().optional(),
+  /** Codice WMO da Open-Meteo (se date fisse). */
+  weatherCode: z.number().optional(),
+  /** Probabilità precipitazione giornaliera massima (%). */
+  weatherPrecipProbMax: z.number().optional(),
+  /** Vento massimo stimato (km/h). */
+  weatherWindKmhMax: z.number().optional(),
   stops: z.array(GroundedStopSchema),
 });
 
@@ -178,6 +202,10 @@ export const ItineraryResultSchema = z.object({
   createdAt: z.string(),
   /** Lunghezza = numero tappe totali − 1, ordine di visita. */
   legs: z.array(ItineraryLegSchema).optional(),
+  /** Identificativo stabile del viaggio (collaborazione / sync futuri). */
+  tripId: z.string().optional(),
+  revision: z.number().int().nonnegative().optional(),
+  updatedAt: z.string().optional(),
 });
 
 export type ItineraryResult = z.infer<typeof ItineraryResultSchema>;
@@ -192,9 +220,13 @@ export const InsertStopRequestSchema = z.object({
   preferences: z.object({
     themes: z.array(TripThemeSchema).min(1),
     pace: PaceSchema,
+    hardConstraints: z.array(z.string().max(200)).max(12).optional(),
+    softWishes: z.array(z.string().max(200)).max(12).optional(),
   }),
   startPlaceQuery: z.string().min(2).optional(),
   endPlaceQuery: z.string().optional(),
+  returnToHubEachNight: z.boolean().optional(),
+  preferScenicRoutes: z.boolean().optional(),
   language: z.enum(["it", "en"]).default("it"),
 });
 

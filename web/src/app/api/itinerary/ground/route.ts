@@ -43,6 +43,8 @@ export async function POST(req: Request) {
       mapsApiKey: mapsKey,
       startPlaceQuery: ctx.startPlaceQuery,
       endPlaceQuery: ctx.endPlaceQuery,
+      returnToHubEachNight: ctx.returnToHubEachNight,
+      preferScenicRoutes: ctx.preferScenicRoutes,
     });
     return NextResponse.json(result);
   } catch (e) {

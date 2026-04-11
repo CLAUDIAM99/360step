@@ -90,6 +90,10 @@ function normalizeParsedGeminiPlan(input: unknown): unknown {
               s.notes == null || s.notes === ""
                 ? undefined
                 : String(s.notes),
+            aiRationale:
+              s.aiRationale == null || s.aiRationale === ""
+                ? undefined
+                : String(s.aiRationale),
           };
         }),
       };

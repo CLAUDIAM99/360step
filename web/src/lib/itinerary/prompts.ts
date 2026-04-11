@@ -53,6 +53,26 @@ export function buildPlannerPrompt(req: GenerateItineraryRequest): string {
       ? `- Partenza obbligatoria (primo luogo del viaggio): "${req.startPlaceQuery}". La **prima tappa del giorno 1** (orderInDay più basso) deve corrispondere a questo luogo o alle sue immediate vicinanze; imposta title e searchQuery coerenti (stesso comune/zona).\n- Ultima tappa desiderata: "${req.endPlaceQuery.trim()}". L’**ultima tappa dell’ultimo giorno** (ultimo orderInDay dell’ultimo dayIndex) deve corrispondere a questo luogo o alle sue immediate vicinanze.`
       : `- Partenza obbligatoria (primo luogo del viaggio): "${req.startPlaceQuery}". La **prima tappa del giorno 1** (orderInDay più basso) deve corrispondere a questo luogo o alle sue immediate vicinanze; imposta title e searchQuery coerenti (stesso comune/zona).`;
 
+  const hubLoop =
+    req.returnToHubEachNight === true
+      ? `\n- **Base giornaliera (OBBLIGATORIO):** l’utente rientra ogni sera alla stessa base. La base è il luogo di partenza "${req.startPlaceQuery}". Per **ogni** giorno (tutti i dayIndex): la **prima** tappa deve essere esplorazione/uscita dalla base (o comunque coerente con partenza da quella zona) e l’**ultima** tappa del giorno deve essere pernottamento o sosta in/quella base (stesso comune o stesso luogo: usa searchQuery che punta esplicitamente a "${req.startPlaceQuery}" o alloggio nelle immediate vicinanze). Il giorno successivo riparte da quella base. Non pianificare catene lineari lontano senza rientro serale.`
+      : "";
+
+  const hard = req.preferences.hardConstraints?.filter(Boolean) ?? [];
+  const soft = req.preferences.softWishes?.filter(Boolean) ?? [];
+  const hardBlock =
+    hard.length > 0
+      ? `\n- **Vincoli rigidi (non negoziabili):** ${hard.map((h) => `"${h}"`).join("; ")}. Rispettali in ogni tappa (allergie, divieti, accessibilità, ecc.).`
+      : "";
+  const softBlock =
+    soft.length > 0
+      ? `\n- **Desideri flessibili:** ${soft.map((h) => `"${h}"`).join("; ")}. Bilanciali con logistica e ritmo; se non compatibili, privilegia i vincoli rigidi.`
+      : "";
+  const scenicHint =
+    req.preferScenicRoutes === true
+      ? `\n- L’utente preferisce **strade panoramiche / secondarie** (meno autostrada). Proponi tratte e tappe coerenti con guidare per paesaggio.`
+      : "";
+
   return `Sei Roamy, un planner di viaggi stradali. ${lang}
 
 Vincoli utente:
@@ -61,7 +81,7 @@ Vincoli utente:
 - Mezzo: ${req.transport}. ${transport}
 - Tempo: ${time}
 - ${areaStrict}
-${startEnd}
+${startEnd}${hubLoop}${hardBlock}${softBlock}${scenicHint}
 
 Restituisci SOLO JSON valido (nessun markdown) con questa forma esatta:
 {
@@ -78,7 +98,8 @@ Restituisci SOLO JSON valido (nessun markdown) con questa forma esatta:
           "searchQuery": "query precisa per cercare il luogo su Google Maps nella zona",
           "dayIndex": 1,
           "orderInDay": 0,
-          "notes": "opzionale"
+          "notes": "opzionale",
+          "aiRationale": "opzionale: una frase che spiega perché proponi questa tappa"
         }
       ]
     }
@@ -91,7 +112,8 @@ Regole:
 - Non inventare coordinate; servono solo titoli e query.
 - Massimo ~8 tappe/giorno salvo ritmo "relaxed" (meno tappe).
 - Includi pasti dove ha senso (type meal), pernottamento (sleep) se multi-giorno, parcheggio/camper_stop solo se coerenti col mezzo.
-- Rispetta rigorosamente partenza e (se indicata) ultima tappa come sopra.`;
+- Rispetta rigorosamente partenza e (se indicata) ultima tappa come sopra.
+- Se usi aiRationale, tienilo breve (max ~200 caratteri) e concreto.`;
 }
 
 export function buildInsertStopPrompt(

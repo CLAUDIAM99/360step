@@ -241,6 +241,61 @@ async function enforceAnchorStops(
   return next;
 }
 
+function cloneHubStop(
+  hub: GroundedStop,
+  dayIndex: number,
+  orderInDay: number,
+  extraNote?: string
+): GroundedStop {
+  const note = extraNote
+    ? [hub.notes, extraNote].filter(Boolean).join(" — ")
+    : hub.notes;
+  return {
+    ...hub,
+    dayIndex,
+    orderInDay,
+    notes: note || undefined,
+  };
+}
+
+function reindexDay(dayIndex: number, stops: GroundedStop[]): GroundedStop[] {
+  return stops.map((s, i) => ({ ...s, dayIndex, orderInDay: i }));
+}
+
+/** Garantisce prima e ultima tappa di ogni giorno = hub (base giorno 1). */
+function enforceDailyHubReturn(
+  days: ItineraryDay[],
+  hub: GroundedStop
+): ItineraryDay[] {
+  if (hub.lat == null || hub.lng == null) return days;
+  const ordered = [...days].sort((a, b) => a.dayIndex - b.dayIndex);
+  return ordered.map((day) => {
+    let stops = sortStops(day.stops);
+    if (stops.length === 0) {
+      return {
+        ...day,
+        stops: reindexDay(day.dayIndex, [
+          cloneHubStop(hub, day.dayIndex, 0, "Base — partenza"),
+          cloneHubStop(hub, day.dayIndex, 1, "Base — rientro serale"),
+        ]),
+      };
+    }
+    if (!areStopsEquivalent(stops[0], hub)) {
+      stops = [
+        cloneHubStop(hub, day.dayIndex, 0, "Partenza dalla base"),
+        ...stops,
+      ];
+    }
+    if (!areStopsEquivalent(stops[stops.length - 1], hub)) {
+      stops = [
+        ...stops,
+        cloneHubStop(hub, day.dayIndex, stops.length, "Rientro in base"),
+      ];
+    }
+    return { ...day, stops: reindexDay(day.dayIndex, stops) };
+  });
+}
+
 function stripCrossDayCarryStops(days: ItineraryDay[]): ItineraryDay[] {
   const orderedDays = [...days].sort((a, b) => a.dayIndex - b.dayIndex);
   const out: ItineraryDay[] = [];
@@ -277,6 +332,10 @@ export async function groundGeminiPlan(
     mapsApiKey: string;
     startPlaceQuery?: string;
     endPlaceQuery?: string;
+    returnToHubEachNight?: boolean;
+    preferScenicRoutes?: boolean;
+    /** Continua un viaggio salvato (stesso tripId, revision incrementata). */
+    continueTrip?: { tripId: string; revision?: number; createdAt?: string };
   }
 ): Promise<ItineraryResult> {
   let calls = 0;
@@ -294,6 +353,7 @@ export async function groundGeminiPlan(
       grounded.push({
         ...s,
         groundingStatus: "not_found",
+        aiRationale: s.aiRationale ?? undefined,
         notes:
           (s.notes ? `${s.notes} — ` : "") + "Non verificato (limite API).",
       });
@@ -315,6 +375,7 @@ export async function groundGeminiPlan(
         dayIndex: s.dayIndex,
         orderInDay: s.orderInDay,
         notes: s.notes ?? undefined,
+        aiRationale: s.aiRationale ?? undefined,
         groundingStatus: "not_found",
       });
       continue;
@@ -330,6 +391,7 @@ export async function groundGeminiPlan(
       formattedAddress: hit.formattedAddress,
       mapsUrl: mapsPlaceUrl(hit.placeId),
       notes: s.notes ?? undefined,
+      aiRationale: s.aiRationale ?? undefined,
       groundingStatus: "ok",
     });
   }
@@ -349,11 +411,18 @@ export async function groundGeminiPlan(
       stops,
     };
   });
-  const anchored = await enforceAnchorStops(rawDays, {
+  let anchored = await enforceAnchorStops(rawDays, {
     startPlaceQuery: ctx.startPlaceQuery,
     endPlaceQuery: ctx.endPlaceQuery,
     mapsApiKey: ctx.mapsApiKey,
   });
+  if (ctx.returnToHubEachNight) {
+    const day1 = anchored.find((d) => d.dayIndex === 1);
+    const hub = day1?.stops?.length ? sortStops(day1.stops)[0] : undefined;
+    if (hub?.lat != null && hub?.lng != null) {
+      anchored = enforceDailyHubReturn(anchored, hub);
+    }
+  }
   const days = withCrossDayStartStops(anchored);
 
   // Meteo (centro bounds) se date fisse
@@ -374,7 +443,20 @@ export async function groundGeminiPlan(
       const key = d.toISOString().slice(0, 10);
       const f = byDate.get(key);
       if (f) {
-        day.weatherSummary = `${f.summary} · ${Math.round(f.minTempC)}–${Math.round(f.maxTempC)}°C`;
+        const precip =
+          f.precipProbMax != null ? ` · pioggia ~${f.precipProbMax}%` : "";
+        const wind =
+          f.windKmhMax != null
+            ? ` · vento ~${Math.round(f.windKmhMax)} km/h`
+            : "";
+        day.weatherSummary = `${f.summary} · ${Math.round(f.minTempC)}–${Math.round(f.maxTempC)}°C${precip}${wind}`;
+        day.weatherCode = f.weatherCode;
+        if (f.precipProbMax != null) {
+          day.weatherPrecipProbMax = f.precipProbMax;
+        }
+        if (f.windKmhMax != null) {
+          day.weatherWindKmhMax = f.windKmhMax;
+        }
       }
     }
   }
@@ -416,7 +498,9 @@ export async function groundGeminiPlan(
       continue;
     }
     calls += 1;
-    const leg = await drivingDirectionsLeg(origin, dest, ctx.mapsApiKey);
+    const leg = await drivingDirectionsLeg(origin, dest, ctx.mapsApiKey, {
+      preferScenic: ctx.preferScenicRoutes === true,
+    });
     if (leg) {
       legs.push({
         distanceKm: Math.round((leg.distanceMeters / 1000) * 10) / 10,
@@ -434,14 +518,24 @@ export async function groundGeminiPlan(
     }
   }
 
+  const tripId = ctx.continueTrip?.tripId ?? randomUUID();
+  const revision = ctx.continueTrip
+    ? (ctx.continueTrip.revision ?? 0) + 1
+    : 0;
+  const updatedAt = new Date().toISOString();
+  const createdAt = ctx.continueTrip?.createdAt ?? updatedAt;
+
   return {
-    id: randomUUID(),
+    id: tripId,
     summary: plan.summary,
     bestPeriodNote: plan.bestPeriodNote ?? undefined,
     transport: ctx.transport,
     days,
-    createdAt: new Date().toISOString(),
+    createdAt,
     legs: flatOrdered.length < 2 ? undefined : legs,
+    tripId,
+    revision,
+    updatedAt,
   };
 }
 
@@ -462,6 +556,7 @@ export function itineraryResultToGeminiPlan(
         dayIndex: d.dayIndex,
         orderInDay: s.orderInDay,
         notes: s.notes,
+        aiRationale: s.aiRationale,
       })),
     })),
   };

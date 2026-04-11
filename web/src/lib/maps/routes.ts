@@ -9,13 +9,17 @@ export type LegSummary = {
 export async function drivingDirectionsLeg(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
-  apiKey: string
+  apiKey: string,
+  opts?: { preferScenic?: boolean }
 ): Promise<LegSummary | null> {
   const q = new URLSearchParams({
     origin: `${origin.lat},${origin.lng}`,
     destination: `${destination.lat},${destination.lng}`,
     key: apiKey,
   });
+  if (opts?.preferScenic) {
+    q.set("avoid", "highways");
+  }
   const res = await fetch(`${DIRECTIONS}?${q}`);
   if (!res.ok) return null;
   const data = (await res.json()) as {

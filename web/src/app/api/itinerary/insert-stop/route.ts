@@ -88,6 +88,7 @@ export async function POST(req: Request) {
       parsed.data.language
     );
     const stabilized = stabilizeInsertedPlan(base, merged);
+    const prev = parsed.data.itinerary;
     const result = await groundGeminiPlan(stabilized, {
       area: parsed.data.area,
       transport: parsed.data.transport,
@@ -95,6 +96,13 @@ export async function POST(req: Request) {
       mapsApiKey: mapsKey,
       startPlaceQuery: parsed.data.startPlaceQuery,
       endPlaceQuery: parsed.data.endPlaceQuery,
+      returnToHubEachNight: parsed.data.returnToHubEachNight,
+      preferScenicRoutes: parsed.data.preferScenicRoutes,
+      continueTrip: {
+        tripId: prev.tripId ?? prev.id,
+        revision: prev.revision,
+        createdAt: prev.createdAt,
+      },
     });
     return NextResponse.json(result);
   } catch (e) {

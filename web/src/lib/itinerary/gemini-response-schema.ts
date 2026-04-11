@@ -20,6 +20,7 @@ const plannedStopSchema = {
     dayIndex: { type: SchemaType.INTEGER },
     orderInDay: { type: SchemaType.INTEGER },
     notes: { type: SchemaType.STRING, nullable: true },
+    aiRationale: { type: SchemaType.STRING, nullable: true },
   },
   required: ["title", "type", "searchQuery", "dayIndex", "orderInDay"],
 };

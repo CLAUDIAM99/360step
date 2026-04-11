@@ -18,6 +18,7 @@ import {
   ChevronUp,
   FileDown,
   Fuel,
+  GripVertical,
   Loader2,
   MapPin,
   Moon,
@@ -27,6 +28,7 @@ import {
   SkipForward,
   SkipBack,
   Sun,
+  Trash2,
   UtensilsCrossed,
   BedDouble,
   Mountain,
@@ -54,26 +56,29 @@ import { MapAreaPicker } from "@/components/wizard/MapAreaPicker";
 import {
   ItineraryResultMap,
   type LegSegmentMapInfo,
+  type MapLayerVisibility,
 } from "@/components/wizard/ItineraryResultMap";
 import { ItineraryStopDetailDialog } from "@/components/wizard/ItineraryStopDetailDialog";
 import { downloadItineraryPdf } from "@/components/wizard/itinerary-pdf";
 import { PlaceAutocompleteField } from "@/components/wizard/PlaceAutocompleteInput";
-import type {
-  GenerateItineraryRequest,
-  GeminiPlan,
-  GroundedStop,
-  ItineraryLeg,
-  ItineraryResult,
-  StopType,
-  Pace,
-  Transport,
-  TripTheme,
-  GeographicArea,
+import {
+  ItineraryResultSchema,
+  type GenerateItineraryRequest,
+  type GeminiPlan,
+  type GroundedStop,
+  type ItineraryLeg,
+  type ItineraryResult,
+  type StopType,
+  type Pace,
+  type Transport,
+  type TripTheme,
+  type GeographicArea,
 } from "@/lib/itinerary/schema";
 import {
   itineraryAnalytics,
   reconcileItineraryLegs,
 } from "@/lib/itinerary/legs-reconcile";
+import { estimateDailyLoads } from "@/lib/itinerary/day-estimates";
 import {
   STOP_TYPE_BADGE_CLASS,
   dayItineraryHex,
@@ -87,12 +92,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 type NearbyParkingRow = {
@@ -121,6 +120,18 @@ const THEME_OPTIONS: { id: TripTheme; label: string }[] = [
 ];
 
 const STORAGE_KEY = "roamy-wizard-draft-v1";
+const ITINERARY_SAVE_KEY = "roamy-itinerary-save-v1";
+const ITINERARY_SAVE_VERSION = 1;
+
+const MIME_STOP_DRAG = "application/x-roamy-stop";
+
+function linesToList(s: string): string[] {
+  return s
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
 
 type StopTypeMeta = {
   label: string;
@@ -173,6 +184,14 @@ const STOP_TYPE_META: Record<StopType, StopTypeMeta> = {
 
 function buildStopKey(stop: GroundedStop): string {
   return `${stop.dayIndex}:${stop.orderInDay}:${stop.placeId ?? stop.title}`;
+}
+
+function firstStopKey(it: ItineraryResult): string | null {
+  const sortedDays = [...it.days].sort((a, b) => a.dayIndex - b.dayIndex);
+  const day0 = sortedDays[0];
+  if (!day0?.stops.length) return null;
+  const s = [...day0.stops].sort((a, b) => a.orderInDay - b.orderInDay)[0];
+  return buildStopKey(s);
 }
 
 function findStopByKey(
@@ -255,6 +274,15 @@ export function WizardApp() {
   /** Partenza / arrivo finale per Area disegnata e Raggio (A→B usa corridor). */
   const [tripStartQuery, setTripStartQuery] = useState("");
   const [tripEndQuery, setTripEndQuery] = useState("");
+  const [returnToHubEachNight, setReturnToHubEachNight] = useState(false);
+  const [preferScenicRoutes, setPreferScenicRoutes] = useState(false);
+  const [hardConstraintsText, setHardConstraintsText] = useState("");
+  const [softWishesText, setSoftWishesText] = useState("");
+  const [mapLayers, setMapLayers] = useState<MapLayerVisibility>({
+    showConfirmedStops: true,
+    showOptionalStops: true,
+    showRoute: true,
+  });
   /** Giorni espansi nella lista step 4 (default: tutti aperti). */
   const [dayListOpen, setDayListOpen] = useState<Record<number, boolean>>({});
   const [enterPhase, setEnterPhase] = useState<"idle" | "animating" | "done">(
@@ -289,7 +317,7 @@ export function WizardApp() {
   const [legMapInfo, setLegMapInfo] = useState<LegSegmentMapInfo | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
 
-  const [parkingSheetOpen, setParkingSheetOpen] = useState(false);
+  const [parkingDialogOpen, setParkingDialogOpen] = useState(false);
   const [parkingLoading, setParkingLoading] = useState(false);
   const [parkingRows, setParkingRows] = useState<NearbyParkingRow[]>([]);
   const [parkingErr, setParkingErr] = useState<string | null>(null);
@@ -320,24 +348,52 @@ export function WizardApp() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const d = JSON.parse(raw) as Record<string, unknown>;
-      if (Array.isArray(d.themes)) setThemes(d.themes as TripTheme[]);
-      if (typeof d.pace === "string") setPace(d.pace as Pace);
-      if (typeof d.transport === "string")
-        setTransport(d.transport as Transport);
-      if (typeof d.days === "number") setDays(d.days);
-      const rangeDraft = d.range as { from?: string; to?: string } | undefined;
-      if (rangeDraft?.from && rangeDraft?.to) {
-        setRange({
-          from: new Date(rangeDraft.from),
-          to: new Date(rangeDraft.to),
-        });
+      if (raw) {
+        const d = JSON.parse(raw) as Record<string, unknown>;
+        if (Array.isArray(d.themes)) setThemes(d.themes as TripTheme[]);
+        if (typeof d.pace === "string") setPace(d.pace as Pace);
+        if (typeof d.transport === "string")
+          setTransport(d.transport as Transport);
+        if (typeof d.days === "number") setDays(d.days);
+        const rangeDraft = d.range as { from?: string; to?: string } | undefined;
+        if (rangeDraft?.from && rangeDraft?.to) {
+          setRange({
+            from: new Date(rangeDraft.from),
+            to: new Date(rangeDraft.to),
+          });
+        }
+        if (d.area) setArea(d.area as GeographicArea);
+        if (typeof d.tripStartQuery === "string")
+          setTripStartQuery(d.tripStartQuery);
+        if (typeof d.tripEndQuery === "string") setTripEndQuery(d.tripEndQuery);
+        if (typeof d.returnToHubEachNight === "boolean")
+          setReturnToHubEachNight(d.returnToHubEachNight);
+        if (typeof d.preferScenicRoutes === "boolean")
+          setPreferScenicRoutes(d.preferScenicRoutes);
+        if (typeof d.hardConstraintsText === "string")
+          setHardConstraintsText(d.hardConstraintsText);
+        if (typeof d.softWishesText === "string")
+          setSoftWishesText(d.softWishesText);
       }
-      if (d.area) setArea(d.area as GeographicArea);
-      if (typeof d.tripStartQuery === "string")
-        setTripStartQuery(d.tripStartQuery);
-      if (typeof d.tripEndQuery === "string") setTripEndQuery(d.tripEndQuery);
+      const itRaw = localStorage.getItem(ITINERARY_SAVE_KEY);
+      if (itRaw) {
+        const j = JSON.parse(itRaw) as {
+          version?: number;
+          result?: unknown;
+        };
+        if (
+          j.version === ITINERARY_SAVE_VERSION &&
+          j.result != null &&
+          typeof j.result === "object"
+        ) {
+          const parsed = ItineraryResultSchema.safeParse(j.result);
+          if (parsed.success) {
+            setResult(parsed.data);
+            setActiveStopKey(firstStopKey(parsed.data));
+            setStep(4);
+          }
+        }
+      }
     } catch {
       /* ignore */
     }
@@ -356,13 +412,45 @@ export function WizardApp() {
       area,
       tripStartQuery,
       tripEndQuery,
+      returnToHubEachNight,
+      preferScenicRoutes,
+      hardConstraintsText,
+      softWishesText,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
-  }, [themes, pace, transport, days, range, area, tripStartQuery, tripEndQuery]);
+  }, [
+    themes,
+    pace,
+    transport,
+    days,
+    range,
+    area,
+    tripStartQuery,
+    tripEndQuery,
+    returnToHubEachNight,
+    preferScenicRoutes,
+    hardConstraintsText,
+    softWishesText,
+  ]);
+
+  useEffect(() => {
+    if (!result) return;
+    try {
+      localStorage.setItem(
+        ITINERARY_SAVE_KEY,
+        JSON.stringify({
+          version: ITINERARY_SAVE_VERSION,
+          result,
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [result]);
 
   const progress = useMemo(() => ((step + 1) / 5) * 100, [step]);
 
@@ -444,6 +532,18 @@ export function WizardApp() {
     return [...byDay.entries()].sort((a, b) => a[0] - b[0]);
   }, [itineraryFlatRows]);
 
+  const tourEligibleRows = useMemo(
+    () =>
+      itineraryFlatRows.filter(
+        (r) =>
+          r.stop.lat != null &&
+          r.stop.lng != null &&
+          Number.isFinite(r.stop.lat) &&
+          Number.isFinite(r.stop.lng)
+      ),
+    [itineraryFlatRows]
+  );
+
   const activeStop = useMemo(() => {
     if (!reconciledResult || !activeStopKey) return null;
     return findStopByKey(reconciledResult, activeStopKey);
@@ -453,6 +553,32 @@ export function WizardApp() {
     () => (reconciledResult ? itineraryAnalytics(reconciledResult) : null),
     [reconciledResult]
   );
+
+  const dayLoadByDay = useMemo(() => {
+    if (!reconciledResult) return new Map<number, ReturnType<typeof estimateDailyLoads>[number]>();
+    const rows = estimateDailyLoads(reconciledResult);
+    return new Map(rows.map((r) => [r.dayIndex, r]));
+  }, [reconciledResult]);
+
+  const weatherFeasibilityWarnings = useMemo(() => {
+    if (!reconciledResult) return [] as { dayIndex: number }[];
+    const badCodes = new Set([61, 80, 95, 71]);
+    return reconciledResult.days
+      .filter((day) => {
+        const outdoor = day.stops.some(
+          (s) => s.type === "visit" || s.type === "scenic"
+        );
+        const code = day.weatherCode;
+        const precip = day.weatherPrecipProbMax;
+        const wind = day.weatherWindKmhMax;
+        const badWeather =
+          (code != null && badCodes.has(code)) ||
+          (precip != null && precip >= 70) ||
+          (wind != null && wind >= 55);
+        return outdoor && badWeather;
+      })
+      .map((d) => ({ dayIndex: d.dayIndex }));
+  }, [reconciledResult]);
 
   useEffect(() => {
     if (!reconciledResult) return;
@@ -468,12 +594,8 @@ export function WizardApp() {
       setActiveStopKey(null);
       setExpandedStops({});
       setMapFocusedDay("all");
-      return;
     }
-    setActiveStopKey(itineraryFlatRows[0].key);
-    setExpandedStops({});
-    setMapFocusedDay("all");
-  }, [itineraryFlatRows]);
+  }, [itineraryFlatRows.length]);
 
   const onSelectStop = useCallback((key: string | null) => {
     if (key == null) {
@@ -578,13 +700,22 @@ export function WizardApp() {
     if (startPlaceQuery.length < 2) return null;
     const endRaw =
       areaTab === "corridor" ? corridorEnd.trim() : tripEndQuery.trim();
+    const hardList = linesToList(hardConstraintsText);
+    const softList = linesToList(softWishesText);
     return {
-      preferences: { themes, pace },
+      preferences: {
+        themes,
+        pace,
+        ...(hardList.length ? { hardConstraints: hardList } : {}),
+        ...(softList.length ? { softWishes: softList } : {}),
+      },
       transport,
       time,
       area,
       startPlaceQuery,
       endPlaceQuery: endRaw.length > 0 ? endRaw : undefined,
+      returnToHubEachNight,
+      preferScenicRoutes,
       language: "it",
     };
   }, [
@@ -600,6 +731,10 @@ export function WizardApp() {
     corridorEnd,
     tripStartQuery,
     tripEndQuery,
+    returnToHubEachNight,
+    preferScenicRoutes,
+    hardConstraintsText,
+    softWishesText,
   ]);
 
   const onGenerate = async () => {
@@ -642,6 +777,9 @@ export function WizardApp() {
       setGenProgress(100);
       setGenPhase("Completato");
       setResult(data as ItineraryResult);
+      setActiveStopKey(firstStopKey(data as ItineraryResult));
+      setExpandedStops({});
+      setMapFocusedDay("all");
       setStep(4);
       setGenerateModalOpen(false);
     } catch (e) {
@@ -659,10 +797,10 @@ export function WizardApp() {
     if (!stop?.lat || !stop?.lng) {
       setParkingErr("Coordinate non disponibili per questa tappa.");
       setParkingRows([]);
-      setParkingSheetOpen(true);
+      setParkingDialogOpen(true);
       return;
     }
-    setParkingSheetOpen(true);
+    setParkingDialogOpen(true);
     setParkingLoading(true);
     setParkingErr(null);
     setParkingRows([]);
@@ -683,33 +821,135 @@ export function WizardApp() {
     }
   }, [reconciledResult]);
 
-  const TOUR_MS = 4800;
+  const moveStopInDay = useCallback(
+    (dayIndex: number, fromKey: string, toKey: string) => {
+      if (fromKey === toKey) return;
+      setResult((prev) => {
+        if (!prev) return prev;
+        const day = prev.days.find((d) => d.dayIndex === dayIndex);
+        if (!day) return prev;
+        const sorted = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
+        const fi = sorted.findIndex((s) => buildStopKey(s) === fromKey);
+        const ti = sorted.findIndex((s) => buildStopKey(s) === toKey);
+        if (fi < 0 || ti < 0) return prev;
+        const next = [...sorted];
+        const [item] = next.splice(fi, 1);
+        next.splice(ti, 0, item);
+        const newStops = next.map((s, i) => ({ ...s, orderInDay: i }));
+        return {
+          ...prev,
+          days: prev.days.map((d) =>
+            d.dayIndex === dayIndex ? { ...d, stops: newStops } : d
+          ),
+          legs: undefined,
+          revision: (prev.revision ?? 0) + 1,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    []
+  );
+
+  const deleteStopByKey = useCallback((key: string) => {
+    setResult((prev) => {
+      if (!prev) return prev;
+      const target = findStopByKey(prev, key);
+      if (!target) return prev;
+      const days = prev.days.map((d) => {
+        if (d.dayIndex !== target.dayIndex) return d;
+        const kept = d.stops
+          .filter((s) => buildStopKey(s) !== key)
+          .map((s, i) => ({ ...s, orderInDay: i }));
+        return { ...d, stops: kept };
+      });
+      return {
+        ...prev,
+        days,
+        legs: undefined,
+        revision: (prev.revision ?? 0) + 1,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    setActiveStopKey((k) => (k === key ? null : k));
+  }, []);
+
+  const toggleStopOptionalByKey = useCallback((key: string) => {
+    setResult((prev) => {
+      if (!prev) return prev;
+      const days = prev.days.map((d) => ({
+        ...d,
+        stops: d.stops.map((s) => {
+          if (buildStopKey(s) !== key) return s;
+          const nextStatus =
+            s.stopStatus === "optional" ? undefined : ("optional" as const);
+          return { ...s, stopStatus: nextStatus };
+        }),
+      }));
+      return {
+        ...prev,
+        days,
+        revision: (prev.revision ?? 0) + 1,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  }, []);
+
+  const startNewTrip = useCallback(() => {
+    setResult(null);
+    setStep(0);
+    setActiveStopKey(null);
+    setTourPlaying(false);
+    setCameraTarget(null);
+    setLegMapInfo(null);
+    setInsertText("");
+    setError(null);
+    setStopDetailOpen(false);
+    try {
+      localStorage.removeItem(ITINERARY_SAVE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const TOUR_MS = 5200;
   useEffect(() => {
-    if (!tourPlaying || itineraryFlatRows.length === 0) return;
+    if (tourPlaying && tourEligibleRows.length === 0) {
+      setTourPlaying(false);
+      setCameraTarget(null);
+    }
+  }, [tourPlaying, tourEligibleRows.length]);
+
+  useEffect(() => {
+    if (!tourPlaying || tourEligibleRows.length === 0) return;
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const ms = reduce ? 9000 : TOUR_MS;
     const id = window.setInterval(() => {
-      setTourIndex((i) => (i + 1) % itineraryFlatRows.length);
+      setTourIndex((i) => (i + 1) % tourEligibleRows.length);
     }, ms);
     return () => window.clearInterval(id);
-  }, [tourPlaying, itineraryFlatRows.length]);
+  }, [tourPlaying, tourEligibleRows.length]);
 
   useEffect(() => {
-    if (!tourPlaying || itineraryFlatRows.length === 0) return;
-    const row = itineraryFlatRows[tourIndex];
+    if (!tourPlaying || tourEligibleRows.length === 0) return;
+    const row = tourEligibleRows[tourIndex];
     if (!row) return;
     onSelectStop(row.key);
     setMapFocusedDay(row.dayIndex);
-    if (row.stop.lat != null && row.stop.lng != null) {
-      setCameraTarget({
-        lat: row.stop.lat,
-        lng: row.stop.lng,
-        zoom: 14,
-      });
-    }
-  }, [tourPlaying, tourIndex, itineraryFlatRows, onSelectStop]);
+    setCameraTarget({
+      lat: row.stop.lat!,
+      lng: row.stop.lng!,
+      zoom: 14,
+    });
+  }, [tourPlaying, tourIndex, tourEligibleRows, onSelectStop]);
+
+  useEffect(() => {
+    if (tourEligibleRows.length === 0) return;
+    setTourIndex((i) =>
+      i >= tourEligibleRows.length ? 0 : i
+    );
+  }, [tourEligibleRows.length]);
 
   const onInsertStop = async () => {
     if (!result || !insertText.trim() || !area) return;
@@ -743,15 +983,32 @@ export function WizardApp() {
           transport,
           area,
           time,
-          preferences: { themes, pace },
+          preferences: {
+            themes,
+            pace,
+            ...(linesToList(hardConstraintsText).length
+              ? { hardConstraints: linesToList(hardConstraintsText) }
+              : {}),
+            ...(linesToList(softWishesText).length
+              ? { softWishes: linesToList(softWishesText) }
+              : {}),
+          },
           language: "it",
+          returnToHubEachNight,
+          preferScenicRoutes,
           ...(startQ.length >= 2 ? { startPlaceQuery: startQ } : {}),
           ...(endQ ? { endPlaceQuery: endQ } : {}),
         }),
       });
       const data = (await res.json()) as ItineraryResult & { error?: string };
       if (!res.ok) throw new Error(data.error || "Errore inserimento tappa");
-      setResult(data as ItineraryResult);
+      const next = data as ItineraryResult;
+      setResult(next);
+      const keep =
+        activeStopKey && findStopByKey(next, activeStopKey)
+          ? activeStopKey
+          : firstStopKey(next);
+      setActiveStopKey(keep);
       setInsertText("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore");
@@ -816,15 +1073,16 @@ export function WizardApp() {
         ref={wizardPanelRef}
         id="wizard-flow"
         className={cn(
-          "roamy-intro-main mx-auto w-full scroll-mt-6 px-4 pb-16 pt-2",
-          "origin-[center_42vh] transition-[transform,opacity] [transition-duration:1500ms] will-change-transform",
+          "roamy-intro-main mx-auto w-full scroll-mt-6 px-4 pb-16",
+          "origin-[center_bottom] transition-[transform,opacity] [transition-duration:1500ms] will-change-transform",
           "[transition-timing-function:cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
           step === 4 && result ? "max-w-7xl pb-28 lg:pb-8" : "max-w-3xl",
           enterPhase === "idle" &&
-            "pointer-events-none translate-y-10 scale-[0.96] opacity-0 motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100",
+            "pointer-events-none translate-y-[100dvh] scale-[0.98] opacity-0 pt-2 motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100",
           enterPhase === "animating" &&
-            "translate-y-0 scale-100 opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100",
-          enterPhase === "done" && "translate-y-0 scale-100 opacity-100"
+            "translate-y-0 scale-100 opacity-100 pt-2 motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100",
+          enterPhase === "done" &&
+            "translate-y-0 scale-100 opacity-100 pt-8 md:pt-12"
         )}
       >
         <div className="mx-auto mb-6 w-full max-w-3xl px-0">
@@ -889,6 +1147,34 @@ export function WizardApp() {
                   </label>
                 ))}
               </RadioGroup>
+            </CardContent>
+            <CardContent className="space-y-3 border-t border-border/60 pt-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="hard-constraints">
+                  Vincoli rigidi (uno per riga, opzionale)
+                </Label>
+                <textarea
+                  id="hard-constraints"
+                  value={hardConstraintsText}
+                  onChange={(e) => setHardConstraintsText(e.target.value)}
+                  placeholder="Es. senza glutine · no autostrada · accessibilità carrozzina"
+                  rows={3}
+                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="soft-wishes">
+                  Desideri flessibili (uno per riga, opzionale)
+                </Label>
+                <textarea
+                  id="soft-wishes"
+                  value={softWishesText}
+                  onChange={(e) => setSoftWishesText(e.target.value)}
+                  placeholder="Es. mercatini locali · meno guida possibile"
+                  rows={3}
+                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1056,6 +1342,48 @@ export function WizardApp() {
                       />
                     </TabsContent>
                   </Tabs>
+                  <div className="mt-4 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                    <Checkbox
+                      id="hub-night"
+                      checked={returnToHubEachNight}
+                      onCheckedChange={(v) =>
+                        setReturnToHubEachNight(v === true)
+                      }
+                    />
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="hub-night"
+                        className="text-sm font-medium leading-snug"
+                      >
+                        Rientro ogni sera alla base
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Ogni giorno parte e torna al punto di partenza (utile per
+                        una sosta fissa o camper).
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                    <Checkbox
+                      id="scenic-routes"
+                      checked={preferScenicRoutes}
+                      onCheckedChange={(v) =>
+                        setPreferScenicRoutes(v === true)
+                      }
+                    />
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="scenic-routes"
+                        className="text-sm font-medium leading-snug"
+                      >
+                        Percorsi panoramici (meno autostrada)
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Le distanze su mappa useranno strade secondarie quando
+                        possibile (solo con chiave Maps server).
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </LoadScript>
             ) : (
@@ -1135,6 +1463,47 @@ export function WizardApp() {
                     </div>
                   </TabsContent>
                 </Tabs>
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                  <Checkbox
+                    id="hub-night-fb"
+                    checked={returnToHubEachNight}
+                    onCheckedChange={(v) =>
+                      setReturnToHubEachNight(v === true)
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor="hub-night-fb"
+                      className="text-sm font-medium leading-snug"
+                    >
+                      Rientro ogni sera alla base
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Ogni giorno parte e torna al punto di partenza (utile per
+                      una sosta fissa o camper).
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                  <Checkbox
+                    id="scenic-routes-fb"
+                    checked={preferScenicRoutes}
+                    onCheckedChange={(v) =>
+                      setPreferScenicRoutes(v === true)
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor="scenic-routes-fb"
+                      className="text-sm font-medium leading-snug"
+                    >
+                      Percorsi panoramici (meno autostrada)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Richiede chiave Google Maps lato server per le distanze.
+                    </p>
+                  </div>
+                </div>
                 <p className="mt-3 text-xs text-muted-foreground">
                   Per mappa e suggerimenti luoghi serve{" "}
                   <code className="rounded bg-muted px-1">
@@ -1161,8 +1530,16 @@ export function WizardApp() {
                   <Button
                     type="button"
                     size="sm"
+                    variant="outline"
+                    onClick={startNewTrip}
+                  >
+                    Nuovo viaggio
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
                     variant={tourPlaying ? "secondary" : "outline"}
-                    disabled={itineraryFlatRows.length === 0}
+                    disabled={tourEligibleRows.length === 0}
                     onClick={() => {
                       if (tourPlaying) {
                         setTourPlaying(false);
@@ -1192,8 +1569,8 @@ export function WizardApp() {
                         onClick={() =>
                           setTourIndex(
                             (i) =>
-                              (i - 1 + itineraryFlatRows.length) %
-                              itineraryFlatRows.length
+                              (i - 1 + tourEligibleRows.length) %
+                              tourEligibleRows.length
                           )
                         }
                       >
@@ -1205,7 +1582,7 @@ export function WizardApp() {
                         variant="outline"
                         onClick={() =>
                           setTourIndex(
-                            (i) => (i + 1) % itineraryFlatRows.length
+                            (i) => (i + 1) % tourEligibleRows.length
                           )
                         }
                       >
@@ -1238,14 +1615,28 @@ export function WizardApp() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {tourPlaying && itineraryFlatRows.length > 0 && (
+              {tourPlaying && tourEligibleRows.length > 0 && (
                 <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm shadow-sm">
                   <p className="font-medium text-foreground">
-                    {itineraryFlatRows[tourIndex]?.stop.title}
+                    {tourEligibleRows[tourIndex]?.stop.title}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Tappa {tourIndex + 1} di {itineraryFlatRows.length} · Giorno{" "}
-                    {itineraryFlatRows[tourIndex]?.dayIndex}
+                    Tappa {tourIndex + 1} di {tourEligibleRows.length} · Giorno{" "}
+                    {tourEligibleRows[tourIndex]?.dayIndex}
+                  </p>
+                </div>
+              )}
+              {weatherFeasibilityWarnings.length > 0 && (
+                <div
+                  role="status"
+                  className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"
+                >
+                  <p className="font-medium">Attenzione meteo / outdoor</p>
+                  <p className="mt-1 text-xs opacity-90">
+                    Giorni{" "}
+                    {weatherFeasibilityWarnings.map((w) => w.dayIndex).join(", ")}
+                    : pioggia, vento o neve previsti in giornate con tappe
+                    all&apos;aperto. Valuta backup coperti o spostamenti.
                   </p>
                 </div>
               )}
@@ -1366,6 +1757,25 @@ export function WizardApp() {
                                 {dayRows[0].weatherSummary}
                               </span>
                             )}
+                            {(() => {
+                              const load = dayLoadByDay.get(dayIndex);
+                              if (!load) return null;
+                              const h =
+                                Math.round((load.totalMinutes / 60) * 10) / 10;
+                              return (
+                                <span
+                                  className={cn(
+                                    "text-xs",
+                                    load.overload
+                                      ? "font-medium text-amber-700 dark:text-amber-400"
+                                      : "text-muted-foreground"
+                                  )}
+                                >
+                                  ~{h}h carico stim.
+                                  {load.overload ? " · intenso" : ""}
+                                </span>
+                              );
+                            })()}
                           </button>
                           {(dayListOpen[dayIndex] ?? false) && (
                           <ul className="space-y-2 p-3">
@@ -1381,6 +1791,27 @@ export function WizardApp() {
                                     stopRefs.current[row.key] = el;
                                   }}
                                   className="space-y-2"
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    try {
+                                      const raw =
+                                        e.dataTransfer.getData(MIME_STOP_DRAG);
+                                      if (!raw) return;
+                                      const parsed = JSON.parse(raw) as {
+                                        fromKey: string;
+                                        dayIndex: number;
+                                      };
+                                      if (parsed.dayIndex !== dayIndex) return;
+                                      moveStopInDay(
+                                        dayIndex,
+                                        parsed.fromKey,
+                                        row.key
+                                      );
+                                    } catch {
+                                      /* ignore */
+                                    }
+                                  }}
                                 >
                                   <div
                                     style={{
@@ -1396,14 +1827,34 @@ export function WizardApp() {
                                         "opacity-45"
                                     )}
                                   >
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        onSelectStop(row.key);
-                                        toggleExpanded(row.key);
-                                      }}
-                                      className="flex w-full items-start justify-between gap-3 text-left"
-                                    >
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        draggable
+                                        onDragStart={(e) => {
+                                          e.dataTransfer.setData(
+                                            MIME_STOP_DRAG,
+                                            JSON.stringify({
+                                              fromKey: row.key,
+                                              dayIndex: row.dayIndex,
+                                            })
+                                          );
+                                          e.dataTransfer.effectAllowed =
+                                            "move";
+                                        }}
+                                        className="mt-0.5 shrink-0 cursor-grab rounded-md border border-border/60 bg-muted/40 p-1 text-muted-foreground active:cursor-grabbing"
+                                        aria-label="Riordina trascinando"
+                                      >
+                                        <GripVertical className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onSelectStop(row.key);
+                                          toggleExpanded(row.key);
+                                        }}
+                                        className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+                                      >
                                       <div className="space-y-1">
                                         <div className="flex flex-wrap items-center gap-2">
                                           <span className="font-medium">
@@ -1418,6 +1869,14 @@ export function WizardApp() {
                                             <TypeIcon className="h-3.5 w-3.5" />
                                             {typeMeta.label}
                                           </span>
+                                          {row.stop.stopStatus === "optional" && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[10px]"
+                                            >
+                                              Opzionale
+                                            </Badge>
+                                          )}
                                           {row.stop.groundingStatus === "not_found" && (
                                             <span className="text-[11px] text-muted-foreground">
                                               da verificare · tratto mappa può mancare
@@ -1431,11 +1890,12 @@ export function WizardApp() {
                                         )}
                                       </div>
                                       {expanded ? (
-                                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                        <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
                                       ) : (
-                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                                       )}
                                     </button>
+                                    </div>
 
                                     {expanded && (
                                       <div className="mt-3 space-y-2 border-t pt-3 text-xs">
@@ -1465,11 +1925,46 @@ export function WizardApp() {
                                           <ParkingCircle className="h-3.5 w-3.5" />
                                           Parcheggi vicini
                                         </Button>
+                                        {row.stop.aiRationale && (
+                                          <p className="rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-muted-foreground">
+                                            <span className="font-medium text-foreground">
+                                              Perché questa tappa:{" "}
+                                            </span>
+                                            {row.stop.aiRationale}
+                                          </p>
+                                        )}
                                         {row.stop.notes && (
                                           <p className="text-muted-foreground">
                                             {row.stop.notes}
                                           </p>
                                         )}
+                                        <div className="flex flex-wrap gap-2 pt-1">
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleStopOptionalByKey(row.key);
+                                            }}
+                                          >
+                                            {row.stop.stopStatus === "optional"
+                                              ? "Conferma tappa"
+                                              : "Segna opzionale"}
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              deleteStopByKey(row.key);
+                                            }}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            Elimina
+                                          </Button>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -1531,6 +2026,44 @@ export function WizardApp() {
                 </div>
 
                 <div className="min-w-0 space-y-4">
+                  <div className="flex flex-wrap gap-3 rounded-xl border border-border/70 bg-muted/25 px-3 py-2 text-xs dark:bg-muted/15">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <Checkbox
+                        checked={mapLayers.showConfirmedStops}
+                        onCheckedChange={(v) =>
+                          setMapLayers((m) => ({
+                            ...m,
+                            showConfirmedStops: v === true,
+                          }))
+                        }
+                      />
+                      Tappe confermate
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <Checkbox
+                        checked={mapLayers.showOptionalStops}
+                        onCheckedChange={(v) =>
+                          setMapLayers((m) => ({
+                            ...m,
+                            showOptionalStops: v === true,
+                          }))
+                        }
+                      />
+                      Opzionali
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <Checkbox
+                        checked={mapLayers.showRoute}
+                        onCheckedChange={(v) =>
+                          setMapLayers((m) => ({
+                            ...m,
+                            showRoute: v === true,
+                          }))
+                        }
+                      />
+                      Tratte
+                    </label>
+                  </div>
                   <div className="rounded-xl ring-1 ring-border/80 ring-offset-2 ring-offset-background dark:ring-offset-background">
                     <ItineraryResultMap
                       result={reconciledResult}
@@ -1540,6 +2073,7 @@ export function WizardApp() {
                       cameraTarget={cameraTarget}
                       activeStopTitle={activeStop?.title ?? null}
                       onOpenStopDetail={() => setStopDetailOpen(true)}
+                      layerVisibility={mapLayers}
                       onLegSegmentClick={(info) => {
                         setLegMapInfo(info);
                         onSelectStop(info.keyA);
@@ -1580,6 +2114,14 @@ export function WizardApp() {
                       {activeStop.formattedAddress && (
                         <p className="text-xs text-muted-foreground">
                           {activeStop.formattedAddress}
+                        </p>
+                      )}
+                      {activeStop.aiRationale && (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            Perché:{" "}
+                          </span>
+                          {activeStop.aiRationale}
                         </p>
                       )}
                       <div className="flex flex-wrap gap-2">
@@ -1755,11 +2297,14 @@ export function WizardApp() {
           </DialogContent>
         </Dialog>
 
-        <Sheet open={parkingSheetOpen} onOpenChange={setParkingSheetOpen}>
-          <SheetContent className="sm:max-w-md">
-            <SheetHeader>
-              <SheetTitle>Parcheggi vicini</SheetTitle>
-            </SheetHeader>
+        <Dialog open={parkingDialogOpen} onOpenChange={setParkingDialogOpen}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Parcheggi vicini</DialogTitle>
+              <DialogDescription>
+                Risultati nelle vicinanze della tappa selezionata.
+              </DialogDescription>
+            </DialogHeader>
             {parkingLoading && (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1794,8 +2339,8 @@ export function WizardApp() {
                 </li>
               ))}
             </ul>
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
 
         <footer className="mt-12 space-y-3 border-t pt-8 text-xs text-muted-foreground">
           <p>

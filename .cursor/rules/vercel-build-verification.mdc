@@ -1,10 +1,26 @@
 ---
-description: Verifica build Next.js prima di deploy o merge che impattano Vercel; monorepo web in web/
+description: Build locale web/ + verifica obbligatoria log di build su Vercel (MCP/CLI) prima di considerare ok un deploy
 alwaysApply: true
 ---
 
 # Deploy Vercel e build `web/`
 
-- **Prima** di suggerire deploy su Vercel, merge su `main`, o modifiche a `vercel.json` / flusso CI: eseguire dalla **root del repo** `npm install` (se necessario) e **`npm run build`**. Il comando root usa workspaces e lancia `next build` del pacchetto `roamy-web` in `web/`.
-- **Non** reintrodurre `distDir` puntato a directory **fuori** da `web/` (es. `../.next`): Next.js richiede che `distDir` sia dentro la directory del progetto; altrimenti il build in produzione (Vercel) fallisce.
-- In dubbio, allinearsi a `.github/workflows/web-build.yml` (build su PR/push) e allo step di verifica in `vercel-production.yml` prima del deploy.
+## Build locale (sempre)
+
+- **Prima** di suggerire deploy su Vercel, merge su `main`, o modifiche a `vercel.json` / flusso CI: dalla **root del repo** eseguire `npm install` se serve e **`npm run build`**. Il comando root usa workspaces e lancia `next build` del pacchetto `roamy-web` in `web/`.
+- **Non** reintrodurre `distDir` puntato a directory **fuori** da `web/` (es. `../.next`): Next.js richiede che `distDir` sia dentro la directory del progetto; altrimenti il build in produzione fallisce.
+- Allinearsi a `.github/workflows/web-build.yml` e allo step di verifica in `vercel-production.yml`.
+
+## Log su Vercel (obbligatorio per “deploy ok”)
+
+Ogni volta che il contesto è **build/deploy su Vercel**, **errori in produzione**, o si vuole **confermare che un deploy è andato a buon fine**, non basarsi solo sul build locale: **verificare direttamente i log di build su Vercel**.
+
+1. **Preferito — MCP Vercel** (server `plugin-vercel-vercel`):
+   - `teamId`: da `.vercel/project.json` nel repo (se presente dopo `vercel link`, tipicamente sotto `web/` o root; il file è spesso gitignored ma esiste in locale) campo `orgId`, oppure tool `list_teams`.
+   - `projectId`: da `projectId` in `.vercel/project.json`, oppure tool `list_projects` / contesto utente.
+   - `list_deployments` con `projectId` + `teamId` → prendere l’ultimo deployment rilevante (o quello indicato dall’utente).
+   - `get_deployment_build_logs` con `idOrUrl` (id deployment o URL) + `teamId`, `limit` adeguato (es. 200–500) per vedere errori e esito.
+2. **Alternativa — CLI** (se MCP non disponibile): `vercel inspect <url-o-id-deployment> --logs` (richiede `vercel` CLI e progetto linkato / token).
+3. **Alternativa — Dashboard**: Vercel → Project → Deployments → deployment → **Building** / log build; usare solo se MCP/CLI non sono utilizzabili.
+
+**Non** dichiarare risolto un problema di build/deploy Vercel senza aver letto almeno un estratto dei log di build Vercel pertinenti (stato `READY` vs `ERROR`, ultimi errori).

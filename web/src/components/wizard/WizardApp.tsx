@@ -93,10 +93,29 @@ export function WizardApp() {
       if (typeof d.transport === "string")
         setTransport(d.transport as Transport);
       if (typeof d.days === "number") setDays(d.days);
-      if (d.range?.from && d.range?.to) {
+      const rangeDraft = d.range as { from?: string; to?: string } | undefined;
+      if (rangeDraft?.from && rangeDraft?.to) {
+        // #region agent log
+        fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "570e4d",
+          },
+          body: JSON.stringify({
+            sessionId: "570e4d",
+            location: "WizardApp.tsx:range-restore",
+            message: "rangeDraft restore applied",
+            data: { hasFrom: true, hasTo: true },
+            timestamp: Date.now(),
+            hypothesisId: "H1",
+            runId: "post-fix",
+          }),
+        }).catch(() => {});
+        // #endregion
         setRange({
-          from: new Date(d.range.from as string),
-          to: new Date(d.range.to as string),
+          from: new Date(rangeDraft.from),
+          to: new Date(rangeDraft.to),
         });
       }
       if (d.area) setArea(d.area as GeographicArea);

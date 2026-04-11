@@ -51,6 +51,10 @@ import type {
   TripTheme,
   GeographicArea,
 } from "@/lib/itinerary/schema";
+import {
+  STOP_TYPE_BADGE_CLASS,
+  daySectionBorderClass,
+} from "@/lib/itinerary/colors";
 import { cn } from "@/lib/utils";
 
 const THEME_OPTIONS: { id: TripTheme; label: string }[] = [
@@ -77,55 +81,52 @@ const STOP_TYPE_META: Record<StopType, StopTypeMeta> = {
   visit: {
     label: "Tappa",
     icon: MapPin,
-    badgeClass:
-      "border border-[hsl(355_30%_78%)] bg-[hsl(355_35%_94%)] text-[hsl(355_42%_28%)] dark:border-[hsl(355_25%_35%)] dark:bg-[hsl(355_22%_18%)] dark:text-[hsl(355_35%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.visit,
   },
   meal: {
     label: "Ristorante",
     icon: UtensilsCrossed,
-    badgeClass:
-      "border border-[hsl(18_35%_78%)] bg-[hsl(22_40%_93%)] text-[hsl(18_45%_30%)] dark:border-[hsl(18_28%_32%)] dark:bg-[hsl(18_22%_18%)] dark:text-[hsl(28_40%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.meal,
   },
   sleep: {
     label: "Alloggio",
     icon: BedDouble,
-    badgeClass:
-      "border border-[hsl(285_22%_78%)] bg-[hsl(285_28%_93%)] text-[hsl(285_35%_32%)] dark:border-[hsl(285_22%_32%)] dark:bg-[hsl(285_18%_18%)] dark:text-[hsl(285_35%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.sleep,
   },
   parking: {
     label: "Parcheggio",
     icon: ParkingCircle,
-    badgeClass:
-      "border border-[hsl(38_32%_72%)] bg-[hsl(38_38%_92%)] text-[hsl(28_35%_28%)] dark:border-[hsl(38_25%_30%)] dark:bg-[hsl(32_20%_17%)] dark:text-[hsl(38_32%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.parking,
   },
   camper_stop: {
     label: "Area sosta",
     icon: ParkingCircle,
-    badgeClass:
-      "border border-[hsl(160_22%_72%)] bg-[hsl(160_28%_92%)] text-[hsl(160_32%_26%)] dark:border-[hsl(160_22%_30%)] dark:bg-[hsl(160_18%_16%)] dark:text-[hsl(160_30%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.camper_stop,
   },
   scenic: {
     label: "Panoramica",
     icon: Mountain,
-    badgeClass:
-      "border border-[hsl(95_28%_72%)] bg-[hsl(95_32%_92%)] text-[hsl(95_28%_26%)] dark:border-[hsl(95_22%_30%)] dark:bg-[hsl(95_18%_16%)] dark:text-[hsl(95_32%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.scenic,
   },
   fuel: {
     label: "Carburante",
     icon: Fuel,
-    badgeClass:
-      "border border-[hsl(42_30%_72%)] bg-[hsl(42_38%_92%)] text-[hsl(32_40%_28%)] dark:border-[hsl(42_25%_30%)] dark:bg-[hsl(38_20%_16%)] dark:text-[hsl(42_35%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.fuel,
   },
   other: {
     label: "Altro",
     icon: MapPin,
-    badgeClass:
-      "border border-[hsl(25_18%_76%)] bg-[hsl(30_22%_92%)] text-[hsl(25_18%_32%)] dark:border-[hsl(25_14%_30%)] dark:bg-[hsl(25_12%_18%)] dark:text-[hsl(30_20%_88%)]",
+    badgeClass: STOP_TYPE_BADGE_CLASS.other,
   },
 };
 
 function buildStopKey(stop: GroundedStop): string {
   return `${stop.dayIndex}:${stop.orderInDay}:${stop.placeId ?? stop.title}`;
+}
+
+function dayIndexFromStopKey(key: string): number | null {
+  const n = Number(key.split(":")[0]);
+  return Number.isFinite(n) ? n : null;
 }
 
 function googleMapsHref(stop: GroundedStop): string {
@@ -177,8 +178,10 @@ export function WizardApp() {
   const [insertText, setInsertText] = useState("");
   const [insertLoading, setInsertLoading] = useState(false);
   const [activeStopKey, setActiveStopKey] = useState<string | null>(null);
+  const [mapFocusedDay, setMapFocusedDay] = useState<"all" | number>("all");
   const [expandedStops, setExpandedStops] = useState<Record<string, boolean>>({});
   const stopRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const daySectionRefs = useRef<Record<number, HTMLElement | null>>({});
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -285,22 +288,28 @@ export function WizardApp() {
     if (!itineraryFlatRows.length) {
       setActiveStopKey(null);
       setExpandedStops({});
+      setMapFocusedDay("all");
       return;
     }
     setActiveStopKey(itineraryFlatRows[0].key);
     setExpandedStops({});
+    setMapFocusedDay("all");
   }, [itineraryFlatRows]);
 
   const onSelectStop = useCallback((key: string) => {
     setActiveStopKey(key);
     setExpandedStops((prev) => ({ ...prev, [key]: true }));
+    const day = dayIndexFromStopKey(key);
+    if (mapFocusedDay !== "all" && day != null) {
+      setMapFocusedDay(day);
+    }
     requestAnimationFrame(() => {
       stopRefs.current[key]?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     });
-  }, []);
+  }, [mapFocusedDay]);
 
   const toggleExpanded = useCallback((key: string) => {
     setExpandedStops((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -797,14 +806,64 @@ export function WizardApp() {
             <CardContent className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                 <div className="min-w-0 space-y-4">
+                  <div
+                    className="rounded-xl border border-border/80 bg-muted/35 p-2 dark:bg-muted/25"
+                    role="tablist"
+                    aria-label="Filtra giorni sulla mappa"
+                  >
+                    <div className="flex flex-wrap gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <Button
+                        type="button"
+                        role="tab"
+                        size="sm"
+                        variant={mapFocusedDay === "all" ? "default" : "outline"}
+                        aria-pressed={mapFocusedDay === "all"}
+                        className="shrink-0 rounded-full"
+                        onClick={() => setMapFocusedDay("all")}
+                      >
+                        Tutti i giorni
+                      </Button>
+                      {rowsByDay.map(([dayIndex]) => (
+                        <Button
+                          key={dayIndex}
+                          type="button"
+                          role="tab"
+                          size="sm"
+                          variant={
+                            mapFocusedDay === dayIndex ? "default" : "outline"
+                          }
+                          aria-pressed={mapFocusedDay === dayIndex}
+                          className="shrink-0 rounded-full"
+                          onClick={() => {
+                            setMapFocusedDay(dayIndex);
+                            requestAnimationFrame(() => {
+                              daySectionRefs.current[dayIndex]?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                            });
+                          }}
+                        >
+                          Giorno {dayIndex}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                   <ScrollArea className="h-[min(420px,50vh)] pr-3 lg:h-[min(520px,62vh)]">
                     <div className="space-y-4">
                       {rowsByDay.map(([dayIndex, dayRows]) => (
                         <section
                           key={dayIndex}
-                          className="roamy-card overflow-hidden rounded-xl"
+                          ref={(el) => {
+                            daySectionRefs.current[dayIndex] = el;
+                          }}
+                          className={cn(
+                            "overflow-hidden rounded-xl border border-border/70 bg-card/50 shadow-sm dark:bg-card/40",
+                            "border-l-4 pl-0",
+                            daySectionBorderClass(dayIndex)
+                          )}
                         >
-                          <header className="flex flex-wrap items-center gap-2 border-b border-[hsl(30_22%_78%)] bg-[hsl(34_32%_90%_/_0.6)] px-3 py-2 dark:border-[hsl(25_14%_26%)] dark:bg-[hsl(25_18%_18%)]">
+                          <header className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-muted/40 px-3 py-2.5 dark:bg-muted/30">
                             <Badge variant="secondary" className="text-xs">
                               Giorno {dayIndex}
                             </Badge>
@@ -927,8 +986,8 @@ export function WizardApp() {
                     </div>
                   </ScrollArea>
 
-                  <details className="rounded-lg border bg-muted/30 p-3 text-sm">
-                    <summary className="cursor-pointer font-medium">
+                  <details className="rounded-xl border border-dashed border-border/80 bg-background/60 p-4 text-sm shadow-inner dark:bg-background/30">
+                    <summary className="cursor-pointer font-medium text-foreground">
                       Dettagli itinerario
                     </summary>
                     <div className="mt-3 space-y-2 text-muted-foreground">
@@ -941,12 +1000,15 @@ export function WizardApp() {
                 </div>
 
                 <div className="min-w-0 space-y-4">
-                  <ItineraryResultMap
-                    result={result}
-                    activeStopKey={activeStopKey}
-                    onStopSelect={onSelectStop}
-                  />
-                  <div className="hidden space-y-2 rounded-lg border bg-card p-4 lg:block">
+                  <div className="rounded-xl ring-1 ring-border/80 ring-offset-2 ring-offset-background dark:ring-offset-background">
+                    <ItineraryResultMap
+                      result={result}
+                      activeStopKey={activeStopKey}
+                      focusedDay={mapFocusedDay}
+                      onStopSelect={onSelectStop}
+                    />
+                  </div>
+                  <div className="hidden space-y-2 rounded-xl border border-border/60 bg-muted/25 p-4 shadow-sm dark:bg-muted/20 lg:block">
                     <Label htmlFor="insert-desktop">
                       Aggiungi una tappa da non perdere
                     </Label>

@@ -1,0 +1,52 @@
+@import "react-day-picker/style.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 98%;
+    --foreground: 220 20% 14%;
+    --card: 40 30% 99%;
+    --card-foreground: 220 20% 14%;
+    --primary: 168 55% 32%;
+    --primary-foreground: 40 33% 98%;
+    --secondary: 40 20% 92%;
+    --secondary-foreground: 220 20% 20%;
+    --muted: 40 15% 94%;
+    --muted-foreground: 220 10% 42%;
+    --accent: 32 45% 92%;
+    --accent-foreground: 220 20% 18%;
+    --border: 40 18% 88%;
+    --input: 40 18% 88%;
+    --ring: 168 55% 32%;
+    --radius: 0.75rem;
+  }
+  .dark {
+    --background: 220 18% 10%;
+    --foreground: 40 25% 96%;
+    --card: 220 16% 13%;
+    --card-foreground: 40 25% 96%;
+    --primary: 168 50% 45%;
+    --primary-foreground: 220 18% 10%;
+    --secondary: 220 14% 20%;
+    --secondary-foreground: 40 25% 96%;
+    --muted: 220 14% 18%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 220 14% 22%;
+    --accent-foreground: 40 25% 96%;
+    --border: 220 14% 22%;
+    --input: 220 14% 22%;
+    --ring: 168 50% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}

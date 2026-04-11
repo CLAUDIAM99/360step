@@ -8,7 +8,10 @@
     "node": ">=18"
   },
   "scripts": {
+    "dev": "npm run dev --prefix web",
+    "build": "npm run build --prefix web",
     "start": "node server.js",
+    "start:web": "npm run start --prefix web",
     "deploy": "npx vercel@latest --prod"
   },
   "dependencies": {

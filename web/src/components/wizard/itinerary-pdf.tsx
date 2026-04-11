@@ -167,10 +167,18 @@ export async function downloadItineraryPdf(result: ItineraryResult) {
         <Text style={styles.coverTitle}>Roamy</Text>
         <Text style={styles.coverSub}>Itinerario · {r.summary.slice(0, 200)}</Text>
         {overviewDataUri ? (
-          <Image style={styles.map} src={{ uri: overviewDataUri }} />
+          <Image
+            style={styles.map}
+            src={{ uri: overviewDataUri }}
+            alt="Mappa panoramica itinerario"
+          />
         ) : null}
         {detailDataUri ? (
-          <Image style={styles.map} src={{ uri: detailDataUri }} />
+          <Image
+            style={styles.map}
+            src={{ uri: detailDataUri }}
+            alt="Dettaglio tratto itinerario"
+          />
         ) : null}
 
         <Text style={styles.h2}>Riepilogo</Text>

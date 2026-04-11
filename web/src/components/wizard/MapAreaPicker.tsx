@@ -47,6 +47,8 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
   const advMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(
     null
   );
+  const centerRef = useRef(center);
+  centerRef.current = center;
 
   const onMarkerDrag = useCallback(
     (lat: number, lng: number) => {
@@ -208,7 +210,7 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
       advMarkerRef.current?.map && (advMarkerRef.current.map = null);
       const marker = new AdvancedMarkerElement({
         map,
-        position: center,
+        position: centerRef.current,
         gmpDraggable: true,
       });
       advMarkerRef.current = marker;
@@ -237,7 +239,10 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
 
   useEffect(() => {
     if (!advMarkerRef.current || mode !== "radius") return;
-    advMarkerRef.current.position = center;
+    advMarkerRef.current.position = {
+      lat: center.lat,
+      lng: center.lng,
+    };
   }, [center.lat, center.lng, mode]);
 
   const onMapLoad = useCallback(
@@ -321,6 +326,7 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
                   <li
                     key={p.place_id}
                     role="option"
+                    aria-selected={false}
                     className="cursor-pointer border-b border-border/50 px-3 py-2 last:border-0 hover:bg-muted/80"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => applyRadiusPlace(p)}

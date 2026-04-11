@@ -63,11 +63,10 @@ export function reconcileItineraryLegs(result: ItineraryResult): ItineraryResult
     }
 
     if (prev.distanceKm != null && !Number.isNaN(prev.distanceKm)) {
+      const roadKm = prev.distanceKm;
       const leg = { ...prev };
-      if (leg.airDistanceOnly !== true && airKm != null) {
-        if (leg.distanceKm > airKm * 3.5) {
-          leg.airDistanceOnly = true;
-        }
+      if (leg.airDistanceOnly !== true && airKm != null && roadKm > airKm * 3.5) {
+        leg.airDistanceOnly = true;
       }
       legs.push(leg);
       continue;

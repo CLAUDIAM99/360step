@@ -105,7 +105,8 @@ type NearbyParkingRow = {
 };
 
 const INTRO_SESSION_KEY = "roamy-intro-done";
-const INTRO_TRANSITION_MS = 520;
+/** Allineato alla durata CSS dell’animazione hero + main (vedi classi intro). */
+const INTRO_TRANSITION_MS = 1450;
 
 const THEME_OPTIONS: { id: TripTheme; label: string }[] = [
   { id: "scenic", label: "Paesaggistico" },
@@ -780,12 +781,14 @@ export function WizardApp() {
         <section
           id="roamy-hero"
           className={cn(
-            "relative flex min-h-[min(100dvh,880px)] flex-col justify-center px-4 pb-16 pt-12 transition-all duration-500 ease-out motion-reduce:transition-none md:pb-24 md:pt-16",
+            "roamy-intro-hero relative flex min-h-[min(100dvh,880px)] flex-col justify-center px-4 pb-16 pt-12 md:pb-24 md:pt-16",
+            "transition-[transform,opacity,filter] duration-[1450ms] will-change-[transform,opacity]",
+            "ease-[cubic-bezier(0.33,0.84,0.44,1)] motion-reduce:transition-none",
             enterPhase === "animating" &&
-              "-translate-y-12 opacity-0 motion-reduce:translate-y-0 motion-reduce:opacity-100"
+              "-translate-y-[28vh] scale-[1.02] opacity-0 blur-[2px] motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100 motion-reduce:blur-none"
           )}
         >
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mx-auto w-full max-w-3xl text-center">
             <p className="mb-2 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground md:text-sm">
               Itinerari AI su misura
             </p>
@@ -813,15 +816,18 @@ export function WizardApp() {
         ref={wizardPanelRef}
         id="wizard-flow"
         className={cn(
-          "mx-auto scroll-mt-6 px-4 pb-16 pt-2 transition-all duration-500 ease-out motion-reduce:transition-none",
+          "roamy-intro-main mx-auto w-full scroll-mt-6 px-4 pb-16 pt-2",
+          "origin-[center_42vh] transition-[transform,opacity] duration-[1500ms] will-change-transform",
+          "ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
           step === 4 && result ? "max-w-7xl pb-28 lg:pb-8" : "max-w-3xl",
           enterPhase === "idle" &&
-            "pointer-events-none translate-y-6 opacity-0",
-          enterPhase === "animating" && "translate-y-0 opacity-100",
-          enterPhase === "done" && "translate-y-0 opacity-100"
+            "pointer-events-none translate-y-10 scale-[0.96] opacity-0 motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100",
+          enterPhase === "animating" &&
+            "translate-y-0 scale-100 opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100",
+          enterPhase === "done" && "translate-y-0 scale-100 opacity-100"
         )}
       >
-        <div className="mx-auto mb-6 max-w-3xl px-0">
+        <div className="mx-auto mb-6 w-full max-w-3xl px-0">
           <Progress value={progress} className="h-1.5 rounded-full bg-muted" />
         </div>
 
@@ -1283,7 +1289,7 @@ export function WizardApp() {
                         role="tab"
                         size="sm"
                         variant={mapFocusedDay === "all" ? "default" : "outline"}
-                        aria-pressed={mapFocusedDay === "all"}
+                        aria-selected={mapFocusedDay === "all"}
                         className="shrink-0 rounded-full"
                         onClick={() => setMapFocusedDay("all")}
                       >
@@ -1298,7 +1304,7 @@ export function WizardApp() {
                           variant={
                             mapFocusedDay === dayIndex ? "default" : "outline"
                           }
-                          aria-pressed={mapFocusedDay === dayIndex}
+                          aria-selected={mapFocusedDay === dayIndex}
                           className="shrink-0 rounded-full"
                           onClick={() => {
                             setMapFocusedDay(dayIndex);

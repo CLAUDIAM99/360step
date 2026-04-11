@@ -41,12 +41,23 @@ export function PlaceAutocompleteField({
     setInput(value);
   }, [value]);
 
+  const [servicesReady, setServicesReady] = useState(false);
+
   useEffect(() => {
-    if (!window.google?.maps?.places) return;
-    autoRef.current = new google.maps.places.AutocompleteService();
-    placesRef.current = new google.maps.places.PlacesService(
-      document.createElement("div")
-    );
+    const init = () => {
+      if (!window.google?.maps?.places) return false;
+      autoRef.current = new google.maps.places.AutocompleteService();
+      placesRef.current = new google.maps.places.PlacesService(
+        document.createElement("div")
+      );
+      setServicesReady(true);
+      return true;
+    };
+    if (init()) return;
+    const iv = setInterval(() => {
+      if (init()) clearInterval(iv);
+    }, 150);
+    return () => clearInterval(iv);
   }, []);
 
   useEffect(() => {
@@ -150,9 +161,9 @@ export function PlaceAutocompleteField({
         id={id}
         type="text"
         autoComplete="off"
-        placeholder={placeholder}
+        placeholder={servicesReady ? placeholder : "Caricamento suggerimenti…"}
         value={input}
-        disabled={disabled}
+        disabled={disabled || !servicesReady}
         role="combobox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}

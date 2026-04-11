@@ -802,7 +802,7 @@ export function WizardApp() {
                       {rowsByDay.map(([dayIndex, dayRows]) => (
                         <section
                           key={dayIndex}
-                          className="roamy-card overflow-hidden rounded-xl border-0 bg-gradient-to-b from-[hsl(40_46%_97%)] to-[hsl(36_38%_93%)]"
+                          className="roamy-card overflow-hidden rounded-xl"
                         >
                           <header className="flex flex-wrap items-center gap-2 border-b border-[hsl(30_22%_78%)] bg-[hsl(34_32%_90%_/_0.6)] px-3 py-2 dark:border-[hsl(25_14%_26%)] dark:bg-[hsl(25_18%_18%)]">
                             <Badge variant="secondary" className="text-xs">
@@ -859,7 +859,7 @@ export function WizardApp() {
                                             {typeMeta.label}
                                           </span>
                                           {row.stop.groundingStatus === "not_found" && (
-                                            <span className="text-[11px] text-amber-700 dark:text-amber-300">
+                                            <span className="text-[11px] text-[hsl(25_40%_38%)] dark:text-[hsl(35_30%_72%)]">
                                               da verificare
                                             </span>
                                           )}

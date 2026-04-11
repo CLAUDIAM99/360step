@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Circle, GoogleMap, Polyline, Polygon } from "@react-google-maps/api";
+import { Circle, GoogleMap, Marker, Polyline, Polygon } from "@react-google-maps/api";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -127,12 +127,23 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
     );
   }, []);
 
+  const [radiusServicesReady, setRadiusServicesReady] = useState(false);
+
   useEffect(() => {
-    if (!window.google?.maps?.places) return;
-    radiusAutoRef.current = new google.maps.places.AutocompleteService();
-    radiusPlacesRef.current = new google.maps.places.PlacesService(
-      document.createElement("div")
-    );
+    const init = () => {
+      if (!window.google?.maps?.places) return false;
+      radiusAutoRef.current = new google.maps.places.AutocompleteService();
+      radiusPlacesRef.current = new google.maps.places.PlacesService(
+        document.createElement("div")
+      );
+      setRadiusServicesReady(true);
+      return true;
+    };
+    if (init()) return;
+    const iv = setInterval(() => {
+      if (init()) clearInterval(iv);
+    }, 150);
+    return () => clearInterval(iv);
   }, []);
 
   useEffect(() => {
@@ -275,7 +286,12 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
               id="radius-search"
               type="text"
               autoComplete="off"
-              placeholder="Es. Milano, Lago di Como…"
+              placeholder={
+                radiusServicesReady
+                  ? "Es. Milano, Lago di Como…"
+                  : "Caricamento suggerimenti…"
+              }
+              disabled={!radiusServicesReady}
               value={radiusSearch}
               onChange={(e) => {
                 const v = e.target.value;
@@ -413,6 +429,18 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
                 }}
               />
             )}
+            {polyPath.map((pt, i) => (
+              <Marker
+                key={i}
+                position={pt}
+                label={{
+                  text: String(i + 1),
+                  color: "#fff",
+                  fontSize: "11px",
+                  fontWeight: "bold",
+                }}
+              />
+            ))}
           </>
         )}
       </GoogleMap>

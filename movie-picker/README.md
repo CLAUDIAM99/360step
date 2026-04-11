@@ -4,7 +4,7 @@ Piattaforma stile Tinder per scegliere il film o il cartone da vedere: swipa a d
 
 ## Come usare
 
-1. Apri `movie-picker/index.html` nel browser (o da 360step se hai un link in nav).
+1. Apri `movie-picker/index.html` nel browser (o dal sito Roamy se hai un link in nav).
 2. **Configura l'API TMDB** (gratuita):
    - Registrati su [themoviedb.org](https://www.themoviedb.org) e in [Impostazioni → API](https://www.themoviedb.org/settings/api) richiedi una API Key.
    - Apri `movie-picker/config.js` e assegna la chiave a `tmdbApiKey`.

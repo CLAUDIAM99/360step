@@ -1,8 +1,8 @@
 {
-  "name": "360step",
+  "name": "roamy",
   "version": "1.0.0",
   "private": true,
-  "description": "360step urban navigator (static + lightweight server config).",
+  "description": "Roamy — AI travel planner (static app + lightweight server for Maps config).",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

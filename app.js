@@ -1,6 +1,10 @@
 // === CONFIGURAZIONE GENERALE ===
 const DISTANCE_THRESHOLD_METERS = 30;
 
+function getRoamyConfig() {
+  return window.__ROAMY_CONFIG__ || window.__360STEP_CONFIG__ || {};
+}
+
 // Mappa alias → chiave città (garantisce ricerca corretta)
 const CITY_ALIASES = {
   rome: ["roma", "rome", "rom"],
@@ -731,10 +735,10 @@ const WALK_BEST_TIME = {
 };
 
 const WALK_WHY_FALLBACK = {
-  romantic: "Un angolo dove fermarsi, respirare e godersi la città in due.",
+  romantic: "Un angolo dove fermarsi, respirare e godersi il viaggio.",
   iconic: "Tra i punti che raccontano meglio questa destinazione.",
   hidden: "Fuori dal solito percorso turistico — più autentico.",
-  chill: "Pensato per camminare senza fretta.",
+  chill: "Pensato per muoversi senza fretta.",
   food: "Legato a gusto, mercati o pause conviviali."
 };
 
@@ -742,11 +746,18 @@ const WALK_LABELS = {
   romantic: "Romantic",
   iconic: "Iconic",
   hidden: "Hidden gems",
-  chill: "Chill walk",
-  food: "Food walk"
+  chill: "Chill",
+  food: "Food & local"
+};
+
+const TRANSPORT_LABELS = {
+  camper: "Camper",
+  car: "Auto",
+  transit: "Mezzi pubblici"
 };
 
 let lastWalkMeta = {
+  transportMode: "car",
   walkType: "iconic",
   timeBudget: "half",
   pace: "balanced",
@@ -757,8 +768,10 @@ function readWalkPreferences() {
   const typeEl = document.querySelector('input[name="walk-type"]:checked');
   const timeEl = document.querySelector('input[name="time-budget"]:checked');
   const paceEl = document.querySelector('input[name="pace"]:checked');
+  const transportEl = document.querySelector('input[name="transport-mode"]:checked');
   const daysEl = document.getElementById("days-input");
   return {
+    transportMode: transportEl ? transportEl.value : "car",
     walkType: typeEl ? typeEl.value : "iconic",
     timeBudget: timeEl ? timeEl.value : "half",
     pace: paceEl ? paceEl.value : "balanced",
@@ -836,7 +849,7 @@ function updateItineraryHeadline(totalMeters, totalSeconds) {
   root.innerHTML = `
     <div class="headline-stat"><span class="headline-stat__val">${n}</span><span class="headline-stat__lbl">tappe</span></div>
     <div class="headline-stat"><span class="headline-stat__val">${km}</span><span class="headline-stat__lbl">km ca.</span></div>
-    <div class="headline-stat"><span class="headline-stat__val">${timeStr}</span><span class="headline-stat__lbl">a piedi</span></div>
+    <div class="headline-stat"><span class="headline-stat__val">${timeStr}</span><span class="headline-stat__lbl">tempo stim.</span></div>
     <div class="headline-stat headline-stat--wide"><span class="headline-stat__val headline-stat__val--sm">${best}</span><span class="headline-stat__lbl">momento ideale</span></div>
   `;
 }
@@ -850,25 +863,26 @@ function updateWalkHero() {
   if (!titleEl || !moodEl || !descEl) return;
 
   const cities = lastWalkMeta.citiesLabel || "Europa";
-  const moodLabel = WALK_LABELS[lastWalkMeta.walkType] || "City walk";
+  const moodLabel = WALK_LABELS[lastWalkMeta.walkType] || "Iconic";
   const best = WALK_BEST_TIME[lastWalkMeta.walkType] || WALK_BEST_TIME.iconic;
+  const transportShort = TRANSPORT_LABELS[lastWalkMeta.transportMode] || TRANSPORT_LABELS.car;
 
   const vibe =
     lastWalkMeta.walkType === "romantic"
       ? "Pause lente, punti scenografici e un ritmo che invita a fermarsi."
       : lastWalkMeta.walkType === "hidden"
-        ? "Un percorso meno ovvio, per vedere la città con occhi più curiosi."
+        ? "Un percorso meno ovvio, per scoprire la destinazione con occhi più curiosi."
         : lastWalkMeta.walkType === "food"
-          ? "Pensato per alternare cammino e soste: mercati, strade vive, piccoli rituali."
+          ? "Pensato per alternare tragitti e soste: mercati, strade vive, piccoli rituali."
           : lastWalkMeta.walkType === "chill"
-            ? "Poche tappe, più respiro: una passeggiata che non stanca."
-            : "I classici che valgono: essenziale, pulito, super walkable.";
+            ? "Poche tappe, più respiro — un ritmo sostenibile."
+            : "I classici che valgono: essenziale, ordinato, facile da seguire.";
 
-  if (eyebrowEl) eyebrowEl.textContent = "City walk";
+  if (eyebrowEl) eyebrowEl.textContent = `${transportShort} · itinerario`;
   titleEl.textContent = cities;
   moodEl.textContent = moodLabel;
   descEl.textContent = `${vibe} Ideale: ${best}.`;
-  if (walkSubtitle) walkSubtitle.textContent = "Controllo semplice, in strada: mappa + prossima tappa + tappe scansionabili.";
+  if (walkSubtitle) walkSubtitle.textContent = "Mappa, prossima tappa e lista tappe — tutto sotto controllo.";
 }
 
 function updateNextStopCardFromStops() {
@@ -979,7 +993,7 @@ window.initMap = function() {
 
 function loadGoogleMapsScriptIfNeeded() {
   if (window.google && window.google.maps) return Promise.resolve();
-  if (document.querySelector('script[data-360step="gmaps"]')) {
+  if (document.querySelector('script[data-roamy="gmaps"]')) {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("timeout")), 9000);
       window.__mapsResolve = () => {
@@ -989,7 +1003,7 @@ function loadGoogleMapsScriptIfNeeded() {
     });
   }
 
-  const key = window.__360STEP_CONFIG__?.googleMapsApiKey;
+  const key = getRoamyConfig().googleMapsApiKey;
   if (!key) {
     return Promise.reject(new Error("missing_google_maps_key"));
   }
@@ -1003,14 +1017,14 @@ function loadGoogleMapsScriptIfNeeded() {
         el.textContent = "La mappa non si è caricata. Avvia il progetto con il server e controlla la chiave Google Maps in .env (oppure disattiva ad-blocker).";
         el.classList.add("status-visible");
       }
-      console.warn("[360step] Google Maps non caricato in tempo.");
+      console.warn("[roamy] Google Maps non caricato in tempo.");
     }
   }, 8000);
 
   return new Promise((resolve, reject) => {
     window.__mapsResolve = resolve;
     const s = document.createElement("script");
-    s.setAttribute("data-360step", "gmaps");
+    s.setAttribute("data-roamy", "gmaps");
     s.async = true;
     s.defer = true;
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=geometry&callback=initMap`;
@@ -1159,6 +1173,19 @@ function openWalkScreen() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  try {
+    [
+      ["roamy_saved_routes", "360step_saved_routes"],
+      ["roamy_planned_trips", "360step_planned_trips"],
+      ["roamy-theme", "360step-theme"]
+    ].forEach(([next, prev]) => {
+      if (!localStorage.getItem(next) && localStorage.getItem(prev)) {
+        localStorage.setItem(next, localStorage.getItem(prev));
+      }
+    });
+  } catch (e) {
+    /* ignore */
+  }
 
   // === Viste app: pianifica | itinerario | salvati ===
   const viewSections = document.querySelectorAll("[data-app-view]");
@@ -1171,7 +1198,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (typeof window.__initLeafletMap === "function") window.__initLeafletMap();
           if (typeof leafletMap !== "undefined" && leafletMap) leafletMap.invalidateSize();
         } catch (e) {
-          console.warn("[360step] leaflet resize failed", e);
+          console.warn("[roamy] leaflet resize failed", e);
         }
         try {
           if (typeof map !== "undefined" && map && window.google) google.maps.event.trigger(map, "resize");
@@ -1221,7 +1248,7 @@ document.addEventListener("DOMContentLoaded", () => {
         queueMapResize();
       }
     } catch (e) {
-      console.error("[360step] setAppView error", e);
+      console.error("[roamy] setAppView error", e);
       const plan = Array.from(viewSections).find((s) => s.getAttribute("data-app-view") === "plan");
       if (plan) {
         plan.classList.add("view--active");
@@ -1496,7 +1523,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const citiesLabel = foundCities.join(", ");
     setStatusVisible(true);
-    setStatusMessage(`Il tuo walk a ${citiesLabel} è pronto. Buon viaggio.`, "status-active");
+    setStatusMessage(`Il tuo itinerario Roamy per ${citiesLabel} è pronto. Buon viaggio.`, "status-active");
     setWalkViewEnabled(true);
     // Stato robusto: salva itineraryData e apri la schermata walk in modo sicuro.
     itineraryData = {
@@ -1622,7 +1649,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Map-first static: Leaflet è il default (nessuna chiave necessaria).
   // Google Maps resta opzionale: caricalo solo se è presente una key (utile per directions più precisi).
-  if (window.__360STEP_CONFIG__?.googleMapsApiKey) {
+  if (getRoamyConfig().googleMapsApiKey) {
     loadGoogleMapsScriptIfNeeded().catch(() => {
       setStatusVisible(true);
       setStatusMessage("Mappa avanzata non disponibile. Continuo con la mappa standard.", "status-neutral");
@@ -1934,7 +1961,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const km = (totalMeters / 1000).toFixed(1);
     const mins = Math.round(totalSeconds / 60);
     const timeStr = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
-    el.innerHTML = `<span class="route-summary-km">${km} km</span><span class="route-summary-sep">·</span><span class="route-summary-time">~${timeStr} a piedi</span>`;
+    el.innerHTML = `<span class="route-summary-km">${km} km</span><span class="route-summary-sep">·</span><span class="route-summary-time">~${timeStr} tempo stim.</span>`;
     el.style.display = "flex";
     updateItineraryHeadline(totalMeters, totalSeconds);
   }
@@ -2386,7 +2413,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function startNavigation() {
     if (!itineraryData || !itineraryData.stops || !itineraryData.stops.length) {
       setStatusVisible(true);
-      setStatusMessage("Crea prima un itinerario, poi avvia il walk.", "status-neutral");
+      setStatusMessage("Crea prima un itinerario, poi avvia la navigazione.", "status-neutral");
       setWalkEmptyState(true);
       return;
     }
@@ -2645,7 +2672,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // === SALVA PERCORSO e Percorsi salvati ===
-  const SAVED_ROUTES_KEY = "360step_saved_routes";
+  const SAVED_ROUTES_KEY = "roamy_saved_routes";
   const saveRouteBtn = document.getElementById("save-route-btn");
   const savedRoutesList = document.getElementById("saved-routes-list");
 
@@ -2700,10 +2727,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const nameInput = document.getElementById("walk-save-name");
-      const defaultName = (cityInput && cityInput.value.trim()) || lastWalkMeta.citiesLabel || "Il mio walk";
+      const defaultName = (cityInput && cityInput.value.trim()) || lastWalkMeta.citiesLabel || "Il mio itinerario Roamy";
       const name = nameInput && nameInput.value.trim()
         ? nameInput.value.trim()
-        : (typeof prompt === "function" ? prompt("Nome per questo walk (es. Weekend a Roma):", defaultName) : defaultName);
+        : (typeof prompt === "function" ? prompt("Nome per questo itinerario (es. weekend in Toscana):", defaultName) : defaultName);
       if (name == null) return;
       const routes = getSavedRoutes();
       const route = {
@@ -2718,7 +2745,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setSavedRoutes(routes);
       renderSavedRoutes();
       setStatusVisible(true);
-      setStatusMessage("Salvato. Lo ritrovi in Salvati, pronto per il prossimo weekend.", "status-active");
+      setStatusMessage("Salvato. Lo ritrovi in Salvati, pronto per il prossimo viaggio.", "status-active");
       if (nameInput) nameInput.value = "";
     });
   }
@@ -2760,7 +2787,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const plannedCitiesInput = document.getElementById("planned-cities");
   const plannedDateInput = document.getElementById("planned-date");
 
-  const PLANNED_STORAGE_KEY = "360step_planned_trips";
+  const PLANNED_STORAGE_KEY = "roamy_planned_trips";
   let plannedTrips = [];
 
   function loadPlannedTrips() {
@@ -2847,7 +2874,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const themeToggle = document.getElementById("theme-toggle");
   if (themeToggle) {
     try {
-      const saved = localStorage.getItem("360step-theme");
+      const saved = localStorage.getItem("roamy-theme");
       if (saved === "dark" || saved === "light") {
         document.documentElement.setAttribute("data-theme", saved);
         themeToggle.textContent = saved === "dark" ? "☀️" : "🌙";
@@ -2860,7 +2887,7 @@ document.addEventListener("DOMContentLoaded", () => {
       themeToggle.textContent = next === "dark" ? "☀️" : "🌙";
       themeToggle.setAttribute("aria-label", next === "dark" ? "Attiva tema chiaro" : "Attiva tema scuro");
       try {
-        localStorage.setItem("360step-theme", next);
+        localStorage.setItem("roamy-theme", next);
       } catch (e) { /* ignore */ }
     });
   }

@@ -2,9 +2,10 @@
 <html lang="it" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <title>360step — Itinerari a piedi per il tuo city break</title>
+  <title>Roamy — AI travel planner per road trip e viaggi intelligenti</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Crea percorsi a piedi curati nelle città europee. Per weekend in due, city break e chi vuole ottimizzare il tempo senza correre.">
+  <meta name="description" content="Roamy organizza road trip e viaggi in camper, auto o mezzi pubblici: itinerari realistici, soste utili, idee su cosa vedere — città, natura, costa, food e altro.">
+  <meta name="theme-color" content="#faf8f5">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -21,9 +22,9 @@
 <header class="site-header">
   <div class="site-header__inner">
     <a href="#plan" class="brand" data-view-link="plan">
-      <span class="brand__mark">360</span><span class="brand__word">step</span>
+      <span class="brand__mark">Roam</span><span class="brand__word">y</span>
     </a>
-    <p class="site-header__tagline">Walk europei, pensati per chi viaggia in due o in poche giorni.</p>
+    <p class="site-header__tagline">Travel-tech per pianificare bene: camper, auto o mezzi pubblici — ovunque nel mondo.</p>
     <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Attiva tema scuro">🌙</button>
   </div>
 </header>
@@ -35,36 +36,47 @@
     <div class="view__inner view__inner--plan">
 
       <div class="hero-block">
-        <h1 id="plan-title" class="hero-block__title">Il tuo prossimo walk in città, <em>senza improvvisare.</em></h1>
-        <p class="hero-block__lead">Scegli destinazione, stile e tempo. Noi ordiniamo le tappe con distanze e tempi reali — tu goditi il percorso.</p>
+        <h1 id="plan-title" class="hero-block__title" lang="en">Roamy helps you plan trips <em>around how you travel.</em></h1>
+        <p class="hero-block__lead">Itinerari realistici, soste e tappe utili — adattati a camper, auto o mezzi pubblici e a cosa vuoi vedere: città, paesaggi, natura, coste, borghi, food.</p>
       </div>
 
       <div id="generation-loading" class="generation-loading" aria-live="polite" aria-busy="false">
         <div class="generation-loading__spinner" aria-hidden="true"></div>
-        <p class="generation-loading__text">Stiamo costruendo il percorso…</p>
+        <p class="generation-loading__text">Stiamo costruendo il tuo itinerario…</p>
       </div>
 
       <div class="panel panel--plan">
         <h2 class="panel__title">Dove andate?</h2>
-        <p class="panel__hint">Una città alla volta — o più città separate da virgola.</p>
+        <p class="panel__hint">Una destinazione alla volta — o più tappe separate da virgola.</p>
         <div class="city-search-wrap">
-          <label for="city-input" class="field-label">Città</label>
-          <input id="city-input" type="text" class="field-input" placeholder="Es. Roma, Bruges, Vienna…" autocomplete="off" aria-describedby="city-help">
-          <p id="city-help" class="field-hint">Suggerimenti mentre digiti. Le tappe seguono i luoghi realmente camminabili.</p>
+          <label for="city-input" class="field-label">Destinazione</label>
+          <input id="city-input" type="text" class="field-input" placeholder="Es. Sicilia, Route 66, Kyoto…" autocomplete="off" aria-describedby="city-help">
+          <p id="city-help" class="field-hint">Suggerimenti mentre digiti. Le tappe sono ordinate per un percorso coerente con il tuo stile di viaggio.</p>
           <div id="city-suggestions-dropdown" class="city-suggestions-dropdown" aria-hidden="true"></div>
         </div>
         <div id="city-catalog" class="city-catalog" aria-live="polite"></div>
       </div>
 
       <div class="panel panel--plan">
-        <h2 class="panel__title">Che tipo di giornata volete?</h2>
+        <h2 class="panel__title">Come viaggi?</h2>
+        <fieldset class="choice-row choice-row--transport">
+          <legend class="visually-hidden">Mezzo di trasporto</legend>
+          <label class="chip-radio"><input type="radio" name="transport-mode" value="camper" checked><span>Camper</span></label>
+          <label class="chip-radio"><input type="radio" name="transport-mode" value="car"><span>Auto</span></label>
+          <label class="chip-radio"><input type="radio" name="transport-mode" value="transit"><span>Mezzi pubblici</span></label>
+        </fieldset>
+        <p class="field-hint field-hint--tight">Roamy adatta suggerimenti e ritmo al modo in cui ti muovi (aree sosta, tragitti, tempi).</p>
+      </div>
+
+      <div class="panel panel--plan">
+        <h2 class="panel__title">Cosa vuoi vivere nel viaggio?</h2>
         <fieldset class="choice-grid choice-grid--walk">
           <legend class="visually-hidden">Stile itinerario</legend>
-          <label class="choice-tile"><input type="radio" name="walk-type" value="romantic" checked><span class="choice-tile__text">Romantic</span><span class="choice-tile__sub">Pause, viste, ritmo lento</span></label>
-          <label class="choice-tile"><input type="radio" name="walk-type" value="iconic"><span class="choice-tile__text">Iconic</span><span class="choice-tile__sub">I classici che contano</span></label>
-          <label class="choice-tile"><input type="radio" name="walk-type" value="hidden"><span class="choice-tile__text">Hidden gems</span><span class="choice-tile__sub">Meno ovvi, più curiosi</span></label>
-          <label class="choice-tile"><input type="radio" name="walk-type" value="chill"><span class="choice-tile__text">Chill walk</span><span class="choice-tile__sub">Pochi spostamenti</span></label>
-          <label class="choice-tile"><input type="radio" name="walk-type" value="food"><span class="choice-tile__text">Food walk</span><span class="choice-tile__sub">Mercati e pause golose</span></label>
+          <label class="choice-tile"><input type="radio" name="walk-type" value="romantic" checked><span class="choice-tile__text">Romantic</span><span class="choice-tile__sub">Pause, panorami, ritmo lento</span></label>
+          <label class="choice-tile"><input type="radio" name="walk-type" value="iconic"><span class="choice-tile__text">Iconic</span><span class="choice-tile__sub">Tappe emblematiche</span></label>
+          <label class="choice-tile"><input type="radio" name="walk-type" value="hidden"><span class="choice-tile__text">Hidden gems</span><span class="choice-tile__sub">Fuori dai percorsi ovvi</span></label>
+          <label class="choice-tile"><input type="radio" name="walk-type" value="chill"><span class="choice-tile__text">Chill</span><span class="choice-tile__sub">Poche tappe, più respiro</span></label>
+          <label class="choice-tile"><input type="radio" name="walk-type" value="food"><span class="choice-tile__text">Food &amp; local</span><span class="choice-tile__sub">Mercati, sapori, soste golose</span></label>
         </fieldset>
       </div>
 
@@ -90,9 +102,9 @@
       </div>
 
       <div class="panel panel--plan panel--compact">
-        <label for="days-input" class="field-label">Giorni del viaggio <span class="field-label__optional">(opzionale)</span></label>
+        <label for="days-input" class="field-label">Giorni in viaggio <span class="field-label__optional">(opzionale)</span></label>
         <select id="days-input" class="field-input field-select" aria-describedby="days-help">
-          <option value="1" selected>1 giorno — city break</option>
+          <option value="1" selected>1 giorno — tappa veloce</option>
           <option value="2">2 giorni</option>
           <option value="3">3 giorni</option>
         </select>
@@ -100,15 +112,15 @@
       </div>
 
       <div class="plan-actions plan-actions--primary">
-        <button type="button" id="btn-generate" class="btn btn-primary btn-generate">Crea il mio itinerario</button>
+        <button type="button" id="btn-generate" class="btn btn-primary btn-generate">Crea il mio itinerario Roamy</button>
       </div>
 
       <section class="premium-teaser" aria-label="Prossime funzioni">
-        <h3 class="premium-teaser__title">Prossimamente</h3>
+        <h3 class="premium-teaser__title">In arrivo</h3>
         <ul class="premium-teaser__list">
-          <li>Account e sync tra dispositivi</li>
-          <li>Export PDF e condivisione mappa</li>
-          <li>City pack premium e modalità coppia</li>
+          <li>Ricerca rental e noleggi quando non hai il mezzo</li>
+          <li>Aree sosta camper, pernotti e soste smart sulla route</li>
+          <li>Sync, PDF e condivisione itinerario</li>
         </ul>
       </section>
     </div>
@@ -123,8 +135,8 @@
           <span aria-hidden="true">←</span>
         </button>
         <div class="walk-topbar__center">
-          <h2 id="walk-title" class="walk-title">Il tuo walk</h2>
-          <p class="walk-subtitle" id="walk-subtitle">Mappa + dettagli in basso</p>
+          <h2 id="walk-title" class="walk-title">Il tuo itinerario</h2>
+          <p class="walk-subtitle" id="walk-subtitle">Mappa e tappe</p>
         </div>
         <div class="walk-topbar__actions">
           <button type="button" class="icon-btn" id="walk-favorite" aria-label="Aggiungi ai preferiti" disabled title="Prossimamente">
@@ -144,13 +156,13 @@
       <div class="sheet__content">
         <div id="walk-empty" class="empty-state" hidden>
           <p class="empty-state__title">Nessun itinerario attivo</p>
-          <p class="empty-state__text">Torna in Pianifica e crea un walk: qui vedrai mappa, tappe e navigazione.</p>
+          <p class="empty-state__text">Torna in Pianifica e genera un itinerario Roamy: qui trovi mappa, tappe e navigazione.</p>
           <button type="button" class="btn btn-primary" id="walk-empty-back">Vai a Pianifica</button>
         </div>
 
         <header class="sheet__header">
           <div>
-            <p class="sheet__eyebrow" id="walk-hero-eyebrow">City walk</p>
+            <p class="sheet__eyebrow" id="walk-hero-eyebrow">Itinerario</p>
             <h3 class="sheet__title" id="walk-hero-title">—</h3>
           </div>
           <span class="badge" id="walk-hero-mood">—</span>
@@ -188,7 +200,7 @@
 
         <div class="walk-footer-fields">
           <label for="walk-save-name" class="field-label">Nome per salvare (opzionale)</label>
-          <input type="text" id="walk-save-name" class="field-input" placeholder="es. Anniversario a Bruges" autocomplete="off">
+          <input type="text" id="walk-save-name" class="field-input" placeholder="es. Costa ovest in camper" autocomplete="off">
         </div>
       </div>
     </section>
@@ -217,11 +229,11 @@
   <!-- Salvati -->
   <section id="view-saved" class="view" data-app-view="saved" hidden aria-labelledby="saved-title">
     <div class="view__inner">
-      <h2 id="saved-title" class="view__heading">I tuoi walk salvati</h2>
-      <p class="view__sub">Itinerari premium in evoluzione: presto sync e condivisione.</p>
+      <h2 id="saved-title" class="view__heading">I tuoi itinerari salvati</h2>
+      <p class="view__sub">I tuoi viaggi Roamy in un posto solo — presto sync e condivisione.</p>
       <div id="saved-empty" class="empty-state">
-        <p class="empty-state__title">Ancora nessun walk salvato</p>
-        <p class="empty-state__text">Crea un itinerario e tocca <strong>Salva walk</strong>: lo troverai qui, pronto per il prossimo viaggio.</p>
+        <p class="empty-state__title">Ancora nessun itinerario salvato</p>
+        <p class="empty-state__text">Crea un itinerario e tocca <strong>Salva</strong>: lo trovi qui per il prossimo road trip.</p>
       </div>
       <ul id="saved-routes-list" class="saved-routes-list" aria-label="Elenco percorsi salvati"></ul>
     </div>
@@ -236,7 +248,7 @@
 </nav>
 
 <footer class="site-footer">
-  <p>360step — European city walks · <span id="year-copy"></span></p>
+  <p>Roamy — smart travel planning · <span id="year-copy"></span></p>
 </footer>
 
 <script>

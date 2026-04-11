@@ -1,4 +1,4 @@
-/* === 360step — Premium city walk (medium redesign) === */
+/* === Roamy — travel-tech planner (premium, warm) === */
 
 :root {
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
@@ -10,9 +10,10 @@
   --surface-elevated: #ffffff;
   --line: #e7e5e4;
   --line-strong: #d6d3d1;
-  --accent: #2d4a3e;
-  --accent-hover: #1f342c;
-  --accent-soft: rgba(45, 74, 62, 0.09);
+  --accent: #115e59;
+  --accent-hover: #0d4d48;
+  --accent-soft: rgba(17, 94, 89, 0.1);
+  --accent-warm: #c2410c;
   --radius: 12px;
   --radius-sm: 8px;
   --radius-lg: 20px;
@@ -32,9 +33,10 @@
   --surface-elevated: #1c1917;
   --line: #292524;
   --line-strong: #44403c;
-  --accent: #6b9080;
-  --accent-hover: #8fb3a3;
-  --accent-soft: rgba(107, 144, 128, 0.15);
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-soft: rgba(45, 212, 191, 0.12);
+  --accent-warm: #fb923c;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
@@ -351,7 +353,7 @@ main { min-height: 50vh; }
 }
 .hero-block__title em {
   font-style: italic;
-  color: var(--accent);
+  color: var(--accent-warm);
   font-weight: 600;
 }
 
@@ -423,6 +425,12 @@ main { min-height: 50vh; }
   margin: 0.5rem 0 0;
   font-size: 0.8125rem;
   color: var(--ink-muted);
+}
+.field-hint--tight {
+  margin-top: 0.45rem;
+}
+.choice-row--transport {
+  margin-top: 0.35rem;
 }
 
 /* City search */

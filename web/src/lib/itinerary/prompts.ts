@@ -1,4 +1,5 @@
 import type { GenerateItineraryRequest } from "@/lib/itinerary/schema";
+import { boundsFromArea } from "@/lib/maps/bounds";
 
 function describeArea(area: GenerateItineraryRequest["area"]): string {
   if (area.kind === "polygon") {
@@ -12,6 +13,11 @@ function describeArea(area: GenerateItineraryRequest["area"]): string {
       ? ` con tappe intermedie: ${area.viaQueries.join(", ")}`
       : ""
   }.`;
+}
+
+function describeAreaBounds(area: GenerateItineraryRequest["area"]): string {
+  const b = boundsFromArea(area);
+  return `Riferimento geografico (gradi decimali): latitudine da ${b.south.toFixed(3)} a ${b.north.toFixed(3)}, longitudine da ${b.west.toFixed(3)} a ${b.east.toFixed(3)}.`;
 }
 
 export function buildPlannerPrompt(req: GenerateItineraryRequest): string {
@@ -35,6 +41,13 @@ export function buildPlannerPrompt(req: GenerateItineraryRequest): string {
       ? "Rispondi in italiano."
       : "Respond in English.";
 
+  const areaStrict =
+    req.area.kind === "polygon"
+      ? `Vincolo geografico OBBLIGATORIO: l’utente ha disegnato un poligono su mappa. ${describeAreaBounds(req.area)} Tutte le tappe devono essere luoghi reali situati **dentro** questa area (o molto vicini al bordo, stesso paese/regione). Non proporre mai città o attrazioni in altre nazioni o regioni lontane (es. se l’area è in Scozia, niente Inghilterra o Irlanda). Ogni searchQuery deve includere nome del luogo + zona amministrativa corretta (es. "Isle of Skye Highlands Scotland UK") così la ricerca Maps resta nella zona.`
+      : req.area.kind === "radius"
+        ? `Area: ${describeArea(req.area)} ${describeAreaBounds(req.area)} Tutte le tappe devono essere entro il cerchio indicato.`
+        : `Zona: ${describeArea(req.area)}`;
+
   return `Sei Roamy, un planner di viaggi stradali. ${lang}
 
 Vincoli utente:
@@ -42,7 +55,7 @@ Vincoli utente:
 - Ritmo: ${req.preferences.pace}.
 - Mezzo: ${req.transport}. ${transport}
 - Tempo: ${time}
-- Zona geografica: ${describeArea(req.area)}
+- ${areaStrict}
 
 Restituisci SOLO JSON valido (nessun markdown) con questa forma esatta:
 {

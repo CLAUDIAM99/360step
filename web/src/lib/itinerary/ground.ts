@@ -38,6 +38,10 @@ async function resolveAreaBounds(
     const west = Math.min(a.lng, b.lng) - 0.5;
     return { north, south, east, west };
   }
+  // Poligono: niente allargamento — evita di includere luoghi fuori dall’area disegnata.
+  if (area.kind === "polygon") {
+    return boundsFromArea(area);
+  }
   return widenBounds(boundsFromArea(area), 1.1);
 }
 
@@ -78,8 +82,13 @@ export async function groundGeminiPlan(
       continue;
     }
     calls += 1;
+    const polygonRing =
+      ctx.area.kind === "polygon"
+        ? (ctx.area.geojson.coordinates[0] as [number, number][])
+        : undefined;
     const hit = await textSearchPlaces(s.searchQuery, ctx.mapsApiKey, {
       bounds,
+      polygonRing,
     });
     if (!hit) {
       grounded.push({

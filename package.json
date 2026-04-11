@@ -4,8 +4,12 @@
   "private": true,
   "description": "Roamy — AI travel planner (static app + lightweight server for Maps config).",
   "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy": "npx vercel@latest --prod"
   },
   "dependencies": {
     "dotenv": "^16.6.1",

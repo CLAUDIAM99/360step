@@ -5,12 +5,15 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get("/config.js", (req, res) => {
+function sendRoamyConfigJs(res) {
   res.setHeader("Content-Type", "application/javascript; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   const key = process.env.GOOGLE_MAPS_API_KEY || "";
   res.send(`window.__ROAMY_CONFIG__ = { googleMapsApiKey: ${JSON.stringify(key)} };`);
-});
+}
+
+app.get("/config.js", (req, res) => sendRoamyConfigJs(res));
+app.get("/api/config", (req, res) => sendRoamyConfigJs(res));
 
 app.use(express.static(path.join(__dirname)));
 

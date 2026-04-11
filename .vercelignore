@@ -1,0 +1,2 @@
+# Solo la root: su Vercel la chiave arriva da /api/config (rewrite). movie-picker/config.js resta deployato.
+/config.js

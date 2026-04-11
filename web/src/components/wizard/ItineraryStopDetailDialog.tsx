@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import { Loader2, MapPin } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import type { GroundedStop } from "@/lib/itinerary/schema";
 
@@ -72,17 +71,17 @@ export function ItineraryStopDetailDialog({
     data?.editorialSummary ?? stop?.notes ?? data?.formattedAddress;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(90vh,720px)] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="max-h-[min(90vh,720px)] overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
           {(stop?.formattedAddress || data?.formattedAddress) && (
-            <DialogDescription className="flex items-start gap-2 text-left">
+            <p className="flex items-start gap-2 text-left text-sm text-muted-foreground">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
               {stop?.formattedAddress ?? data?.formattedAddress}
-            </DialogDescription>
+            </p>
           )}
-        </DialogHeader>
+        </SheetHeader>
         {loading && (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -122,7 +121,7 @@ export function ItineraryStopDetailDialog({
             </a>
           </Button>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

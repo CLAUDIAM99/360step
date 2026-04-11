@@ -142,6 +142,7 @@ const defaultArea = (): GeographicArea => ({
 });
 
 export function WizardApp() {
+  const [hasEntered, setHasEntered] = useState(false);
   const [dark, setDark] = useState(false);
   const [step, setStep] = useState(0);
   const [themes, setThemes] = useState<TripTheme[]>(["scenic", "food"]);
@@ -439,12 +440,42 @@ export function WizardApp() {
     }
   };
 
+  if (!hasEntered) {
+    return (
+      <div className="roamy-board flex min-h-screen items-center justify-center px-4 py-10">
+        <section className="roamy-card w-full max-w-5xl rounded-[2rem] border-2 p-8 text-center sm:p-12">
+          <p className="mb-3 text-sm uppercase tracking-[0.2em] text-muted-foreground">
+            Itinerari AI su misura
+          </p>
+          <h1 className="roamy-scribble-title text-[clamp(5rem,19vw,13rem)] leading-[0.85] text-primary drop-shadow-sm">
+            Roamy
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
+            Una lavagna di viaggio dove costruire tappe, mappe e idee in stile
+            notebook.
+          </p>
+          <Button
+            type="button"
+            size="lg"
+            className="mt-8 rounded-full border-2 border-foreground/30 bg-primary px-10 text-lg shadow-md"
+            onClick={() => {
+              setHasEntered(true);
+              setStep(0);
+            }}
+          >
+            Entra
+          </Button>
+        </section>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur">
+    <div className="roamy-board min-h-screen">
+      <header className="sticky top-0 z-40 border-b-2 border-foreground/15 bg-background/75 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
           <div>
-            <p className="font-display text-xl font-semibold tracking-tight">
+            <p className="roamy-scribble-title text-4xl leading-none text-primary">
               Roamy
             </p>
             <p className="text-xs text-muted-foreground">
@@ -455,6 +486,7 @@ export function WizardApp() {
             type="button"
             variant="ghost"
             size="icon"
+            className="rounded-full border border-foreground/20 bg-background/80"
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Tema chiaro" : "Tema scuro"}
           >
@@ -480,7 +512,7 @@ export function WizardApp() {
         )}
 
         {step === 0 && (
-          <Card>
+          <Card className="roamy-card">
             <CardHeader>
               <CardTitle className="font-display">Cosa ti interessa?</CardTitle>
               <CardDescription>
@@ -533,7 +565,7 @@ export function WizardApp() {
         )}
 
         {step === 1 && (
-          <Card>
+          <Card className="roamy-card">
             <CardHeader>
               <CardTitle className="font-display">Come viaggi?</CardTitle>
               <CardDescription>
@@ -569,7 +601,7 @@ export function WizardApp() {
         )}
 
         {step === 2 && (
-          <Card>
+          <Card className="roamy-card">
             <CardHeader>
               <CardTitle className="font-display">Quando?</CardTitle>
               <CardDescription>
@@ -613,7 +645,7 @@ export function WizardApp() {
         )}
 
         {step === 3 && (
-          <Card>
+          <Card className="roamy-card">
             <CardHeader>
               <CardTitle className="font-display">Dove?</CardTitle>
               <CardDescription>
@@ -676,7 +708,7 @@ export function WizardApp() {
         )}
 
         {step === 4 && result && (
-          <Card>
+          <Card className="roamy-card">
             <CardHeader className="pb-2">
               <CardTitle className="font-display">Il tuo itinerario</CardTitle>
               <CardDescription className="sr-only">

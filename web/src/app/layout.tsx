@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
 const sans = Source_Sans_3({
@@ -10,6 +11,12 @@ const sans = Source_Sans_3({
 const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
+});
+
+const logo = localFont({
+  src: "../../../Hello Valentina.ttf",
+  variable: "--font-logo",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it" suppressHydrationWarning>
-      <body className={`${sans.variable} ${display.variable} font-sans`}>
+      <body className={`${sans.variable} ${display.variable} ${logo.variable} font-sans`}>
         {children}
       </body>
     </html>

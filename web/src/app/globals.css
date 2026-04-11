@@ -50,3 +50,38 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+@layer components {
+  .roamy-board {
+    background-color: hsl(46 88% 93%);
+    background-image:
+      radial-gradient(circle at 12% 18%, rgba(255, 183, 197, 0.3), transparent 28%),
+      radial-gradient(circle at 84% 22%, rgba(151, 225, 255, 0.26), transparent 32%),
+      radial-gradient(circle at 18% 78%, rgba(191, 239, 188, 0.28), transparent 33%),
+      radial-gradient(circle at 76% 82%, rgba(255, 237, 176, 0.26), transparent 30%),
+      linear-gradient(transparent 96%, rgba(0, 0, 0, 0.03) 97%);
+    background-size: auto, auto, auto, auto, 100% 26px;
+  }
+
+  .roamy-card {
+    border: 2px solid hsl(40 20% 40% / 0.38);
+    border-radius: 1.1rem;
+    background: hsl(0 0% 100% / 0.78);
+    box-shadow: 0 10px 24px hsl(31 42% 35% / 0.14),
+      0 2px 0 hsl(0 0% 100% / 0.75) inset;
+    backdrop-filter: blur(2px);
+  }
+
+  .roamy-card:nth-of-type(odd) {
+    transform: rotate(-0.2deg);
+  }
+
+  .roamy-card:nth-of-type(even) {
+    transform: rotate(0.2deg);
+  }
+
+  .roamy-scribble-title {
+    font-family: var(--font-logo), var(--font-display), cursive;
+    letter-spacing: 0.03em;
+  }
+}

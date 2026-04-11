@@ -1,12 +1,21 @@
 /**
- * Palette "Bordeaux elegante" — unico riferimento brand (hex).
- * @see piano prodotto
+ * Palette brand Roamy (hex) — crema, bordeaux acceso, malva, pietra.
  */
+export const ROAMY_PALETTE = {
+  bordeauxBright: "#B3123F",
+  plumDeep: "#4A0B1F",
+  roseMauve: "#E38AAE",
+  creamSoft: "#FFF3EB",
+  stoneGray: "#434955",
+  blushLight: "#FAD0DA",
+} as const;
+
+/** @deprecated Usare ROAMY_PALETTE */
 export const BORDEAUX = {
-  principal: "#660022",
-  dark: "#3B0B14",
-  wine: "#800020",
-  mauve: "#A07886",
-  cream: "#F5F2E1",
-  anthracite: "#333333",
+  principal: ROAMY_PALETTE.bordeauxBright,
+  dark: ROAMY_PALETTE.plumDeep,
+  wine: "#9B1A40",
+  mauve: ROAMY_PALETTE.roseMauve,
+  cream: ROAMY_PALETTE.creamSoft,
+  anthracite: ROAMY_PALETTE.stoneGray,
 } as const;

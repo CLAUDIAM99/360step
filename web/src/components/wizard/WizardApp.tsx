@@ -14,6 +14,7 @@ import {
   MapPin,
   Moon,
   ParkingCircle,
+  Search,
   Sun,
   UtensilsCrossed,
   BedDouble,
@@ -155,8 +156,20 @@ const defaultArea = (): GeographicArea => ({
 
 const MAPS_PUBLIC_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
+const WIZARD_HERO_ACTIONS: {
+  step: number;
+  label: string;
+  keywords: string;
+  requiresResult?: boolean;
+}[] = [
+  { step: 0, label: "Temi e ritmo del viaggio", keywords: "temi preferenze interessi" },
+  { step: 1, label: "Come viaggi (mezzo)", keywords: "auto camper moto trasporto" },
+  { step: 2, label: "Quando partire", keywords: "date giorni calendario" },
+  { step: 3, label: "Dove andare e luogo di partenza", keywords: "mappa area raggio percorso" },
+  { step: 4, label: "Il tuo itinerario", keywords: "tappe mappa risultato", requiresResult: true },
+];
+
 export function WizardApp() {
-  const [hasEntered, setHasEntered] = useState(false);
   const [dark, setDark] = useState(false);
   const [step, setStep] = useState(0);
   const [themes, setThemes] = useState<TripTheme[]>(["scenic", "food"]);
@@ -177,6 +190,8 @@ export function WizardApp() {
   const [tripEndQuery, setTripEndQuery] = useState("");
   /** Giorni espansi nella lista step 4 (default: tutti aperti). */
   const [dayListOpen, setDayListOpen] = useState<Record<number, boolean>>({});
+  const [heroSearchQuery, setHeroSearchQuery] = useState("");
+  const wizardPanelRef = useRef<HTMLElement | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,6 +257,33 @@ export function WizardApp() {
   }, [themes, pace, transport, days, range, area, tripStartQuery, tripEndQuery]);
 
   const progress = useMemo(() => ((step + 1) / 5) * 100, [step]);
+
+  const filteredHeroActions = useMemo(() => {
+    const q = heroSearchQuery.trim().toLowerCase();
+    return WIZARD_HERO_ACTIONS.filter((a) => {
+      if (a.requiresResult && !result) return false;
+      if (!q) return true;
+      return (
+        a.label.toLowerCase().includes(q) ||
+        a.keywords.toLowerCase().includes(q)
+      );
+    });
+  }, [heroSearchQuery, result]);
+
+  const goToWizardStep = useCallback(
+    (targetStep: number) => {
+      const action = WIZARD_HERO_ACTIONS.find((a) => a.step === targetStep);
+      if (action?.requiresResult && !result) return;
+      setStep(targetStep);
+      requestAnimationFrame(() => {
+        wizardPanelRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    },
+    [result]
+  );
 
   const itineraryFlatRows = useMemo(() => {
     if (!result) {
@@ -518,65 +560,81 @@ export function WizardApp() {
     }
   };
 
-  if (!hasEntered) {
-    return (
-      <div className="roamy-board flex min-h-screen items-center justify-center px-4 py-10">
-        <section className="roamy-card w-full max-w-5xl rounded-[1.25rem] p-8 text-center sm:p-12">
-          <p className="mb-3 text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Itinerari AI su misura
-          </p>
-          <h1 className="roamy-scribble-title text-[clamp(5rem,19vw,13rem)] leading-[0.85] text-primary drop-shadow-sm">
-            Roamy
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
-            Disegna il viaggio su una carta d’epoca: tappe, mappe e idee in un
-            solo posto.
-          </p>
-          <Button
-            type="button"
-            size="lg"
-            className="mt-8 rounded-full border border-primary/30 bg-primary px-10 text-lg font-semibold text-primary-foreground shadow-md hover:bg-primary/90"
-            onClick={() => {
-              setHasEntered(true);
-              setStep(0);
-            }}
-          >
-            Entra
-          </Button>
-        </section>
-      </div>
-    );
-  }
-
   return (
     <div className="roamy-board min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/88 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
-          <div>
-            <p className="roamy-scribble-title text-4xl leading-none text-primary">
-              Roamy
-            </p>
-            <p className="text-xs font-medium text-muted-foreground">
-              Itinerari con AI e mappe verificate
-            </p>
-          </div>
+      <section
+        id="roamy-hero"
+        className="relative px-4 pb-10 pt-6 md:pb-16 md:pt-10"
+      >
+        <div className="absolute right-4 top-4 z-10 md:right-8 md:top-8">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="rounded-full border border-border bg-card/90"
+            className="rounded-full border border-border/80 bg-card/90 shadow-sm backdrop-blur-sm"
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Tema chiaro" : "Tema scuro"}
           >
             {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
         </div>
-        <Progress value={progress} className="h-1 rounded-none" />
-      </header>
+
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="mb-2 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground md:text-sm">
+            Itinerari AI su misura
+          </p>
+          <h1 className="roamy-scribble-title text-[clamp(3.25rem,11vw,8rem)] leading-[0.9] text-primary drop-shadow-sm">
+            Roamy
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-balance text-sm text-muted-foreground md:text-base">
+            Tappe, mappe e idee in un solo flusso fluido.
+          </p>
+
+          <div className="relative mx-auto mt-10 max-w-2xl">
+            <Search
+              className="pointer-events-none absolute left-5 top-1/2 z-10 h-6 w-6 -translate-y-1/2 text-muted-foreground md:left-6 md:h-7 md:w-7"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={heroSearchQuery}
+              onChange={(e) => setHeroSearchQuery(e.target.value)}
+              placeholder="Cosa vuoi fare?"
+              className="roamy-hero-search shadow-xl"
+              aria-label="Cerca cosa vuoi fare"
+            />
+          </div>
+
+          <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-2.5">
+            {filteredHeroActions.map((a) => (
+              <button
+                key={a.step}
+                type="button"
+                className="roamy-card-fluid font-medium text-foreground"
+                onClick={() => goToWizardStep(a.step)}
+              >
+                {a.label}
+              </button>
+            ))}
+            {filteredHeroActions.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Genera un itinerario per sbloccare questo passo, oppure prova
+                altre parole nella ricerca.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-3xl px-2">
+          <Progress value={progress} className="h-1.5 rounded-full bg-muted" />
+        </div>
+      </section>
 
       <main
+        ref={wizardPanelRef}
+        id="wizard-flow"
         className={cn(
-          "mx-auto px-4 py-8",
+          "mx-auto scroll-mt-6 px-4 pb-16 pt-2",
           step === 4 && result ? "max-w-7xl pb-28 lg:pb-8" : "max-w-3xl"
         )}
       >
@@ -1210,7 +1268,19 @@ export function WizardApp() {
             </Button>
           )}
           {step === 4 && result && (
-            <Button type="button" variant="outline" onClick={() => { setStep(0); setResult(null); }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setStep(0);
+                setResult(null);
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById("roamy-hero")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+              }}
+            >
               Nuovo itinerario
             </Button>
           )}

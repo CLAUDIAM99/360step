@@ -85,7 +85,8 @@ const STOP_TYPE_VALUES = [
 ] as const;
 
 export const StopTypeSchema = z.preprocess((val) => {
-  if (typeof val !== "string") return val;
+  if (val == null || val === "") return "other";
+  if (typeof val !== "string") return "other";
   const t = val.toLowerCase().trim();
   return STOP_TYPE_VALUES.includes(t as (typeof STOP_TYPE_VALUES)[number])
     ? t

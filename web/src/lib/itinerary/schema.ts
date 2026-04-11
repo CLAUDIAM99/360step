@@ -155,6 +155,8 @@ export const ItineraryLegSchema = z.object({
   durationMin: z.number().optional(),
   /** Overview polyline Google Directions (per disegno curvo in mappa). */
   encodedPolyline: z.string().optional(),
+  /** Distanza stimata in linea d’aria (es. fallback se Directions non disponibile). */
+  airDistanceOnly: z.boolean().optional(),
 });
 
 export type ItineraryLeg = z.infer<typeof ItineraryLegSchema>;

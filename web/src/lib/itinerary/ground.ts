@@ -22,25 +22,20 @@ import type {
   GenerateItineraryRequest,
   ItineraryDay,
 } from "@/lib/itinerary/schema";
-
-const EARTH_RADIUS_KM = 6371;
+import { haversineKm } from "@/lib/geo/distance";
 
 /** Soglia: oltre questa distanza la prima/ultima tappa non coincide con partenza/arrivo dichiarati. */
 const ANCHOR_MAX_DISTANCE_KM = 18;
 
-function haversineKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number }
-): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+function airLegKm(origin: { lat: number; lng: number }, dest: {
+  lat: number;
+  lng: number;
+}): ItineraryLeg {
+  const km = haversineKm(origin, dest);
+  return {
+    distanceKm: Math.round(km * 10) / 10,
+    airDistanceOnly: true,
+  };
 }
 
 async function resolveAreaBounds(
@@ -411,7 +406,13 @@ export async function groundGeminiPlan(
     }
 
     if (calls >= MAX_GROUNDING_CALLS_PER_REQUEST) {
-      legs.push({});
+      if (a.groundingStatus === "ok") {
+        a.groundingStatus = "approximate";
+        a.notes =
+          (a.notes ? `${a.notes} — ` : "") +
+          "Distanza in linea d’aria (limite richieste API).";
+      }
+      legs.push(airLegKm(origin, dest));
       continue;
     }
     calls += 1;
@@ -429,7 +430,7 @@ export async function groundGeminiPlan(
           (a.notes ? `${a.notes} — ` : "") +
           "Verifica percorso verso la tappa successiva.";
       }
-      legs.push({});
+      legs.push(airLegKm(origin, dest));
     }
   }
 

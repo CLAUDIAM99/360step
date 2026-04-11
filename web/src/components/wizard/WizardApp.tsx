@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -14,7 +21,6 @@ import {
   MapPin,
   Moon,
   ParkingCircle,
-  Search,
   Sun,
   UtensilsCrossed,
   BedDouble,
@@ -59,7 +65,11 @@ import {
   dayItineraryHex,
   dayListAccentClass,
 } from "@/lib/itinerary/colors";
+import { haversineKm } from "@/lib/geo/distance";
 import { cn } from "@/lib/utils";
+
+const INTRO_SESSION_KEY = "roamy-intro-done";
+const INTRO_TRANSITION_MS = 520;
 
 const THEME_OPTIONS: { id: TripTheme; label: string }[] = [
   { id: "scenic", label: "Paesaggistico" },
@@ -151,12 +161,31 @@ function googleMapsHref(stop: GroundedStop): string {
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
-function legBetweenLabel(leg: ItineraryLeg | undefined): string {
-  if (!leg) return "→ Distanza non disponibile";
-  const km = leg.distanceKm;
-  const min = leg.durationMin;
+function legBetweenLabel(
+  leg: ItineraryLeg | undefined,
+  from: GroundedStop,
+  to: GroundedStop | undefined
+): string {
+  let km = leg?.distanceKm;
+  let airOnly = leg?.airDistanceOnly === true;
+  if (
+    (km == null || Number.isNaN(km)) &&
+    from.lat != null &&
+    from.lng != null &&
+    to?.lat != null &&
+    to?.lng != null
+  ) {
+    km = Math.round(haversineKm(
+      { lat: from.lat, lng: from.lng },
+      { lat: to.lat, lng: to.lng }
+    ) * 10) / 10;
+    airOnly = true;
+  }
+  const min = leg?.durationMin;
   if (km == null && min == null) return "→ Distanza non disponibile";
-  const kmPart = km != null ? `circa ${km} km` : "—";
+  const kmBase = km != null ? `circa ${km} km` : "—";
+  const kmPart =
+    airOnly && min == null ? `${kmBase} (linea d’aria)` : kmBase;
   const minPart = min != null ? `${min} min` : null;
   return minPart ? `→ ${kmPart} · ${minPart}` : `→ ${kmPart}`;
 }
@@ -169,19 +198,6 @@ const defaultArea = (): GeographicArea => ({
 });
 
 const MAPS_PUBLIC_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-
-const WIZARD_HERO_ACTIONS: {
-  step: number;
-  label: string;
-  keywords: string;
-  requiresResult?: boolean;
-}[] = [
-  { step: 0, label: "Temi e ritmo del viaggio", keywords: "temi preferenze interessi" },
-  { step: 1, label: "Come viaggi (mezzo)", keywords: "auto camper moto trasporto" },
-  { step: 2, label: "Quando partire", keywords: "date giorni calendario" },
-  { step: 3, label: "Dove andare e luogo di partenza", keywords: "mappa area raggio percorso" },
-  { step: 4, label: "Il tuo itinerario", keywords: "tappe mappa risultato", requiresResult: true },
-];
 
 export function WizardApp() {
   const [dark, setDark] = useState(false);
@@ -204,7 +220,9 @@ export function WizardApp() {
   const [tripEndQuery, setTripEndQuery] = useState("");
   /** Giorni espansi nella lista step 4 (default: tutti aperti). */
   const [dayListOpen, setDayListOpen] = useState<Record<number, boolean>>({});
-  const [heroSearchQuery, setHeroSearchQuery] = useState("");
+  const [enterPhase, setEnterPhase] = useState<"idle" | "animating" | "done">(
+    "idle"
+  );
   const wizardPanelRef = useRef<HTMLElement | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -223,6 +241,19 @@ export function WizardApp() {
     if (typeof document === "undefined") return;
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
+
+  useLayoutEffect(() => {
+    try {
+      if (
+        typeof sessionStorage !== "undefined" &&
+        sessionStorage.getItem(INTRO_SESSION_KEY)
+      ) {
+        setEnterPhase("done");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -273,32 +304,29 @@ export function WizardApp() {
 
   const progress = useMemo(() => ((step + 1) / 5) * 100, [step]);
 
-  const filteredHeroActions = useMemo(() => {
-    const q = heroSearchQuery.trim().toLowerCase();
-    return WIZARD_HERO_ACTIONS.filter((a) => {
-      if (a.requiresResult && !result) return false;
-      if (!q) return true;
-      return (
-        a.label.toLowerCase().includes(q) ||
-        a.keywords.toLowerCase().includes(q)
-      );
-    });
-  }, [heroSearchQuery, result]);
-
-  const goToWizardStep = useCallback(
-    (targetStep: number) => {
-      const action = WIZARD_HERO_ACTIONS.find((a) => a.step === targetStep);
-      if (action?.requiresResult && !result) return;
-      setStep(targetStep);
-      requestAnimationFrame(() => {
-        wizardPanelRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
-    },
-    [result]
-  );
+  const onEnterApp = useCallback(() => {
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      try {
+        sessionStorage.setItem(INTRO_SESSION_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+      setEnterPhase("done");
+      return;
+    }
+    setEnterPhase("animating");
+    window.setTimeout(() => {
+      try {
+        sessionStorage.setItem(INTRO_SESSION_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+      setEnterPhase("done");
+    }, INTRO_TRANSITION_MS);
+  }, []);
 
   const itineraryFlatRows = useMemo(() => {
     if (!result) {
@@ -579,84 +607,72 @@ export function WizardApp() {
     }
   };
 
+  const showIntroLayer = enterPhase !== "done";
+
   return (
     <div className="roamy-board min-h-screen">
-      <section
-        id="roamy-hero"
-        className="relative px-4 pb-10 pt-6 md:pb-16 md:pt-10"
-      >
-        <div className="absolute right-4 top-4 z-10 md:right-8 md:top-8">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="rounded-full border border-border/80 bg-card/90 shadow-sm backdrop-blur-sm"
-            onClick={() => setDark((d) => !d)}
-            aria-label={dark ? "Tema chiaro" : "Tema scuro"}
-          >
-            {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-        </div>
+      <div className="fixed right-4 top-4 z-50 md:right-8 md:top-8">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="rounded-full border border-border/80 bg-card/90 shadow-sm backdrop-blur-sm"
+          onClick={() => setDark((d) => !d)}
+          aria-label={dark ? "Tema chiaro" : "Tema scuro"}
+        >
+          {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
+      </div>
 
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground md:text-sm">
-            Itinerari AI su misura
-          </p>
-          <h1 className="roamy-scribble-title text-[clamp(3.25rem,11vw,8rem)] leading-[0.9] text-primary drop-shadow-sm">
-            Roamy
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-balance text-sm text-muted-foreground md:text-base">
-            Tappe, mappe e idee in un solo flusso fluido.
-          </p>
-
-          <div className="relative mx-auto mt-10 max-w-2xl">
-            <Search
-              className="pointer-events-none absolute left-5 top-1/2 z-10 h-6 w-6 -translate-y-1/2 text-muted-foreground md:left-6 md:h-7 md:w-7"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              value={heroSearchQuery}
-              onChange={(e) => setHeroSearchQuery(e.target.value)}
-              placeholder="Cosa vuoi fare?"
-              className="roamy-hero-search shadow-xl"
-              aria-label="Cerca cosa vuoi fare"
-            />
-          </div>
-
-          <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-2.5">
-            {filteredHeroActions.map((a) => (
-              <button
-                key={a.step}
+      {showIntroLayer && (
+        <section
+          id="roamy-hero"
+          className={cn(
+            "relative flex min-h-[min(100dvh,880px)] flex-col justify-center px-4 pb-16 pt-12 transition-all duration-500 ease-out motion-reduce:transition-none md:pb-24 md:pt-16",
+            enterPhase === "animating" &&
+              "-translate-y-12 opacity-0 motion-reduce:translate-y-0 motion-reduce:opacity-100"
+          )}
+        >
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="mb-2 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground md:text-sm">
+              Itinerari AI su misura
+            </p>
+            <h1 className="roamy-scribble-title text-[clamp(4rem,14vw,9.5rem)] leading-[0.88] text-primary drop-shadow-sm">
+              Roamy
+            </h1>
+            <p className="mx-auto mt-5 max-w-xl text-balance text-sm text-muted-foreground md:text-base">
+              Tappe, mappe e idee in un solo flusso fluido.
+            </p>
+            <div className="mx-auto mt-12 max-w-xs">
+              <Button
                 type="button"
-                className="roamy-card-fluid font-medium text-foreground"
-                onClick={() => goToWizardStep(a.step)}
+                size="lg"
+                className="h-12 w-full rounded-full text-base font-semibold shadow-lg"
+                onClick={onEnterApp}
               >
-                {a.label}
-              </button>
-            ))}
-            {filteredHeroActions.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Genera un itinerario per sbloccare questo passo, oppure prova
-                altre parole nella ricerca.
-              </p>
-            )}
+                Entra
+              </Button>
+            </div>
           </div>
-        </div>
-
-        <div className="mx-auto mt-10 max-w-3xl px-2">
-          <Progress value={progress} className="h-1.5 rounded-full bg-muted" />
-        </div>
-      </section>
+        </section>
+      )}
 
       <main
         ref={wizardPanelRef}
         id="wizard-flow"
         className={cn(
-          "mx-auto scroll-mt-6 px-4 pb-16 pt-2",
-          step === 4 && result ? "max-w-7xl pb-28 lg:pb-8" : "max-w-3xl"
+          "mx-auto scroll-mt-6 px-4 pb-16 pt-2 transition-all duration-500 ease-out motion-reduce:transition-none",
+          step === 4 && result ? "max-w-7xl pb-28 lg:pb-8" : "max-w-3xl",
+          enterPhase === "idle" &&
+            "pointer-events-none translate-y-6 opacity-0",
+          enterPhase === "animating" && "translate-y-0 opacity-100",
+          enterPhase === "done" && "translate-y-0 opacity-100"
         )}
       >
+        <div className="mx-auto mb-6 max-w-3xl px-0">
+          <Progress value={progress} className="h-1.5 rounded-full bg-muted" />
+        </div>
+
         {error && (
           <p
             className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -1088,8 +1104,11 @@ export function WizardApp() {
                                   className="space-y-2"
                                 >
                                   <div
+                                    style={{
+                                      borderLeftColor: dayItineraryHex(dayIndex),
+                                    }}
                                     className={cn(
-                                      "rounded-lg border p-3 text-sm transition-colors",
+                                      "rounded-lg border border-l-[3px] p-3 text-sm transition-colors",
                                       isActive
                                         ? "border-primary bg-primary/5"
                                         : "bg-background",
@@ -1122,7 +1141,7 @@ export function WizardApp() {
                                           </span>
                                           {row.stop.groundingStatus === "not_found" && (
                                             <span className="text-[11px] text-muted-foreground">
-                                              da verificare
+                                              da verificare · tratto mappa può mancare
                                             </span>
                                           )}
                                         </div>
@@ -1161,7 +1180,11 @@ export function WizardApp() {
 
                                   {row.hasNext && (
                                     <div
-                                      className="rounded-md border border-dashed bg-muted/30 px-3 py-2"
+                                      style={{
+                                        borderColor: dayItineraryHex(row.dayIndex),
+                                        backgroundColor: `color-mix(in srgb, ${dayItineraryHex(row.dayIndex)} 12%, transparent)`,
+                                      }}
+                                      className="rounded-md border border-dashed px-3 py-2"
                                       onClick={() => onSelectStop(row.key)}
                                       role="button"
                                       tabIndex={0}
@@ -1172,11 +1195,19 @@ export function WizardApp() {
                                         }
                                       }}
                                     >
-                                      <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <ArrowDown className="h-3.5 w-3.5" />
-                                        {legBetweenLabel(
-                                          result.legs?.[row.globalIndex]
-                                        )}
+                                      <p
+                                        className="flex items-center gap-2 text-xs font-medium"
+                                        style={{ color: dayItineraryHex(row.dayIndex) }}
+                                      >
+                                        <ArrowDown className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                                        <span className="text-foreground/90">
+                                          {legBetweenLabel(
+                                            result.legs?.[row.globalIndex],
+                                            row.stop,
+                                            itineraryFlatRows[row.globalIndex + 1]
+                                              ?.stop
+                                          )}
+                                        </span>
                                       </p>
                                     </div>
                                   )}
@@ -1337,12 +1368,16 @@ export function WizardApp() {
               type="button"
               variant="outline"
               onClick={() => {
+                try {
+                  sessionStorage.removeItem(INTRO_SESSION_KEY);
+                } catch {
+                  /* ignore */
+                }
+                setEnterPhase("idle");
                 setStep(0);
                 setResult(null);
                 requestAnimationFrame(() => {
-                  document
-                    .getElementById("roamy-hero")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  window.scrollTo({ top: 0, behavior: "smooth" });
                 });
               }}
             >

@@ -1,15 +1,15 @@
 import type { StopType } from "@/lib/itinerary/schema";
 import { ROAMY_PALETTE } from "@/lib/theme/bordeaux-palette";
 
-/** Colori per giorno: tonalità ben separate (mappa + lista). */
+/** Colori per giorno: saturi e ben separati (mappa + lista). */
 const DAY_ITINERARY_HEX = [
-  ROAMY_PALETTE.bordeauxBright,
-  "#0F766E",
-  "#1D4ED8",
-  "#B45309",
-  "#7C3AED",
-  "#15803D",
-  ROAMY_PALETTE.roseMauve,
+  "#E11D48",
+  "#0D9488",
+  "#2563EB",
+  "#EA580C",
+  "#9333EA",
+  "#16A34A",
+  "#EC4899",
 ] as const;
 
 export function dayItineraryHex(dayIndex: number): string {

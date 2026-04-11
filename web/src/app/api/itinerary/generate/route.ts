@@ -42,6 +42,8 @@ export async function POST(req: Request) {
       transport: parsed.data.transport,
       time: parsed.data.time,
       mapsApiKey: mapsKey,
+      startPlaceQuery: parsed.data.startPlaceQuery,
+      endPlaceQuery: parsed.data.endPlaceQuery,
     });
     return NextResponse.json(result);
   } catch (e) {

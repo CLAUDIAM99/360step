@@ -41,6 +41,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { LoadScript } from "@react-google-maps/api";
 import { MapAreaPicker } from "@/components/wizard/MapAreaPicker";
 import { ItineraryResultMap } from "@/components/wizard/ItineraryResultMap";
+import { ItineraryStopDetailDialog } from "@/components/wizard/ItineraryStopDetailDialog";
 import { PlaceAutocompleteField } from "@/components/wizard/PlaceAutocompleteInput";
 import type {
   GenerateItineraryRequest,
@@ -55,6 +56,7 @@ import type {
 } from "@/lib/itinerary/schema";
 import {
   STOP_TYPE_BADGE_CLASS,
+  dayItineraryHex,
   dayListAccentClass,
 } from "@/lib/itinerary/colors";
 import { cn } from "@/lib/utils";
@@ -124,6 +126,18 @@ const STOP_TYPE_META: Record<StopType, StopTypeMeta> = {
 
 function buildStopKey(stop: GroundedStop): string {
   return `${stop.dayIndex}:${stop.orderInDay}:${stop.placeId ?? stop.title}`;
+}
+
+function findStopByKey(
+  itinerary: ItineraryResult,
+  key: string
+): GroundedStop | null {
+  for (const d of itinerary.days) {
+    for (const s of d.stops) {
+      if (buildStopKey(s) === key) return s;
+    }
+  }
+  return null;
 }
 
 function dayIndexFromStopKey(key: string): number | null {
@@ -199,6 +213,7 @@ export function WizardApp() {
   const [insertText, setInsertText] = useState("");
   const [insertLoading, setInsertLoading] = useState(false);
   const [activeStopKey, setActiveStopKey] = useState<string | null>(null);
+  const [stopDetailOpen, setStopDetailOpen] = useState(false);
   const [mapFocusedDay, setMapFocusedDay] = useState<"all" | number>("all");
   const [expandedStops, setExpandedStops] = useState<Record<string, boolean>>({});
   const stopRefs = useRef<Record<string, HTMLLIElement | null>>({});
@@ -337,15 +352,19 @@ export function WizardApp() {
     return [...byDay.entries()].sort((a, b) => a[0] - b[0]);
   }, [itineraryFlatRows]);
 
+  const activeStop = useMemo(() => {
+    if (!result || !activeStopKey) return null;
+    return findStopByKey(result, activeStopKey);
+  }, [result, activeStopKey]);
+
   useEffect(() => {
-    setDayListOpen((prev) => {
-      const next = { ...prev };
-      rowsByDay.forEach(([d]) => {
-        if (next[d] === undefined) next[d] = true;
-      });
-      return next;
-    });
-  }, [rowsByDay]);
+    if (!result) return;
+    const next: Record<number, boolean> = {};
+    for (const d of result.days) {
+      next[d.dayIndex] = false;
+    }
+    setDayListOpen(next);
+  }, [result]);
 
   useEffect(() => {
     if (!itineraryFlatRows.length) {
@@ -1016,10 +1035,16 @@ export function WizardApp() {
                           ref={(el) => {
                             daySectionRefs.current[dayIndex] = el;
                           }}
+                          style={{
+                            borderLeftColor: dayItineraryHex(dayIndex),
+                          }}
                           className={cn(
-                            "overflow-hidden rounded-xl border border-border/70 bg-card/50 shadow-sm dark:bg-card/40",
+                            "overflow-hidden rounded-xl border border-border/70 bg-card/50 shadow-sm transition-opacity dark:bg-card/40",
                             "pl-0",
-                            dayListAccentClass(dayIndex)
+                            dayListAccentClass(dayIndex),
+                            mapFocusedDay !== "all" &&
+                              mapFocusedDay !== dayIndex &&
+                              "opacity-45"
                           )}
                         >
                           <button
@@ -1028,12 +1053,12 @@ export function WizardApp() {
                             onClick={() =>
                               setDayListOpen((p) => ({
                                 ...p,
-                                [dayIndex]: !(p[dayIndex] ?? true),
+                                [dayIndex]: !(p[dayIndex] ?? false),
                               }))
                             }
-                            aria-expanded={dayListOpen[dayIndex] ?? true}
+                            aria-expanded={dayListOpen[dayIndex] ?? false}
                           >
-                            {dayListOpen[dayIndex] ?? true ? (
+                            {dayListOpen[dayIndex] ?? false ? (
                               <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                             ) : (
                               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -1047,7 +1072,7 @@ export function WizardApp() {
                               </span>
                             )}
                           </button>
-                          {(dayListOpen[dayIndex] ?? true) && (
+                          {(dayListOpen[dayIndex] ?? false) && (
                           <ul className="space-y-2 p-3">
                             {dayRows.map((row) => {
                               const typeMeta = STOP_TYPE_META[row.stop.type];
@@ -1067,7 +1092,10 @@ export function WizardApp() {
                                       "rounded-lg border p-3 text-sm transition-colors",
                                       isActive
                                         ? "border-primary bg-primary/5"
-                                        : "bg-background"
+                                        : "bg-background",
+                                      mapFocusedDay !== "all" &&
+                                        mapFocusedDay !== dayIndex &&
+                                        "opacity-45"
                                     )}
                                   >
                                     <button
@@ -1184,6 +1212,43 @@ export function WizardApp() {
                       onStopSelect={onSelectStop}
                     />
                   </div>
+                  {activeStop && (
+                    <div className="space-y-2 rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm">
+                      <p className="text-sm font-semibold leading-tight">
+                        {activeStop.title}
+                      </p>
+                      {activeStop.formattedAddress && (
+                        <p className="text-xs text-muted-foreground">
+                          {activeStop.formattedAddress}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={!activeStop.placeId}
+                          onClick={() => setStopDetailOpen(true)}
+                        >
+                          Per saperne di più
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <a
+                            href={googleMapsHref(activeStop)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Apri in Maps
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <ItineraryStopDetailDialog
+                    open={stopDetailOpen}
+                    onOpenChange={setStopDetailOpen}
+                    stop={activeStop}
+                  />
                   <div className="hidden space-y-2 rounded-xl border border-border/60 bg-muted/25 p-4 shadow-sm dark:bg-muted/20 lg:block">
                     <Label htmlFor="insert-desktop">
                       Aggiungi una tappa da non perdere

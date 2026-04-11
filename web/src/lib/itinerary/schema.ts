@@ -153,6 +153,8 @@ export type ItineraryDay = z.infer<typeof ItineraryDaySchema>;
 export const ItineraryLegSchema = z.object({
   distanceKm: z.number().optional(),
   durationMin: z.number().optional(),
+  /** Overview polyline Google Directions (per disegno curvo in mappa). */
+  encodedPolyline: z.string().optional(),
 });
 
 export type ItineraryLeg = z.infer<typeof ItineraryLegSchema>;

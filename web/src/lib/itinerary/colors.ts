@@ -1,12 +1,15 @@
 import type { StopType } from "@/lib/itinerary/schema";
 import { ROAMY_PALETTE } from "@/lib/theme/bordeaux-palette";
 
+/** Colori per giorno: tonalità ben separate (mappa + lista). */
 const DAY_ITINERARY_HEX = [
   ROAMY_PALETTE.bordeauxBright,
-  "#9B1A40",
+  "#0F766E",
+  "#1D4ED8",
+  "#B45309",
+  "#7C3AED",
+  "#15803D",
   ROAMY_PALETTE.roseMauve,
-  ROAMY_PALETTE.plumDeep,
-  "#C75B7A",
 ] as const;
 
 export function dayItineraryHex(dayIndex: number): string {
@@ -14,9 +17,9 @@ export function dayItineraryHex(dayIndex: number): string {
   return DAY_ITINERARY_HEX[i] ?? ROAMY_PALETTE.bordeauxBright;
 }
 
-export function dayListAccentClass(dayIndex: number): string {
-  const hex = dayItineraryHex(dayIndex);
-  return `border-l-4 border-l-[${hex}]`;
+/** Solo classi Tailwind statiche; il colore va in `style.borderLeftColor`. */
+export function dayListAccentClass(_dayIndex: number): string {
+  return "border-l-4 border-solid";
 }
 
 export function daySectionBorderClass(dayIndex: number): string {

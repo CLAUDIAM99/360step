@@ -1,16 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { GoogleMap, LoadScript, Marker, Polyline } from "@react-google-maps/api";
+import { Maximize2, Minimize2 } from "lucide-react";
 import type { ItineraryResult, StopType } from "@/lib/itinerary/schema";
 import { MAP_MARKER_MUTED_HEX, dayItineraryHex } from "@/lib/itinerary/colors";
-
-const mapContainerStyle = { width: "100%", height: "min(400px, 50vh)" };
+import {
+  decodeGooglePolyline,
+  greatCircleSample,
+} from "@/lib/maps/polyline";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const MAP_ID =
   process.env.NEXT_PUBLIC_GOOGLE_MAP_ID?.trim() || "DEMO_MAP_ID";
 
-function stopKey(
+export function stopKey(
   dayIndex: number,
   orderInDay: number,
   title: string,
@@ -63,11 +75,68 @@ export function ItineraryResultMap({
 }: Props) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const mapContainerStyle = useMemo(
+    () => ({
+      width: "100%",
+      height: fullscreen ? "min(85vh, 900px)" : "min(400px, 50vh)",
+    }),
+    [fullscreen]
+  );
 
   const sortedDays = useMemo(
     () => [...result.days].sort((a, b) => a.dayIndex - b.dayIndex),
     [result.days]
   );
+
+  const globalStops = useMemo(() => {
+    const flat = sortedDays.flatMap((d) => d.stops);
+    return [...flat].sort((a, b) => {
+      if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+      return a.orderInDay - b.orderInDay;
+    });
+  }, [sortedDays]);
+
+  const legPaths = useMemo(() => {
+    const legs = result.legs ?? [];
+    const out: {
+      path: { lat: number; lng: number }[];
+      dayIndex: number;
+      keyA: string;
+      keyB: string;
+    }[] = [];
+    for (let i = 0; i < globalStops.length - 1; i++) {
+      const a = globalStops[i];
+      const b = globalStops[i + 1];
+      if (
+        a.lat == null ||
+        a.lng == null ||
+        b.lat == null ||
+        b.lng == null
+      ) {
+        continue;
+      }
+      const keyA = stopKey(a.dayIndex, a.orderInDay, a.title, a.placeId);
+      const keyB = stopKey(b.dayIndex, b.orderInDay, b.title, b.placeId);
+      const leg = legs[i];
+      let path: { lat: number; lng: number }[];
+      if (leg?.encodedPolyline) {
+        path = decodeGooglePolyline(leg.encodedPolyline);
+      } else {
+        path = greatCircleSample(
+          { lat: a.lat, lng: a.lng },
+          { lat: b.lat, lng: b.lng },
+          42
+        );
+      }
+      if (path.length >= 2) {
+        out.push({ path, dayIndex: a.dayIndex, keyA, keyB });
+      }
+    }
+    return out;
+  }, [globalStops, result.legs]);
 
   const centerDefault = useMemo(() => {
     for (const day of sortedDays) {
@@ -131,9 +200,26 @@ export function ItineraryResultMap({
   }, []);
 
   useEffect(() => {
+    const onFs = () => {
+      setFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  useEffect(() => {
     if (!map) return;
     fitBoundsForFocus(map, focusedDay);
   }, [map, focusedDay, fitBoundsForFocus]);
+
+  useEffect(() => {
+    if (!map || typeof google === "undefined") return;
+    const id = window.setTimeout(() => {
+      google.maps.event.trigger(map, "resize");
+      fitBoundsForFocus(map, focusedDay);
+    }, fullscreen ? 180 : 0);
+    return () => window.clearTimeout(id);
+  }, [fullscreen, map, focusedDay, fitBoundsForFocus]);
 
   useEffect(() => {
     if (!map || !activeStopKey) return;
@@ -142,6 +228,16 @@ export function ItineraryResultMap({
     map.panTo(point);
     if ((map.getZoom() ?? 0) < 11) map.setZoom(11);
   }, [activeStopKey, coordinateByKey, map]);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      void el.requestFullscreen?.();
+    } else {
+      void document.exitFullscreen?.();
+    }
+  }, []);
 
   if (!apiKey) {
     return (
@@ -167,59 +263,52 @@ export function ItineraryResultMap({
           <code className="rounded bg-muted px-1">maps.googleapis.com</code>
           ).
         </p>
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          center={centerDefault}
-          zoom={10}
-          onLoad={onMapLoad}
-          options={{
-            mapId: MAP_ID,
-            streetViewControl: false,
-            gestureHandling: "greedy",
-          }}
+        <div
+          ref={wrapRef}
+          className={cn(
+            "relative rounded-xl border border-border/80 bg-card/40",
+            fullscreen && "min-h-[70vh]"
+          )}
         >
-          {sortedDays.flatMap((day) => {
-            const ordered = [...day.stops].sort(
-              (a, b) => a.orderInDay - b.orderInDay
-            );
-            const out: ReactNode[] = [];
-            const dayDimmed =
-              focusedDay !== "all" && focusedDay !== day.dayIndex;
-
-            for (let i = 0; i < ordered.length - 1; i++) {
-              const a = ordered[i];
-              const b = ordered[i + 1];
-              if (
-                a.lat == null ||
-                a.lng == null ||
-                b.lat == null ||
-                b.lng == null
-              ) {
-                continue;
+          <div className="absolute right-2 top-2 z-[1] flex gap-1">
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className="h-9 w-9 rounded-full bg-background/95 shadow-md backdrop-blur-sm"
+              onClick={toggleFullscreen}
+              aria-label={
+                fullscreen ? "Esci da schermo intero" : "Schermo intero mappa"
               }
-              const keyA = stopKey(
-                day.dayIndex,
-                a.orderInDay,
-                a.title,
-                a.placeId
-              );
-              const keyB = stopKey(
-                day.dayIndex,
-                b.orderInDay,
-                b.title,
-                b.placeId
-              );
+            >
+              {fullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={centerDefault}
+            zoom={10}
+            onLoad={onMapLoad}
+            options={{
+              mapId: MAP_ID,
+              streetViewControl: false,
+              gestureHandling: "greedy",
+            }}
+          >
+            {legPaths.map((seg, idx) => {
+              const dayDimmed =
+                focusedDay !== "all" && focusedDay !== seg.dayIndex;
               const edgeTouchesActive =
                 activeStopKey != null &&
-                (activeStopKey === keyA || activeStopKey === keyB);
+                (activeStopKey === seg.keyA || activeStopKey === seg.keyB);
               const edgeIsActive =
-                !dayDimmed &&
-                focusedDay === "all" &&
-                edgeTouchesActive;
+                !dayDimmed && focusedDay === "all" && edgeTouchesActive;
               const edgeIsActiveFocusedDay =
-                !dayDimmed &&
-                focusedDay !== "all" &&
-                edgeTouchesActive;
+                !dayDimmed && focusedDay !== "all" && edgeTouchesActive;
 
               let strokeOpacity: number;
               let strokeWeight: number;
@@ -239,75 +328,79 @@ export function ItineraryResultMap({
                 zIndex = edgeIsActiveFocusedDay ? 120 : 35;
               }
 
-              out.push(
+              return (
                 <Polyline
-                  key={`pl-${day.dayIndex}-${i}`}
-                  path={[
-                    { lat: a.lat, lng: a.lng },
-                    { lat: b.lat, lng: b.lng },
-                  ]}
+                  key={`pl-g-${idx}`}
+                  path={seg.path}
                   options={{
-                    strokeColor: dayItineraryHex(day.dayIndex),
+                    strokeColor: dayItineraryHex(seg.dayIndex),
                     strokeOpacity,
                     strokeWeight,
                     zIndex,
                   }}
                 />
               );
-            }
+            })}
 
-            ordered.forEach((s, i) => {
-              if (s.lat == null || s.lng == null) return;
-              const key = stopKey(
-                day.dayIndex,
-                s.orderInDay,
-                s.title,
-                s.placeId
+            {sortedDays.flatMap((day) => {
+              const ordered = [...day.stops].sort(
+                (a, b) => a.orderInDay - b.orderInDay
               );
-              const stopInFocus =
-                focusedDay === "all" || focusedDay === day.dayIndex;
-              const isActive =
-                activeStopKey === key &&
-                stopInFocus &&
-                !dayDimmed;
-              const fillHex = dayDimmed
-                ? MAP_MARKER_MUTED_HEX
-                : dayItineraryHex(day.dayIndex);
-              const zMarker = dayDimmed ? 30 : isActive ? 300 : 100;
-              out.push(
-                <Marker
-                  key={`m-${day.dayIndex}-${i}-${s.title}`}
-                  position={{ lat: s.lat, lng: s.lng }}
-                  title={s.title}
-                  zIndex={zMarker}
-                  onClick={() => onStopSelect(key)}
-                  icon={{
-                    url: markerIconDataUrl(
-                      fillHex,
-                      typeSymbol(s.type),
-                      isActive
-                    ),
-                    scaledSize:
-                      typeof google !== "undefined"
-                        ? new google.maps.Size(
-                            isActive ? 34 : dayDimmed ? 26 : 30,
-                            isActive ? 46 : dayDimmed ? 34 : 40
-                          )
-                        : undefined,
-                    anchor:
-                      typeof google !== "undefined"
-                        ? new google.maps.Point(
-                            isActive ? 17 : dayDimmed ? 13 : 15,
-                            isActive ? 46 : dayDimmed ? 34 : 40
-                          )
-                        : undefined,
-                  }}
-                />
-              );
-            });
-            return out;
-          })}
-        </GoogleMap>
+              const out: ReactNode[] = [];
+              const dayDimmed =
+                focusedDay !== "all" && focusedDay !== day.dayIndex;
+
+              ordered.forEach((s, i) => {
+                if (s.lat == null || s.lng == null) return;
+                const key = stopKey(
+                  day.dayIndex,
+                  s.orderInDay,
+                  s.title,
+                  s.placeId
+                );
+                const stopInFocus =
+                  focusedDay === "all" || focusedDay === day.dayIndex;
+                const isActive =
+                  activeStopKey === key && stopInFocus && !dayDimmed;
+                const fillHex = dayDimmed
+                  ? MAP_MARKER_MUTED_HEX
+                  : dayItineraryHex(day.dayIndex);
+                const zMarker = dayDimmed ? 30 : isActive ? 300 : 100;
+                out.push(
+                  <Marker
+                    key={`m-${day.dayIndex}-${i}-${s.title}`}
+                    position={{ lat: s.lat, lng: s.lng }}
+                    title={s.title}
+                    zIndex={zMarker}
+                    onClick={() => onStopSelect(key)}
+                    icon={{
+                      url: markerIconDataUrl(
+                        fillHex,
+                        typeSymbol(s.type),
+                        isActive
+                      ),
+                      scaledSize:
+                        typeof google !== "undefined"
+                          ? new google.maps.Size(
+                              isActive ? 34 : dayDimmed ? 26 : 30,
+                              isActive ? 46 : dayDimmed ? 34 : 40
+                            )
+                          : undefined,
+                      anchor:
+                        typeof google !== "undefined"
+                          ? new google.maps.Point(
+                              isActive ? 17 : dayDimmed ? 13 : 15,
+                              isActive ? 46 : dayDimmed ? 34 : 40
+                            )
+                          : undefined,
+                    }}
+                  />
+                );
+              });
+              return out;
+            })}
+          </GoogleMap>
+        </div>
       </div>
     </LoadScript>
   );

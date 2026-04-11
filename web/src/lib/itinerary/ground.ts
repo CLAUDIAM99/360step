@@ -4,9 +4,9 @@ import {
   widenBounds,
   type LatLngBounds,
 } from "@/lib/maps/bounds";
-import { geocodeAddress } from "@/lib/maps/geocode";
+import { geocodeAddress, type GeocodeResult } from "@/lib/maps/geocode";
 import { mapsPlaceUrl, textSearchPlaces } from "@/lib/maps/places";
-import { drivingLegSummary } from "@/lib/maps/routes";
+import { drivingDirectionsLeg } from "@/lib/maps/routes";
 import { fetchForecastForRange } from "@/lib/weather/open-meteo";
 import {
   MAX_GROUNDING_CALLS_PER_REQUEST,
@@ -24,6 +24,9 @@ import type {
 } from "@/lib/itinerary/schema";
 
 const EARTH_RADIUS_KM = 6371;
+
+/** Soglia: oltre questa distanza la prima/ultima tappa non coincide con partenza/arrivo dichiarati. */
+const ANCHOR_MAX_DISTANCE_KM = 18;
 
 function haversineKm(
   a: { lat: number; lng: number },
@@ -132,6 +135,117 @@ function withCrossDayStartStops(days: ItineraryDay[]): ItineraryDay[] {
   return out;
 }
 
+function anchorStopFromGeocode(
+  geo: GeocodeResult,
+  title: string,
+  dayIndex: number,
+  orderInDay: number,
+  notes: string
+): GroundedStop {
+  return {
+    title,
+    type: "visit",
+    dayIndex,
+    orderInDay,
+    lat: geo.lat,
+    lng: geo.lng,
+    placeId: geo.placeId,
+    formattedAddress: geo.formattedAddress,
+    mapsUrl: geo.placeId ? mapsPlaceUrl(geo.placeId) : undefined,
+    notes,
+    groundingStatus: "ok",
+  };
+}
+
+async function enforceAnchorStops(
+  rawDays: ItineraryDay[],
+  opts: { startPlaceQuery?: string; endPlaceQuery?: string; mapsApiKey: string }
+): Promise<ItineraryDay[]> {
+  let next = rawDays.map((d) => ({
+    ...d,
+    stops: [...d.stops],
+  }));
+
+  const startQ = opts.startPlaceQuery?.trim();
+  if (startQ && startQ.length >= 2) {
+    const geoStart = await geocodeAddress(startQ, opts.mapsApiKey);
+    if (geoStart) {
+      const day1 = next.find((d) => d.dayIndex === 1);
+      if (day1 && day1.stops.length > 0) {
+        const sorted = sortStops(day1.stops);
+        const first = sorted[0];
+        let tooFar = true;
+        if (first.lat != null && first.lng != null) {
+          const km = haversineKm(
+            { lat: geoStart.lat, lng: geoStart.lng },
+            { lat: first.lat, lng: first.lng }
+          );
+          tooFar = km > ANCHOR_MAX_DISTANCE_KM;
+        }
+        if (tooFar) {
+          const rest = sorted.slice(1);
+          const anchor = anchorStopFromGeocode(
+            geoStart,
+            `Partenza · ${startQ}`,
+            1,
+            0,
+            "Punto di partenza allineato alla tua ricerca."
+          );
+          const merged = [anchor, ...rest].map((s, i) => ({
+            ...s,
+            dayIndex: 1,
+            orderInDay: i,
+          }));
+          next = next.map((d) =>
+            d.dayIndex === 1 ? { ...d, stops: merged } : d
+          );
+        }
+      }
+    }
+  }
+
+  const endQ = opts.endPlaceQuery?.trim();
+  if (endQ && endQ.length >= 2) {
+    const geoEnd = await geocodeAddress(endQ, opts.mapsApiKey);
+    if (geoEnd) {
+      const maxDay = Math.max(0, ...next.map((d) => d.dayIndex));
+      const lastDay = next.find((d) => d.dayIndex === maxDay);
+      if (lastDay && lastDay.stops.length > 0) {
+        const sorted = sortStops(lastDay.stops);
+        const last = sorted[sorted.length - 1];
+        let tooFar = true;
+        if (last.lat != null && last.lng != null) {
+          const km = haversineKm(
+            { lat: geoEnd.lat, lng: geoEnd.lng },
+            { lat: last.lat, lng: last.lng }
+          );
+          tooFar = km > ANCHOR_MAX_DISTANCE_KM;
+        }
+        if (tooFar) {
+          const body = sorted.slice(0, -1);
+          const anchor = anchorStopFromGeocode(
+            geoEnd,
+            `Arrivo · ${endQ}`,
+            maxDay,
+            body.length,
+            "Ultima tappa allineata alla tua ricerca."
+          );
+          const merged = [...body, anchor].map((s, i) => ({
+            ...s,
+            dayIndex: maxDay,
+            orderInDay: i,
+          }));
+          next = next.map((d) =>
+            d.dayIndex === maxDay ? { ...d, stops: merged } : d
+          );
+        }
+      }
+    }
+  }
+
+  return next;
+}
+
 function stripCrossDayCarryStops(days: ItineraryDay[]): ItineraryDay[] {
   const orderedDays = [...days].sort((a, b) => a.dayIndex - b.dayIndex);
   const out: ItineraryDay[] = [];
@@ -166,6 +280,8 @@ export async function groundGeminiPlan(
     transport: Transport;
     time: GenerateItineraryRequest["time"];
     mapsApiKey: string;
+    startPlaceQuery?: string;
+    endPlaceQuery?: string;
   }
 ): Promise<ItineraryResult> {
   let calls = 0;
@@ -238,7 +354,12 @@ export async function groundGeminiPlan(
       stops,
     };
   });
-  const days = withCrossDayStartStops(rawDays);
+  const anchored = await enforceAnchorStops(rawDays, {
+    startPlaceQuery: ctx.startPlaceQuery,
+    endPlaceQuery: ctx.endPlaceQuery,
+    mapsApiKey: ctx.mapsApiKey,
+  });
+  const days = withCrossDayStartStops(anchored);
 
   // Meteo (centro bounds) se date fisse
   if (ctx.time.mode === "date_range") {
@@ -294,11 +415,12 @@ export async function groundGeminiPlan(
       continue;
     }
     calls += 1;
-    const leg = await drivingLegSummary(origin, dest, ctx.mapsApiKey);
+    const leg = await drivingDirectionsLeg(origin, dest, ctx.mapsApiKey);
     if (leg) {
       legs.push({
         distanceKm: Math.round((leg.distanceMeters / 1000) * 10) / 10,
         durationMin: Math.round(leg.durationSeconds / 60),
+        encodedPolyline: leg.encodedPolyline ?? undefined,
       });
     } else {
       if (a.groundingStatus === "ok") {

@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npm run build -w roamy-web",
+  "buildCommand": "npm run build -w roamy-web && node scripts/sync-next-output.mjs",
   "devCommand": "npm run dev -w roamy-web"
 }

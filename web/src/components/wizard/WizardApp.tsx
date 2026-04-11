@@ -36,8 +36,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
+import { LoadScript } from "@react-google-maps/api";
 import { MapAreaPicker } from "@/components/wizard/MapAreaPicker";
 import { ItineraryResultMap } from "@/components/wizard/ItineraryResultMap";
+import { PlaceAutocompleteField } from "@/components/wizard/PlaceAutocompleteInput";
 import type {
   GenerateItineraryRequest,
   GroundedStop,
@@ -140,6 +142,8 @@ const defaultArea = (): GeographicArea => ({
   centerLng: 9.19,
   radiusKm: 50,
 });
+
+const MAPS_PUBLIC_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export function WizardApp() {
   const [hasEntered, setHasEntered] = useState(false);
@@ -653,57 +657,124 @@ export function WizardApp() {
                 indica partenza e arrivo (con eventuali tappe intermedie).
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Tabs
-                value={areaTab}
-                onValueChange={(v) =>
-                  setAreaTab(v as "polygon" | "radius" | "corridor")
+            {MAPS_PUBLIC_KEY ? (
+              <LoadScript
+                googleMapsApiKey={MAPS_PUBLIC_KEY}
+                libraries={["places"]}
+                loadingElement={
+                  <p className="px-6 py-4 text-sm text-muted-foreground">
+                    Carico Google Maps e suggerimenti luoghi…
+                  </p>
                 }
               >
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="polygon">Area disegnata</TabsTrigger>
-                  <TabsTrigger value="radius">Raggio</TabsTrigger>
-                  <TabsTrigger value="corridor">A → B</TabsTrigger>
-                </TabsList>
-                {(areaTab === "polygon" || areaTab === "radius") && (
-                  <div className="mt-4">
-                    <MapAreaPicker
-                      mode={areaTab === "polygon" ? "polygon" : "radius"}
-                      onAreaChange={handleAreaMap}
-                    />
-                  </div>
-                )}
-                <TabsContent value="corridor" className="mt-4 space-y-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="cs">Partenza</Label>
-                    <Input
-                      id="cs"
-                      value={corridorStart}
-                      onChange={(e) => setCorridorStart(e.target.value)}
-                      placeholder="Città o indirizzo"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="cv">Tappe intermedie (opzionale)</Label>
-                    <Input
-                      id="cv"
-                      value={corridorVia}
-                      onChange={(e) => setCorridorVia(e.target.value)}
-                      placeholder="Separate da virgola"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="ce">Arrivo</Label>
-                    <Input
-                      id="ce"
-                      value={corridorEnd}
-                      onChange={(e) => setCorridorEnd(e.target.value)}
-                      placeholder="Città o indirizzo"
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
+                <CardContent>
+                  <Tabs
+                    value={areaTab}
+                    onValueChange={(v) =>
+                      setAreaTab(v as "polygon" | "radius" | "corridor")
+                    }
+                  >
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="polygon">Area disegnata</TabsTrigger>
+                      <TabsTrigger value="radius">Raggio</TabsTrigger>
+                      <TabsTrigger value="corridor">A → B</TabsTrigger>
+                    </TabsList>
+                    {(areaTab === "polygon" || areaTab === "radius") && (
+                      <div className="mt-4">
+                        <MapAreaPicker
+                          mode={areaTab === "polygon" ? "polygon" : "radius"}
+                          onAreaChange={handleAreaMap}
+                        />
+                      </div>
+                    )}
+                    <TabsContent value="corridor" className="mt-4 space-y-3">
+                      <PlaceAutocompleteField
+                        id="cs"
+                        label="Partenza"
+                        placeholder="Inizia a digitare: città o indirizzo"
+                        value={corridorStart}
+                        onChange={setCorridorStart}
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="cv">Tappe intermedie (opzionale)</Label>
+                        <Input
+                          id="cv"
+                          value={corridorVia}
+                          onChange={(e) => setCorridorVia(e.target.value)}
+                          placeholder="Separate da virgola"
+                        />
+                      </div>
+                      <PlaceAutocompleteField
+                        id="ce"
+                        label="Arrivo"
+                        placeholder="Inizia a digitare: città o indirizzo"
+                        value={corridorEnd}
+                        onChange={setCorridorEnd}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </LoadScript>
+            ) : (
+              <CardContent>
+                <Tabs
+                  value={areaTab}
+                  onValueChange={(v) =>
+                    setAreaTab(v as "polygon" | "radius" | "corridor")
+                  }
+                >
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="polygon">Area disegnata</TabsTrigger>
+                    <TabsTrigger value="radius">Raggio</TabsTrigger>
+                    <TabsTrigger value="corridor">A → B</TabsTrigger>
+                  </TabsList>
+                  {(areaTab === "polygon" || areaTab === "radius") && (
+                    <div className="mt-4">
+                      <MapAreaPicker
+                        mode={areaTab === "polygon" ? "polygon" : "radius"}
+                        onAreaChange={handleAreaMap}
+                      />
+                    </div>
+                  )}
+                  <TabsContent value="corridor" className="mt-4 space-y-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="cs-fallback">Partenza</Label>
+                      <Input
+                        id="cs-fallback"
+                        value={corridorStart}
+                        onChange={(e) => setCorridorStart(e.target.value)}
+                        placeholder="Città o indirizzo"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="cv-fallback">Tappe intermedie (opzionale)</Label>
+                      <Input
+                        id="cv-fallback"
+                        value={corridorVia}
+                        onChange={(e) => setCorridorVia(e.target.value)}
+                        placeholder="Separate da virgola"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ce-fallback">Arrivo</Label>
+                      <Input
+                        id="ce-fallback"
+                        value={corridorEnd}
+                        onChange={(e) => setCorridorEnd(e.target.value)}
+                        placeholder="Città o indirizzo"
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Per mappa e suggerimenti luoghi serve{" "}
+                  <code className="rounded bg-muted px-1">
+                    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+                  </code>
+                  .
+                </p>
+              </CardContent>
+            )}
           </Card>
         )}
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Circle, GoogleMap, LoadScript, Polyline, Polygon } from "@react-google-maps/api";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Circle, GoogleMap, Polyline, Polygon } from "@react-google-maps/api";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,22 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [polyPath, setPolyPath] = useState<google.maps.LatLngLiteral[]>([]);
   const [polyDone, setPolyDone] = useState(false);
+  /** Solo dopo «Disegna l’area» i clic aggiungono vertici. */
+  const [polygonDrawing, setPolygonDrawing] = useState(false);
+
+  const [radiusSearch, setRadiusSearch] = useState("");
+  const [radiusPredOpen, setRadiusPredOpen] = useState(false);
+  const [radiusPredictions, setRadiusPredictions] = useState<
+    google.maps.places.AutocompletePrediction[]
+  >([]);
+  const radiusAutoRef = useRef<google.maps.places.AutocompleteService | null>(
+    null
+  );
+  const radiusPlacesRef = useRef<google.maps.places.PlacesService | null>(null);
+  const radiusDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const radiusWrapRef = useRef<HTMLDivElement>(null);
+  const radiusListId = useId();
+
   const advMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(
     null
   );
@@ -59,6 +75,76 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
     [center.lat, center.lng, onAreaChange]
   );
 
+  const applyRadiusPlace = useCallback(
+    (p: google.maps.places.AutocompletePrediction) => {
+      if (!radiusPlacesRef.current) return;
+      radiusPlacesRef.current.getDetails(
+        { placeId: p.place_id, fields: ["geometry"] },
+        (place, status) => {
+          if (
+            status !== google.maps.places.PlacesServiceStatus.OK ||
+            !place?.geometry?.location
+          ) {
+            return;
+          }
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          setCenter({ lat, lng });
+          setRadiusSearch(p.description);
+          setRadiusPredOpen(false);
+          setRadiusPredictions([]);
+          map?.panTo({ lat, lng });
+          map?.setZoom(10);
+          onAreaChange({
+            kind: "radius",
+            centerLat: lat,
+            centerLng: lng,
+            radiusKm,
+          });
+        }
+      );
+    },
+    [map, onAreaChange, radiusKm]
+  );
+
+  const fetchRadiusPredictions = useCallback((text: string) => {
+    if (!radiusAutoRef.current || text.trim().length < 2) {
+      setRadiusPredictions([]);
+      return;
+    }
+    radiusAutoRef.current.getPlacePredictions(
+      { input: text, types: ["geocode"] },
+      (results, status) => {
+        if (
+          status === google.maps.places.PlacesServiceStatus.OK &&
+          results?.length
+        ) {
+          setRadiusPredictions(results.slice(0, 8));
+        } else {
+          setRadiusPredictions([]);
+        }
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!window.google?.maps?.places) return;
+    radiusAutoRef.current = new google.maps.places.AutocompleteService();
+    radiusPlacesRef.current = new google.maps.places.PlacesService(
+      document.createElement("div")
+    );
+  }, []);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!radiusWrapRef.current?.contains(e.target as Node)) {
+        setRadiusPredOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
   const closePolygon = useCallback(() => {
     if (polyPath.length < 3) return;
     const coords: [number, number][] = polyPath.map((p) => [p.lng, p.lat]);
@@ -72,27 +158,32 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
       geojson: { type: "Polygon", coordinates: [coords] },
     });
     setPolyDone(true);
+    setPolygonDrawing(false);
   }, [onAreaChange, polyPath]);
 
   const resetPolygon = useCallback(() => {
     setPolyPath([]);
     setPolyDone(false);
+    setPolygonDrawing(false);
     onAreaChange(null);
   }, [onAreaChange]);
 
   const onMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
-      if (mode !== "polygon" || polyDone || !e.latLng) return;
+      if (mode !== "polygon" || polyDone || !polygonDrawing || !e.latLng) {
+        return;
+      }
       const lat = e.latLng.lat();
       const lng = e.latLng.lng();
       setPolyPath((p) => [...p, { lat, lng }]);
     },
-    [mode, polyDone]
+    [mode, polyDone, polygonDrawing]
   );
 
   useEffect(() => {
     setPolyPath([]);
     setPolyDone(false);
+    setPolygonDrawing(false);
   }, [mode]);
 
   useEffect(() => {
@@ -170,17 +261,60 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
       : polyPath;
 
   return (
-    <LoadScript
-      googleMapsApiKey={apiKey}
-      loadingElement={<p className="text-sm text-muted-foreground">Carico mappa…</p>}
-    >
-      <div className="space-y-3">
-        <p className="text-xs text-amber-800 dark:text-amber-200/90">
-          Se la mappa non carica o vedi errori in console, disattiva blocchi
-          annunci/tracker per questo sito: spesso bloccano{" "}
-          <code className="rounded bg-muted px-1">maps.googleapis.com</code>.
-        </p>
-        {mode === "radius" && (
+    <div className="space-y-3">
+      <p className="text-xs text-amber-800 dark:text-amber-200/90">
+        Se la mappa non carica o vedi errori in console, disattiva blocchi
+        annunci/tracker per questo sito: spesso bloccano{" "}
+        <code className="rounded bg-muted px-1">maps.googleapis.com</code>.
+      </p>
+      {mode === "radius" && (
+        <div className="space-y-3">
+          <div ref={radiusWrapRef} className="relative space-y-1">
+            <Label htmlFor="radius-search">Cerca luogo (centro del raggio)</Label>
+            <Input
+              id="radius-search"
+              type="text"
+              autoComplete="off"
+              placeholder="Es. Milano, Lago di Como…"
+              value={radiusSearch}
+              onChange={(e) => {
+                const v = e.target.value;
+                setRadiusSearch(v);
+                if (radiusDebounceRef.current) {
+                  clearTimeout(radiusDebounceRef.current);
+                }
+                radiusDebounceRef.current = setTimeout(() => {
+                  fetchRadiusPredictions(v);
+                  setRadiusPredOpen(v.trim().length >= 2);
+                }, 280);
+              }}
+              onFocus={() => {
+                if (radiusSearch.trim().length >= 2) {
+                  fetchRadiusPredictions(radiusSearch);
+                  setRadiusPredOpen(true);
+                }
+              }}
+            />
+            {radiusPredOpen && radiusPredictions.length > 0 && (
+              <ul
+                id={radiusListId}
+                role="listbox"
+                className="absolute z-50 mt-1 max-h-52 w-full overflow-auto rounded-md border bg-popover text-sm shadow-md"
+              >
+                {radiusPredictions.map((p) => (
+                  <li
+                    key={p.place_id}
+                    role="option"
+                    className="cursor-pointer border-b border-border/50 px-3 py-2 last:border-0 hover:bg-muted/80"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => applyRadiusPlace(p)}
+                  >
+                    {p.description}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
               <Label htmlFor="radius-km">Raggio (km)</Label>
@@ -194,16 +328,33 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
               />
             </div>
             <p className="text-xs text-muted-foreground max-w-sm">
-              Trascina il segnaposto per centrare. L’itinerario sarà generato
-              entro il cerchio.
+              Cerca un luogo per centrare il cerchio, oppure trascina il
+              segnaposto sulla mappa.
             </p>
           </div>
-        )}
-        {mode === "polygon" && (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>
-              Clic sulla mappa per aggiungere vertici (3+), poi «Chiudi area».
-            </span>
+        </div>
+      )}
+      {mode === "polygon" && (
+        <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center">
+          <span className="max-w-xl">
+            {!polygonDrawing && !polyDone &&
+              "Attiva «Disegna l’area», poi clicca sulla mappa per i vertici."}
+            {polygonDrawing && !polyDone &&
+              "Clic sulla mappa per aggiungere punti (3+), poi «Chiudi area»."}
+            {polyDone && "Area chiusa. Usa «Reimposta» per ricominciare."}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {!polyDone && (
+              <Button
+                type="button"
+                variant={polygonDrawing ? "secondary" : "default"}
+                size="sm"
+                disabled={polyDone}
+                onClick={() => setPolygonDrawing((d) => !d)}
+              >
+                {polygonDrawing ? "Interrompi disegno" : "Disegna l’area"}
+              </Button>
+            )}
             <Button
               type="button"
               variant="secondary"
@@ -217,54 +368,54 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
               Reimposta
             </Button>
           </div>
+        </div>
+      )}
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={center}
+        zoom={mode === "radius" ? 8 : 6}
+        onLoad={onMapLoad}
+        onClick={onMapClick}
+        options={{
+          mapId: MAP_ID,
+          streetViewControl: false,
+          gestureHandling: "greedy",
+        }}
+      >
+        {mode === "radius" && (
+          <Circle
+            center={center}
+            radius={radiusKm * 1000}
+            options={{
+              fillOpacity: 0.08,
+              strokeOpacity: 0.6,
+              strokeWeight: 1,
+            }}
+          />
         )}
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          center={center}
-          zoom={mode === "radius" ? 8 : 6}
-          onLoad={onMapLoad}
-          onClick={onMapClick}
-          options={{
-            mapId: MAP_ID,
-            streetViewControl: false,
-            gestureHandling: "greedy",
-          }}
-        >
-          {mode === "radius" && (
-            <Circle
-              center={center}
-              radius={radiusKm * 1000}
-              options={{
-                fillOpacity: 0.08,
-                strokeOpacity: 0.6,
-                strokeWeight: 1,
-              }}
-            />
-          )}
-          {mode === "polygon" && polyPath.length > 0 && (
-            <>
-              {polyDone && polyPath.length >= 3 ? (
-                <Polygon
-                  path={polyPath}
-                  options={{
-                    fillOpacity: 0.2,
-                    strokeWeight: 2,
-                    clickable: false,
-                  }}
-                />
-              ) : (
-                <Polyline
-                  path={polygonPreviewPath}
-                  options={{
-                    strokeOpacity: 0.9,
-                    strokeWeight: 2,
-                  }}
-                />
-              )}
-            </>
-          )}
-        </GoogleMap>
-      </div>
-    </LoadScript>
+        {mode === "polygon" && polyPath.length > 0 && (
+          <>
+            {polyDone && polyPath.length >= 3 ? (
+              <Polygon
+                path={polyPath}
+                options={{
+                  fillOpacity: 0.2,
+                  strokeWeight: 2,
+                  clickable: false,
+                }}
+              />
+            ) : (
+              <Polyline
+                path={polygonPreviewPath}
+                options={{
+                  strokeOpacity: 0.9,
+                  strokeWeight: 2,
+                }}
+              />
+            )}
+          </>
+        )}
+      </GoogleMap>
+    </div>
   );
 }

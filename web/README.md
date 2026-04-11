@@ -5,8 +5,8 @@ App principale: wizard itinerari con **Gemini**, **Google Maps Platform** (groun
 ## Sviluppo locale
 
 ```bash
-cd web
-cp .env.example .env.local
+# Dalla root del repo (workspaces npm)
+cp web/.env.example web/.env.local
 # Compila GEMINI_API_KEY, GOOGLE_MAPS_API_KEY, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 npm install
 npm run dev

@@ -2,21 +2,26 @@
   "name": "roamy",
   "version": "1.0.0",
   "private": true,
-  "description": "Roamy — AI travel planner (static app + lightweight server for Maps config).",
+  "description": "Roamy — monorepo: app Next in web/, server legacy opzionale.",
   "main": "server.js",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
-    "dev": "npm run dev --prefix web",
-    "build": "npm run build --prefix web",
+    "dev": "npm run dev -w roamy-web",
+    "build": "npm run build -w roamy-web",
     "start": "node server.js",
-    "start:web": "npm run start --prefix web",
+    "start:web": "npm run start -w roamy-web",
     "deploy": "cd web && npx vercel@latest --prod"
   },
   "dependencies": {
     "dotenv": "^16.6.1",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "next": "^15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }
-

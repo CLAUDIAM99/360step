@@ -1,10 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
-import { Loader2, Moon, Sun } from "lucide-react";
+import {
+  ArrowDown,
+  ChevronDown,
+  ChevronUp,
+  Fuel,
+  Loader2,
+  MapPin,
+  Moon,
+  ParkingCircle,
+  Sun,
+  UtensilsCrossed,
+  BedDouble,
+  Mountain,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,6 +43,7 @@ import type {
   GroundedStop,
   ItineraryLeg,
   ItineraryResult,
+  StopType,
   Pace,
   Transport,
   TripTheme,
@@ -49,6 +64,65 @@ const THEME_OPTIONS: { id: TripTheme; label: string }[] = [
 ];
 
 const STORAGE_KEY = "roamy-wizard-draft-v1";
+
+type StopTypeMeta = {
+  label: string;
+  icon: LucideIcon;
+  badgeClass: string;
+};
+
+const STOP_TYPE_META: Record<StopType, StopTypeMeta> = {
+  visit: {
+    label: "Tappa",
+    icon: MapPin,
+    badgeClass: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  },
+  meal: {
+    label: "Ristorante",
+    icon: UtensilsCrossed,
+    badgeClass: "bg-red-500/10 text-red-700 dark:text-red-300",
+  },
+  sleep: {
+    label: "Alloggio",
+    icon: BedDouble,
+    badgeClass: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  },
+  parking: {
+    label: "Parcheggio",
+    icon: ParkingCircle,
+    badgeClass: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+  },
+  camper_stop: {
+    label: "Area sosta",
+    icon: ParkingCircle,
+    badgeClass: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+  },
+  scenic: {
+    label: "Panoramica",
+    icon: Mountain,
+    badgeClass: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  },
+  fuel: {
+    label: "Carburante",
+    icon: Fuel,
+    badgeClass: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  },
+  other: {
+    label: "Altro",
+    icon: MapPin,
+    badgeClass: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+  },
+};
+
+function buildStopKey(stop: GroundedStop): string {
+  return `${stop.dayIndex}:${stop.orderInDay}:${stop.placeId ?? stop.title}`;
+}
+
+function googleMapsHref(stop: GroundedStop): string {
+  if (stop.mapsUrl) return stop.mapsUrl;
+  const query = encodeURIComponent(stop.formattedAddress ?? stop.title);
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+}
 
 function legBetweenLabel(leg: ItineraryLeg | undefined): string {
   if (!leg) return "→ Distanza non disponibile";
@@ -89,6 +163,9 @@ export function WizardApp() {
   const [result, setResult] = useState<ItineraryResult | null>(null);
   const [insertText, setInsertText] = useState("");
   const [insertLoading, setInsertLoading] = useState(false);
+  const [activeStopKey, setActiveStopKey] = useState<string | null>(null);
+  const [expandedStops, setExpandedStops] = useState<Record<string, boolean>>({});
+  const stopRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -142,32 +219,79 @@ export function WizardApp() {
   const itineraryFlatRows = useMemo(() => {
     if (!result) {
       return [] as {
+        key: string;
         stop: GroundedStop;
         dayIndex: number;
         weatherSummary: string | undefined;
-        showDayHeader: boolean;
+        globalIndex: number;
+        hasNext: boolean;
       }[];
     }
     const rows: {
+      key: string;
       stop: GroundedStop;
       dayIndex: number;
       weatherSummary: string | undefined;
-      showDayHeader: boolean;
+      globalIndex: number;
+      hasNext: boolean;
     }[] = [];
     const sortedDays = [...result.days].sort((a, b) => a.dayIndex - b.dayIndex);
+    let globalIndex = 0;
     for (const day of sortedDays) {
       const stops = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
       stops.forEach((s, i) => {
         rows.push({
+          key: buildStopKey(s),
           stop: s,
           dayIndex: day.dayIndex,
           weatherSummary: i === 0 ? day.weatherSummary : undefined,
-          showDayHeader: i === 0,
+          globalIndex,
+          hasNext: false,
         });
+        globalIndex += 1;
       });
     }
-    return rows;
+    return rows.map((row, index) => ({
+      ...row,
+      globalIndex: index,
+      hasNext: index < rows.length - 1,
+    }));
   }, [result]);
+
+  const rowsByDay = useMemo(() => {
+    const byDay = new Map<number, (typeof itineraryFlatRows)[number][]>();
+    for (const row of itineraryFlatRows) {
+      const current = byDay.get(row.dayIndex) ?? [];
+      current.push(row);
+      byDay.set(row.dayIndex, current);
+    }
+    return [...byDay.entries()].sort((a, b) => a[0] - b[0]);
+  }, [itineraryFlatRows]);
+
+  useEffect(() => {
+    if (!itineraryFlatRows.length) {
+      setActiveStopKey(null);
+      setExpandedStops({});
+      return;
+    }
+    setActiveStopKey(itineraryFlatRows[0].key);
+    setExpandedStops({});
+  }, [itineraryFlatRows]);
+
+  const onSelectStop = useCallback((key: string) => {
+    setActiveStopKey(key);
+    setExpandedStops((prev) => ({ ...prev, [key]: true }));
+    requestAnimationFrame(() => {
+      stopRefs.current[key]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }, []);
+
+  const toggleExpanded = useCallback((key: string) => {
+    setExpandedStops((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
 
   const toggleTheme = (id: TripTheme) => {
     setThemes((prev) =>
@@ -563,64 +687,130 @@ export function WizardApp() {
               <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                 <div className="min-w-0 space-y-4">
                   <ScrollArea className="h-[min(420px,50vh)] pr-3 lg:h-[min(520px,62vh)]">
-                    <ul className="space-y-1">
-                      {itineraryFlatRows.map((row, idx) => (
-                        <li key={`${row.dayIndex}-${row.stop.orderInDay}-${row.stop.title}`}>
-                          {row.showDayHeader && (
-                            <div className="mb-2 mt-4 flex flex-wrap items-center gap-2 first:mt-0">
-                              <Badge variant="secondary">
-                                Giorno {row.dayIndex}
-                              </Badge>
-                              {row.weatherSummary && (
-                                <span className="text-xs text-muted-foreground">
-                                  {row.weatherSummary}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <div className="rounded-lg border bg-card p-3 text-sm">
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <div>
-                                <p className="font-medium">{row.stop.title}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {row.stop.type}
-                                  {row.stop.groundingStatus === "not_found" &&
-                                    " · da verificare"}
-                                </p>
-                                {row.stop.formattedAddress && (
-                                  <p className="mt-1 text-xs">
-                                    {row.stop.formattedAddress}
-                                  </p>
-                                )}
-                              </div>
-                              {row.stop.mapsUrl && (
-                                <a
-                                  href={row.stop.mapsUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs font-medium text-primary underline"
-                                >
-                                  Maps
-                                </a>
-                              )}
-                            </div>
-                            {row.stop.notes && (
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                {row.stop.notes}
-                              </p>
+                    <div className="space-y-4">
+                      {rowsByDay.map(([dayIndex, dayRows]) => (
+                        <section key={dayIndex} className="rounded-xl border bg-card/70">
+                          <header className="flex flex-wrap items-center gap-2 rounded-t-xl border-b bg-muted/40 px-3 py-2">
+                            <Badge variant="secondary" className="text-xs">
+                              Giorno {dayIndex}
+                            </Badge>
+                            {dayRows[0]?.weatherSummary && (
+                              <span className="text-xs text-muted-foreground">
+                                {dayRows[0].weatherSummary}
+                              </span>
                             )}
-                          </div>
-                          {idx < itineraryFlatRows.length - 1 && (
-                            <p
-                              className="my-2 pl-3 text-xs text-muted-foreground border-l-2 border-primary/25"
-                              aria-label="Tratto verso la tappa successiva"
-                            >
-                              {legBetweenLabel(result.legs?.[idx])}
-                            </p>
-                          )}
-                        </li>
+                          </header>
+                          <ul className="space-y-2 p-3">
+                            {dayRows.map((row) => {
+                              const typeMeta = STOP_TYPE_META[row.stop.type];
+                              const TypeIcon = typeMeta.icon;
+                              const expanded = !!expandedStops[row.key];
+                              const isActive = activeStopKey === row.key;
+                              return (
+                                <li
+                                  key={row.key}
+                                  ref={(el) => {
+                                    stopRefs.current[row.key] = el;
+                                  }}
+                                  className="space-y-2"
+                                >
+                                  <div
+                                    className={cn(
+                                      "rounded-lg border p-3 text-sm transition-colors",
+                                      isActive
+                                        ? "border-primary bg-primary/5"
+                                        : "bg-background"
+                                    )}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onSelectStop(row.key);
+                                        toggleExpanded(row.key);
+                                      }}
+                                      className="flex w-full items-start justify-between gap-3 text-left"
+                                    >
+                                      <div className="space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="font-medium">
+                                            {row.stop.title}
+                                          </span>
+                                          <span
+                                            className={cn(
+                                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
+                                              typeMeta.badgeClass
+                                            )}
+                                          >
+                                            <TypeIcon className="h-3.5 w-3.5" />
+                                            {typeMeta.label}
+                                          </span>
+                                          {row.stop.groundingStatus === "not_found" && (
+                                            <span className="text-[11px] text-amber-700 dark:text-amber-300">
+                                              da verificare
+                                            </span>
+                                          )}
+                                        </div>
+                                        {row.stop.formattedAddress && (
+                                          <p className="text-xs text-muted-foreground">
+                                            {row.stop.formattedAddress}
+                                          </p>
+                                        )}
+                                      </div>
+                                      {expanded ? (
+                                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                      ) : (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                    </button>
+
+                                    {expanded && (
+                                      <div className="mt-3 space-y-2 border-t pt-3 text-xs">
+                                        <a
+                                          href={googleMapsHref(row.stop)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 font-medium text-primary underline"
+                                        >
+                                          <MapPin className="h-3.5 w-3.5" />
+                                          Apri su Google Maps
+                                        </a>
+                                        {row.stop.notes && (
+                                          <p className="text-muted-foreground">
+                                            {row.stop.notes}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {row.hasNext && (
+                                    <div
+                                      className="rounded-md border border-dashed bg-muted/30 px-3 py-2"
+                                      onClick={() => onSelectStop(row.key)}
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          onSelectStop(row.key);
+                                        }
+                                      }}
+                                    >
+                                      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <ArrowDown className="h-3.5 w-3.5" />
+                                        {legBetweenLabel(
+                                          result.legs?.[row.globalIndex]
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </section>
                       ))}
-                    </ul>
+                    </div>
                   </ScrollArea>
 
                   <details className="rounded-lg border bg-muted/30 p-3 text-sm">
@@ -637,7 +827,11 @@ export function WizardApp() {
                 </div>
 
                 <div className="min-w-0 space-y-4">
-                  <ItineraryResultMap result={result} />
+                  <ItineraryResultMap
+                    result={result}
+                    activeStopKey={activeStopKey}
+                    onStopSelect={onSelectStop}
+                  />
                   <div className="hidden space-y-2 rounded-lg border bg-card p-4 lg:block">
                     <Label htmlFor="insert-desktop">
                       Aggiungi una tappa da non perdere

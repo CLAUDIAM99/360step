@@ -70,6 +70,95 @@ function sortStops(stops: GroundedStop[]): GroundedStop[] {
   });
 }
 
+function areStopsEquivalent(a: GroundedStop, b: GroundedStop): boolean {
+  if (a.placeId && b.placeId) return a.placeId === b.placeId;
+  if (
+    a.lat != null &&
+    a.lng != null &&
+    b.lat != null &&
+    b.lng != null &&
+    Math.abs(a.lat - b.lat) < 0.0001 &&
+    Math.abs(a.lng - b.lng) < 0.0001
+  ) {
+    return true;
+  }
+  return a.title.trim().toLowerCase() === b.title.trim().toLowerCase();
+}
+
+function withCrossDayStartStops(days: ItineraryDay[]): ItineraryDay[] {
+  const orderedDays = [...days].sort((a, b) => a.dayIndex - b.dayIndex);
+  const out: ItineraryDay[] = [];
+  let previousDayLastStop: GroundedStop | undefined;
+
+  for (const day of orderedDays) {
+    const currentStops = sortStops(day.stops).map((s, index) => ({
+      ...s,
+      dayIndex: day.dayIndex,
+      orderInDay: index,
+    }));
+
+    let withCarry = currentStops;
+    if (previousDayLastStop) {
+      const first = currentStops[0];
+      const alreadyStartsFromPrevious =
+        first != null && areStopsEquivalent(previousDayLastStop, first);
+      if (!alreadyStartsFromPrevious) {
+        withCarry = [
+          {
+            ...previousDayLastStop,
+            dayIndex: day.dayIndex,
+            orderInDay: 0,
+            notes:
+              previousDayLastStop.notes ??
+              "Ripartenza dalla tappa finale del giorno precedente.",
+          },
+          ...currentStops.map((s) => ({
+            ...s,
+            dayIndex: day.dayIndex,
+          })),
+        ];
+      }
+    }
+
+    const normalizedStops = withCarry.map((s, index) => ({
+      ...s,
+      dayIndex: day.dayIndex,
+      orderInDay: index,
+    }));
+    out.push({ ...day, stops: normalizedStops });
+    previousDayLastStop = normalizedStops[normalizedStops.length - 1];
+  }
+
+  return out;
+}
+
+function stripCrossDayCarryStops(days: ItineraryDay[]): ItineraryDay[] {
+  const orderedDays = [...days].sort((a, b) => a.dayIndex - b.dayIndex);
+  const out: ItineraryDay[] = [];
+  let previousDayLastStop: GroundedStop | undefined;
+
+  for (const day of orderedDays) {
+    const orderedStops = sortStops(day.stops);
+    let effectiveStops = orderedStops;
+    if (
+      previousDayLastStop &&
+      orderedStops[0] &&
+      areStopsEquivalent(previousDayLastStop, orderedStops[0])
+    ) {
+      effectiveStops = orderedStops.slice(1);
+    }
+    const normalizedStops = effectiveStops.map((s, index) => ({
+      ...s,
+      dayIndex: day.dayIndex,
+      orderInDay: index,
+    }));
+    out.push({ ...day, stops: normalizedStops });
+    previousDayLastStop = normalizedStops[normalizedStops.length - 1];
+  }
+
+  return out;
+}
+
 export async function groundGeminiPlan(
   plan: GeminiPlan,
   ctx: {
@@ -141,7 +230,7 @@ export async function groundGeminiPlan(
     byDay.set(g.dayIndex, list);
   }
 
-  const days: ItineraryDay[] = plan.days.map((d) => {
+  const rawDays: ItineraryDay[] = plan.days.map((d) => {
     const stops = sortStops(byDay.get(d.dayIndex) ?? []);
     return {
       dayIndex: d.dayIndex,
@@ -149,6 +238,7 @@ export async function groundGeminiPlan(
       stops,
     };
   });
+  const days = withCrossDayStartStops(rawDays);
 
   // Meteo (centro bounds) se date fisse
   if (ctx.time.mode === "date_range") {
@@ -235,10 +325,11 @@ export async function groundGeminiPlan(
 export function itineraryResultToGeminiPlan(
   it: ItineraryResult
 ): GeminiPlan {
+  const days = stripCrossDayCarryStops(it.days);
   return {
     summary: it.summary,
     bestPeriodNote: it.bestPeriodNote,
-    days: it.days.map((d) => ({
+    days: days.map((d) => ({
       dayIndex: d.dayIndex,
       label: d.label,
       stops: d.stops.map((s) => ({

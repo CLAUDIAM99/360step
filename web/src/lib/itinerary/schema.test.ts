@@ -82,4 +82,36 @@ describe("ItineraryResultSchema", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("valida categorie diverse e leg senza distanza disponibile", () => {
+    const parsed = ItineraryResultSchema.safeParse({
+      id: "x",
+      summary: "Test categorie",
+      transport: "car",
+      days: [
+        {
+          dayIndex: 1,
+          stops: [
+            {
+              title: "Parcheggio Centro",
+              type: "parking",
+              dayIndex: 1,
+              orderInDay: 0,
+              groundingStatus: "ok",
+            },
+            {
+              title: "Ristorante Lago",
+              type: "meal",
+              dayIndex: 1,
+              orderInDay: 1,
+              groundingStatus: "ok",
+            },
+          ],
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      legs: [{}],
+    });
+    expect(parsed.success).toBe(true);
+  });
 });

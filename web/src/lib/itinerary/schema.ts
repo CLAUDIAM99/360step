@@ -92,6 +92,7 @@ export const StopTypeSchema = z.preprocess((val) => {
     ? t
     : "other";
 }, z.enum(STOP_TYPE_VALUES));
+export type StopType = z.infer<typeof StopTypeSchema>;
 
 /** Output Gemini (prima del grounding) */
 export const GeminiPlannedStopSchema = z.object({

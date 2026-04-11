@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
-/** Monorepo: on Vercel the project root is the git root, so place `.next` there. Locally keep `web/.next`. */
+/**
+ * L'output di build resta in `web/.next` (default). Non impostare `distDir` fuori
+ * dalla cartella dell'app (es. `../.next`): Next.js lo rifiuta e il build su Vercel fallisce.
+ */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  ...(process.env.VERCEL ? { distDir: "../.next" } : {}),
 };
 
 export default nextConfig;

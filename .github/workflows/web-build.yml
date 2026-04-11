@@ -1,0 +1,23 @@
+# Blocca regressioni di build prima che arrivino su Vercel (stesso comando della root package.json).
+name: Web build
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Production build (same as Vercel workspace build)
+        run: npm run build

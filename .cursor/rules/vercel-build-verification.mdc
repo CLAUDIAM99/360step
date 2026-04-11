@@ -1,0 +1,10 @@
+---
+description: Verifica build Next.js prima di deploy o merge che impattano Vercel; monorepo web in web/
+alwaysApply: true
+---
+
+# Deploy Vercel e build `web/`
+
+- **Prima** di suggerire deploy su Vercel, merge su `main`, o modifiche a `vercel.json` / flusso CI: eseguire dalla **root del repo** `npm install` (se necessario) e **`npm run build`**. Il comando root usa workspaces e lancia `next build` del pacchetto `roamy-web` in `web/`.
+- **Non** reintrodurre `distDir` puntato a directory **fuori** da `web/` (es. `../.next`): Next.js richiede che `distDir` sia dentro la directory del progetto; altrimenti il build in produzione (Vercel) fallisce.
+- In dubbio, allinearsi a `.github/workflows/web-build.yml` (build su PR/push) e allo step di verifica in `vercel-production.yml` prima del deploy.

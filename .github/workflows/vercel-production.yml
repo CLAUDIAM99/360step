@@ -25,6 +25,12 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify production build (must pass before deploy)
+        run: npm run build
+
       - name: Deploy to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -37,5 +43,4 @@ jobs:
             exit 0
           fi
           npm install -g vercel@latest
-          npm install
           vercel deploy --prod --token "$VERCEL_TOKEN" --yes

@@ -1,0 +1,42 @@
+# Deploy su Vercel a ogni push su main/master (se i secret sono impostati).
+#
+# Secret GitHub (repo → Settings → Secrets → Actions):
+#   VERCEL_TOKEN       → https://vercel.com/account/tokens
+#   VERCEL_ORG_ID      → Vercel → Project → Settings → General
+#   VERCEL_PROJECT_ID  → stessa pagina
+#
+# Collega prima il repo da vercel.com/import oppure: cd web && npx vercel link
+
+name: Vercel Production
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Deploy to Vercel
+        working-directory: web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -e
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::notice::Deploy Vercel saltato: configura i secret VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID."
+            exit 0
+          fi
+          npm install -g vercel@latest
+          npm install
+          vercel deploy --prod --token "$VERCEL_TOKEN" --yes

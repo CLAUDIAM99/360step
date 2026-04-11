@@ -12,7 +12,7 @@
     "build": "npm run build --prefix web",
     "start": "node server.js",
     "start:web": "npm run start --prefix web",
-    "deploy": "npx vercel@latest --prod"
+    "deploy": "cd web && npx vercel@latest --prod"
   },
   "dependencies": {
     "dotenv": "^16.6.1",

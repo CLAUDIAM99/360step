@@ -6,6 +6,9 @@ import {
 } from "@/lib/itinerary/prompts";
 import type { GenerateItineraryRequest } from "@/lib/itinerary/schema";
 
+/** Default: Gemini 3 Flash (preview). Override con GEMINI_MODEL se serve (es. gemini-3.1-flash-lite-preview). */
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+
 function normalizePlan(plan: GeminiPlan): GeminiPlan {
   return {
     ...plan,
@@ -29,7 +32,7 @@ export async function runGeminiPlanner(
   }
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+    model: process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
     generationConfig: {
       responseMimeType: "application/json",
     },
@@ -59,7 +62,7 @@ export async function runGeminiInsertStop(
   if (!key) throw new Error("GEMINI_API_KEY non configurata");
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+    model: process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
     generationConfig: { responseMimeType: "application/json" },
   });
   const prompt = buildInsertStopPrompt(

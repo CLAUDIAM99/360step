@@ -18,14 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
 import { MapAreaPicker } from "@/components/wizard/MapAreaPicker";
+import { ItineraryResultMap } from "@/components/wizard/ItineraryResultMap";
 import type {
   GenerateItineraryRequest,
+  GroundedStop,
+  ItineraryLeg,
   ItineraryResult,
   Pace,
   Transport,
@@ -47,6 +49,16 @@ const THEME_OPTIONS: { id: TripTheme; label: string }[] = [
 ];
 
 const STORAGE_KEY = "roamy-wizard-draft-v1";
+
+function legBetweenLabel(leg: ItineraryLeg | undefined): string {
+  if (!leg) return "→ Distanza non disponibile";
+  const km = leg.distanceKm;
+  const min = leg.durationMin;
+  if (km == null && min == null) return "→ Distanza non disponibile";
+  const kmPart = km != null ? `circa ${km} km` : "—";
+  const minPart = min != null ? `${min} min` : null;
+  return minPart ? `→ ${kmPart} · ${minPart}` : `→ ${kmPart}`;
+}
 
 const defaultArea = (): GeographicArea => ({
   kind: "radius",
@@ -126,6 +138,36 @@ export function WizardApp() {
   }, [themes, pace, transport, days, range, area]);
 
   const progress = useMemo(() => ((step + 1) / 5) * 100, [step]);
+
+  const itineraryFlatRows = useMemo(() => {
+    if (!result) {
+      return [] as {
+        stop: GroundedStop;
+        dayIndex: number;
+        weatherSummary: string | undefined;
+        showDayHeader: boolean;
+      }[];
+    }
+    const rows: {
+      stop: GroundedStop;
+      dayIndex: number;
+      weatherSummary: string | undefined;
+      showDayHeader: boolean;
+    }[] = [];
+    const sortedDays = [...result.days].sort((a, b) => a.dayIndex - b.dayIndex);
+    for (const day of sortedDays) {
+      const stops = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
+      stops.forEach((s, i) => {
+        rows.push({
+          stop: s,
+          dayIndex: day.dayIndex,
+          weatherSummary: i === 0 ? day.weatherSummary : undefined,
+          showDayHeader: i === 0,
+        });
+      });
+    }
+    return rows;
+  }, [result]);
 
   const toggleTheme = (id: TripTheme) => {
     setThemes((prev) =>
@@ -298,7 +340,12 @@ export function WizardApp() {
         <Progress value={progress} className="h-1 rounded-none" />
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main
+        className={cn(
+          "mx-auto px-4 py-8",
+          step === 4 && result ? "max-w-7xl pb-28 lg:pb-8" : "max-w-3xl"
+        )}
+      >
         {error && (
           <p
             className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -506,53 +553,49 @@ export function WizardApp() {
 
         {step === 4 && result && (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="font-display">Il tuo itinerario</CardTitle>
-              <CardDescription>{result.summary}</CardDescription>
-              {result.bestPeriodNote && (
-                <p className="text-sm text-muted-foreground">
-                  {result.bestPeriodNote}
-                </p>
-              )}
+              <CardDescription className="sr-only">
+                Tappe, mappa e distanze tra una tappa e l&apos;altra.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <ScrollArea className="h-[min(480px,55vh)] pr-4">
-                <div className="space-y-6">
-                  {result.days.map((day) => (
-                    <div key={day.dayIndex}>
-                      <div className="mb-2 flex items-center gap-2">
-                        <Badge variant="secondary">
-                          Giorno {day.dayIndex}
-                        </Badge>
-                        {day.weatherSummary && (
-                          <span className="text-xs text-muted-foreground">
-                            {day.weatherSummary}
-                          </span>
-                        )}
-                      </div>
-                      <ul className="space-y-3">
-                        {day.stops.map((s, i) => (
-                          <li
-                            key={`${s.dayIndex}-${i}-${s.title}`}
-                            className="rounded-lg border p-3 text-sm"
-                          >
+              <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+                <div className="min-w-0 space-y-4">
+                  <ScrollArea className="h-[min(420px,50vh)] pr-3 lg:h-[min(520px,62vh)]">
+                    <ul className="space-y-1">
+                      {itineraryFlatRows.map((row, idx) => (
+                        <li key={`${row.dayIndex}-${row.stop.orderInDay}-${row.stop.title}`}>
+                          {row.showDayHeader && (
+                            <div className="mb-2 mt-4 flex flex-wrap items-center gap-2 first:mt-0">
+                              <Badge variant="secondary">
+                                Giorno {row.dayIndex}
+                              </Badge>
+                              {row.weatherSummary && (
+                                <span className="text-xs text-muted-foreground">
+                                  {row.weatherSummary}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className="rounded-lg border bg-card p-3 text-sm">
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div>
-                                <p className="font-medium">{s.title}</p>
+                                <p className="font-medium">{row.stop.title}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {s.type}
-                                  {s.groundingStatus === "not_found" &&
+                                  {row.stop.type}
+                                  {row.stop.groundingStatus === "not_found" &&
                                     " · da verificare"}
                                 </p>
-                                {s.formattedAddress && (
+                                {row.stop.formattedAddress && (
                                   <p className="mt-1 text-xs">
-                                    {s.formattedAddress}
+                                    {row.stop.formattedAddress}
                                   </p>
                                 )}
                               </div>
-                              {s.mapsUrl && (
+                              {row.stop.mapsUrl && (
                                 <a
-                                  href={s.mapsUrl}
+                                  href={row.stop.mapsUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-xs font-medium text-primary underline"
@@ -561,39 +604,90 @@ export function WizardApp() {
                                 </a>
                               )}
                             </div>
-                            {s.notes && (
+                            {row.stop.notes && (
                               <p className="mt-2 text-xs text-muted-foreground">
-                                {s.notes}
+                                {row.stop.notes}
                               </p>
                             )}
-                          </li>
-                        ))}
-                      </ul>
-                      <Separator className="my-4" />
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                          </div>
+                          {idx < itineraryFlatRows.length - 1 && (
+                            <p
+                              className="my-2 pl-3 text-xs text-muted-foreground border-l-2 border-primary/25"
+                              aria-label="Tratto verso la tappa successiva"
+                            >
+                              {legBetweenLabel(result.legs?.[idx])}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </ScrollArea>
 
-              <div className="space-y-2">
-                <Label htmlFor="insert">Aggiungi una tappa</Label>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    id="insert"
-                    value={insertText}
-                    onChange={(e) => setInsertText(e.target.value)}
-                    placeholder="Es. cantina in collina, museo X…"
-                  />
-                  <Button
-                    type="button"
-                    onClick={onInsertStop}
-                    disabled={insertLoading || !insertText.trim()}
-                  >
-                    {insertLoading && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
-                    Inserisci con AI
-                  </Button>
+                  <details className="rounded-lg border bg-muted/30 p-3 text-sm">
+                    <summary className="cursor-pointer font-medium">
+                      Dettagli itinerario
+                    </summary>
+                    <div className="mt-3 space-y-2 text-muted-foreground">
+                      <p>{result.summary}</p>
+                      {result.bestPeriodNote && (
+                        <p className="text-xs">{result.bestPeriodNote}</p>
+                      )}
+                    </div>
+                  </details>
+                </div>
+
+                <div className="min-w-0 space-y-4">
+                  <ItineraryResultMap result={result} />
+                  <div className="hidden space-y-2 rounded-lg border bg-card p-4 lg:block">
+                    <Label htmlFor="insert-desktop">
+                      Aggiungi una tappa da non perdere
+                    </Label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="insert-desktop"
+                        value={insertText}
+                        onChange={(e) => setInsertText(e.target.value)}
+                        placeholder="Es. cantina in collina, museo X…"
+                      />
+                      <Button
+                        type="button"
+                        onClick={onInsertStop}
+                        disabled={insertLoading || !insertText.trim()}
+                      >
+                        {insertLoading && (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        )}
+                        Inserisci con AI
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
+                <div className="mx-auto max-w-7xl space-y-2">
+                  <Label htmlFor="insert-mobile" className="text-xs">
+                    Aggiungi una tappa
+                  </Label>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      id="insert-mobile"
+                      value={insertText}
+                      onChange={(e) => setInsertText(e.target.value)}
+                      placeholder="Es. cantina, museo…"
+                    />
+                    <Button
+                      type="button"
+                      onClick={onInsertStop}
+                      disabled={insertLoading || !insertText.trim()}
+                      className="shrink-0"
+                    >
+                      {insertLoading && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
+                      Inserisci
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

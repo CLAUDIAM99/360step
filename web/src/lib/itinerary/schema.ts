@@ -144,6 +144,14 @@ export const ItineraryDaySchema = z.object({
 
 export type ItineraryDay = z.infer<typeof ItineraryDaySchema>;
 
+/** Tratto tra tappa i e i+1 (ordine globale giorno → orderInDay). */
+export const ItineraryLegSchema = z.object({
+  distanceKm: z.number().optional(),
+  durationMin: z.number().optional(),
+});
+
+export type ItineraryLeg = z.infer<typeof ItineraryLegSchema>;
+
 export const ItineraryResultSchema = z.object({
   id: z.string(),
   summary: z.string(),
@@ -151,6 +159,8 @@ export const ItineraryResultSchema = z.object({
   transport: TransportSchema,
   days: z.array(ItineraryDaySchema),
   createdAt: z.string(),
+  /** Lunghezza = numero tappe totali − 1, ordine di visita. */
+  legs: z.array(ItineraryLegSchema).optional(),
 });
 
 export type ItineraryResult = z.infer<typeof ItineraryResultSchema>;

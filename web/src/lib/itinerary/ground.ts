@@ -16,11 +16,29 @@ import type {
   GeminiPlan,
   GeographicArea,
   GroundedStop,
+  ItineraryLeg,
   ItineraryResult,
   Transport,
   GenerateItineraryRequest,
   ItineraryDay,
 } from "@/lib/itinerary/schema";
+
+const EARTH_RADIUS_KM = 6371;
+
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+}
 
 async function resolveAreaBounds(
   area: GeographicArea,
@@ -155,38 +173,51 @@ export async function groundGeminiPlan(
     }
   }
 
-  // Validazione tratte consecutive (auto/camper/moto): primo check per giorno
-  if (
-    ctx.transport !== "transit" &&
-    ctx.mapsApiKey &&
-    days.length > 0
-  ) {
-    for (const day of days) {
-      const ordered = sortStops(day.stops);
-      for (let i = 0; i < ordered.length - 1; i++) {
-        const a = ordered[i];
-        const b = ordered[i + 1];
-        if (
-          a.lat != null &&
-          a.lng != null &&
-          b.lat != null &&
-          b.lng != null &&
-          calls < MAX_GROUNDING_CALLS_PER_REQUEST
-        ) {
-          calls += 1;
-          const leg = await drivingLegSummary(
-            { lat: a.lat, lng: a.lng },
-            { lat: b.lat, lng: b.lng },
-            ctx.mapsApiKey
-          );
-          if (!leg && a.groundingStatus === "ok") {
-            a.groundingStatus = "approximate";
-            a.notes =
-              (a.notes ? `${a.notes} — ` : "") +
-              "Verifica percorso verso la tappa successiva.";
-          }
-        }
+  const flatOrdered = sortStops(days.flatMap((d) => d.stops));
+  const legs: ItineraryLeg[] = [];
+
+  for (let i = 0; i < flatOrdered.length - 1; i++) {
+    const a = flatOrdered[i];
+    const b = flatOrdered[i + 1];
+    if (
+      a.lat == null ||
+      a.lng == null ||
+      b.lat == null ||
+      b.lng == null
+    ) {
+      legs.push({});
+      continue;
+    }
+    const origin = { lat: a.lat, lng: a.lng };
+    const dest = { lat: b.lat, lng: b.lng };
+
+    if (ctx.transport === "transit") {
+      const km = haversineKm(origin, dest);
+      legs.push({
+        distanceKm: Math.round(km * 10) / 10,
+      });
+      continue;
+    }
+
+    if (calls >= MAX_GROUNDING_CALLS_PER_REQUEST) {
+      legs.push({});
+      continue;
+    }
+    calls += 1;
+    const leg = await drivingLegSummary(origin, dest, ctx.mapsApiKey);
+    if (leg) {
+      legs.push({
+        distanceKm: Math.round((leg.distanceMeters / 1000) * 10) / 10,
+        durationMin: Math.round(leg.durationSeconds / 60),
+      });
+    } else {
+      if (a.groundingStatus === "ok") {
+        a.groundingStatus = "approximate";
+        a.notes =
+          (a.notes ? `${a.notes} — ` : "") +
+          "Verifica percorso verso la tappa successiva.";
       }
+      legs.push({});
     }
   }
 
@@ -197,6 +228,7 @@ export async function groundGeminiPlan(
     transport: ctx.transport,
     days,
     createdAt: new Date().toISOString(),
+    legs: flatOrdered.length < 2 ? undefined : legs,
   };
 }
 

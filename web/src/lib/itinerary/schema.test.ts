@@ -46,4 +46,40 @@ describe("ItineraryResultSchema", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("accetta legs opzionali tra tappe", () => {
+    const parsed = ItineraryResultSchema.safeParse({
+      id: "x",
+      summary: "Test",
+      transport: "car",
+      days: [
+        {
+          dayIndex: 1,
+          stops: [
+            {
+              title: "A",
+              type: "visit",
+              dayIndex: 1,
+              orderInDay: 0,
+              groundingStatus: "ok",
+              lat: 45,
+              lng: 9,
+            },
+            {
+              title: "B",
+              type: "visit",
+              dayIndex: 1,
+              orderInDay: 1,
+              groundingStatus: "ok",
+              lat: 45.1,
+              lng: 9.1,
+            },
+          ],
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      legs: [{ distanceKm: 12.3, durationMin: 18 }],
+    });
+    expect(parsed.success).toBe(true);
+  });
 });

@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
-import { Fraunces, Source_Sans_3 } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
-const sans = Source_Sans_3({
+const montserrat = Montserrat({
   subsets: ["latin"],
   variable: "--font-sans",
-});
-
-const display = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-display",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 const logo = localFont({
@@ -32,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it" suppressHydrationWarning>
-      <body className={`${sans.variable} ${display.variable} ${logo.variable} font-sans`}>
+      <body className={`${montserrat.variable} ${logo.variable} font-sans`}>
         {children}
       </body>
     </html>

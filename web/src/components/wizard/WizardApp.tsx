@@ -77,42 +77,50 @@ const STOP_TYPE_META: Record<StopType, StopTypeMeta> = {
   visit: {
     label: "Tappa",
     icon: MapPin,
-    badgeClass: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+    badgeClass:
+      "border border-[hsl(355_30%_78%)] bg-[hsl(355_35%_94%)] text-[hsl(355_42%_28%)] dark:border-[hsl(355_25%_35%)] dark:bg-[hsl(355_22%_18%)] dark:text-[hsl(355_35%_88%)]",
   },
   meal: {
     label: "Ristorante",
     icon: UtensilsCrossed,
-    badgeClass: "bg-red-500/10 text-red-700 dark:text-red-300",
+    badgeClass:
+      "border border-[hsl(18_35%_78%)] bg-[hsl(22_40%_93%)] text-[hsl(18_45%_30%)] dark:border-[hsl(18_28%_32%)] dark:bg-[hsl(18_22%_18%)] dark:text-[hsl(28_40%_88%)]",
   },
   sleep: {
     label: "Alloggio",
     icon: BedDouble,
-    badgeClass: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    badgeClass:
+      "border border-[hsl(285_22%_78%)] bg-[hsl(285_28%_93%)] text-[hsl(285_35%_32%)] dark:border-[hsl(285_22%_32%)] dark:bg-[hsl(285_18%_18%)] dark:text-[hsl(285_35%_88%)]",
   },
   parking: {
     label: "Parcheggio",
     icon: ParkingCircle,
-    badgeClass: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+    badgeClass:
+      "border border-[hsl(38_32%_72%)] bg-[hsl(38_38%_92%)] text-[hsl(28_35%_28%)] dark:border-[hsl(38_25%_30%)] dark:bg-[hsl(32_20%_17%)] dark:text-[hsl(38_32%_88%)]",
   },
   camper_stop: {
     label: "Area sosta",
     icon: ParkingCircle,
-    badgeClass: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+    badgeClass:
+      "border border-[hsl(160_22%_72%)] bg-[hsl(160_28%_92%)] text-[hsl(160_32%_26%)] dark:border-[hsl(160_22%_30%)] dark:bg-[hsl(160_18%_16%)] dark:text-[hsl(160_30%_88%)]",
   },
   scenic: {
     label: "Panoramica",
     icon: Mountain,
-    badgeClass: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    badgeClass:
+      "border border-[hsl(95_28%_72%)] bg-[hsl(95_32%_92%)] text-[hsl(95_28%_26%)] dark:border-[hsl(95_22%_30%)] dark:bg-[hsl(95_18%_16%)] dark:text-[hsl(95_32%_88%)]",
   },
   fuel: {
     label: "Carburante",
     icon: Fuel,
-    badgeClass: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    badgeClass:
+      "border border-[hsl(42_30%_72%)] bg-[hsl(42_38%_92%)] text-[hsl(32_40%_28%)] dark:border-[hsl(42_25%_30%)] dark:bg-[hsl(38_20%_16%)] dark:text-[hsl(42_35%_88%)]",
   },
   other: {
     label: "Altro",
     icon: MapPin,
-    badgeClass: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+    badgeClass:
+      "border border-[hsl(25_18%_76%)] bg-[hsl(30_22%_92%)] text-[hsl(25_18%_32%)] dark:border-[hsl(25_14%_30%)] dark:bg-[hsl(25_12%_18%)] dark:text-[hsl(30_20%_88%)]",
   },
 };
 
@@ -447,21 +455,21 @@ export function WizardApp() {
   if (!hasEntered) {
     return (
       <div className="roamy-board flex min-h-screen items-center justify-center px-4 py-10">
-        <section className="roamy-card w-full max-w-5xl rounded-[2rem] border-2 p-8 text-center sm:p-12">
-          <p className="mb-3 text-sm uppercase tracking-[0.2em] text-muted-foreground">
+        <section className="roamy-card w-full max-w-5xl rounded-[1.25rem] p-8 text-center sm:p-12">
+          <p className="mb-3 text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Itinerari AI su misura
           </p>
           <h1 className="roamy-scribble-title text-[clamp(5rem,19vw,13rem)] leading-[0.85] text-primary drop-shadow-sm">
             Roamy
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
-            Una lavagna di viaggio dove costruire tappe, mappe e idee in stile
-            notebook.
+            Disegna il viaggio su una carta d’epoca: tappe, mappe e idee in un
+            solo posto.
           </p>
           <Button
             type="button"
             size="lg"
-            className="mt-8 rounded-full border-2 border-foreground/30 bg-primary px-10 text-lg shadow-md"
+            className="mt-8 rounded-full border border-[hsl(355_32%_38%)] bg-primary px-10 text-lg font-semibold text-primary-foreground shadow-md hover:bg-[hsl(355_42%_30%)]"
             onClick={() => {
               setHasEntered(true);
               setStep(0);
@@ -476,13 +484,13 @@ export function WizardApp() {
 
   return (
     <div className="roamy-board min-h-screen">
-      <header className="sticky top-0 z-40 border-b-2 border-foreground/15 bg-background/75 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-[hsl(30_22%_72%)] bg-[hsl(40_42%_97%_/_0.88)] backdrop-blur-md dark:bg-[hsl(25_22%_14%_/_0.88)] dark:border-[hsl(25_14%_26%)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
           <div>
             <p className="roamy-scribble-title text-4xl leading-none text-primary">
               Roamy
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               Itinerari con AI e mappe verificate
             </p>
           </div>
@@ -490,7 +498,7 @@ export function WizardApp() {
             type="button"
             variant="ghost"
             size="icon"
-            className="rounded-full border border-foreground/20 bg-background/80"
+            className="rounded-full border border-[hsl(30_22%_72%)] bg-[hsl(40_44%_98%_/_0.9)] dark:border-[hsl(25_14%_28%)] dark:bg-[hsl(25_20%_18%)]"
             onClick={() => setDark((d) => !d)}
             aria-label={dark ? "Tema chiaro" : "Tema scuro"}
           >
@@ -792,8 +800,11 @@ export function WizardApp() {
                   <ScrollArea className="h-[min(420px,50vh)] pr-3 lg:h-[min(520px,62vh)]">
                     <div className="space-y-4">
                       {rowsByDay.map(([dayIndex, dayRows]) => (
-                        <section key={dayIndex} className="rounded-xl border bg-card/70">
-                          <header className="flex flex-wrap items-center gap-2 rounded-t-xl border-b bg-muted/40 px-3 py-2">
+                        <section
+                          key={dayIndex}
+                          className="roamy-card overflow-hidden rounded-xl border-0 bg-gradient-to-b from-[hsl(40_46%_97%)] to-[hsl(36_38%_93%)]"
+                        >
+                          <header className="flex flex-wrap items-center gap-2 border-b border-[hsl(30_22%_78%)] bg-[hsl(34_32%_90%_/_0.6)] px-3 py-2 dark:border-[hsl(25_14%_26%)] dark:bg-[hsl(25_18%_18%)]">
                             <Badge variant="secondary" className="text-xs">
                               Giorno {dayIndex}
                             </Badge>

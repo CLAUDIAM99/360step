@@ -141,7 +141,7 @@ export function ItineraryResultMap({
       }
     >
       <div className="space-y-2">
-        <p className="text-xs text-amber-800 dark:text-amber-200/90">
+        <p className="text-xs text-[hsl(25_35%_32%)] dark:text-[hsl(35_25%_78%)]">
           Se la mappa non carica, prova a disattivare blocchi annunci per questo
           sito (spesso bloccano{" "}
           <code className="rounded bg-muted px-1">maps.googleapis.com</code>

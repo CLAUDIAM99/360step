@@ -262,11 +262,11 @@ export function MapAreaPicker({ mode, onAreaChange }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-amber-800 dark:text-amber-200/90">
-        Se la mappa non carica o vedi errori in console, disattiva blocchi
-        annunci/tracker per questo sito: spesso bloccano{" "}
-        <code className="rounded bg-muted px-1">maps.googleapis.com</code>.
-      </p>
+        <p className="text-xs text-[hsl(25_35%_32%)] dark:text-[hsl(35_25%_78%)]">
+          Se la mappa non carica o vedi errori in console, disattiva blocchi
+          annunci/tracker per questo sito: spesso bloccano{" "}
+          <code className="rounded bg-muted px-1">maps.googleapis.com</code>.
+        </p>
       {mode === "radius" && (
         <div className="space-y-3">
           <div ref={radiusWrapRef} className="relative space-y-1">

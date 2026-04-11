@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { Loader2, MapPin } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { GroundedStop } from "@/lib/itinerary/schema";
 
@@ -43,9 +43,7 @@ export function ItineraryStopDetailDialog({
     let cancelled = false;
     setLoading(true);
     setErr(null);
-    fetch(
-      `/api/places/details?placeId=${encodeURIComponent(stop.placeId)}`
-    )
+    fetch(`/api/places/details?placeId=${encodeURIComponent(stop.placeId)}`)
       .then(async (r) => {
         const j = (await r.json()) as DetailsJson;
         if (!r.ok) throw new Error(j.error || "Dettagli non disponibili");
@@ -71,17 +69,17 @@ export function ItineraryStopDetailDialog({
     data?.editorialSummary ?? stop?.notes ?? data?.formattedAddress;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="max-h-[min(90vh,720px)] overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[min(90vh,720px)] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
           {(stop?.formattedAddress || data?.formattedAddress) && (
             <p className="flex items-start gap-2 text-left text-sm text-muted-foreground">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
               {stop?.formattedAddress ?? data?.formattedAddress}
             </p>
           )}
-        </SheetHeader>
+        </DialogHeader>
         {loading && (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -121,7 +119,7 @@ export function ItineraryStopDetailDialog({
             </a>
           </Button>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -124,6 +124,14 @@ export const GeminiPlanSchema = z.object({
 
 export type GeminiPlan = z.infer<typeof GeminiPlanSchema>;
 
+/** Grounding: piano Gemini già ottenuto + stesso contesto della richiesta generate. */
+export const GroundItineraryRequestSchema =
+  GenerateItineraryRequestSchema.extend({
+    plan: GeminiPlanSchema,
+  });
+
+export type GroundItineraryRequest = z.infer<typeof GroundItineraryRequestSchema>;
+
 /** Tappa dopo grounding Maps */
 export const GroundedStopSchema = z.object({
   title: z.string(),

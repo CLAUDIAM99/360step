@@ -16,11 +16,16 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  FileDown,
   Fuel,
   Loader2,
   MapPin,
   Moon,
   ParkingCircle,
+  Pause,
+  Play,
+  SkipForward,
+  SkipBack,
   Sun,
   UtensilsCrossed,
   BedDouble,
@@ -46,11 +51,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
 import { LoadScript } from "@react-google-maps/api";
 import { MapAreaPicker } from "@/components/wizard/MapAreaPicker";
-import { ItineraryResultMap } from "@/components/wizard/ItineraryResultMap";
+import {
+  ItineraryResultMap,
+  type LegSegmentMapInfo,
+} from "@/components/wizard/ItineraryResultMap";
 import { ItineraryStopDetailDialog } from "@/components/wizard/ItineraryStopDetailDialog";
+import { downloadItineraryPdf } from "@/components/wizard/itinerary-pdf";
 import { PlaceAutocompleteField } from "@/components/wizard/PlaceAutocompleteInput";
 import type {
   GenerateItineraryRequest,
+  GeminiPlan,
   GroundedStop,
   ItineraryLeg,
   ItineraryResult,
@@ -61,12 +71,38 @@ import type {
   GeographicArea,
 } from "@/lib/itinerary/schema";
 import {
+  itineraryAnalytics,
+  reconcileItineraryLegs,
+} from "@/lib/itinerary/legs-reconcile";
+import {
   STOP_TYPE_BADGE_CLASS,
   dayItineraryHex,
   dayListAccentClass,
 } from "@/lib/itinerary/colors";
 import { haversineKm } from "@/lib/geo/distance";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+
+type NearbyParkingRow = {
+  name: string;
+  placeId: string;
+  lat: number;
+  lng: number;
+  formattedAddress: string;
+  distanceKm: number;
+};
 
 const INTRO_SESSION_KEY = "roamy-intro-done";
 const INTRO_TRANSITION_MS = 520;
@@ -225,7 +261,6 @@ export function WizardApp() {
   );
   const wizardPanelRef = useRef<HTMLElement | null>(null);
 
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ItineraryResult | null>(null);
   const [insertText, setInsertText] = useState("");
@@ -236,6 +271,32 @@ export function WizardApp() {
   const [expandedStops, setExpandedStops] = useState<Record<string, boolean>>({});
   const stopRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const daySectionRefs = useRef<Record<number, HTMLElement | null>>({});
+
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
+  const [genPhase, setGenPhase] = useState("");
+  const [genModalError, setGenModalError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const [tourPlaying, setTourPlaying] = useState(false);
+  const [tourIndex, setTourIndex] = useState(0);
+  const [cameraTarget, setCameraTarget] = useState<{
+    lat: number;
+    lng: number;
+    zoom: number;
+  } | null>(null);
+  const [legMapInfo, setLegMapInfo] = useState<LegSegmentMapInfo | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const [parkingSheetOpen, setParkingSheetOpen] = useState(false);
+  const [parkingLoading, setParkingLoading] = useState(false);
+  const [parkingRows, setParkingRows] = useState<NearbyParkingRow[]>([]);
+  const [parkingErr, setParkingErr] = useState<string | null>(null);
+
+  const reconciledResult = useMemo(
+    () => (result ? reconcileItineraryLegs(result) : null),
+    [result]
+  );
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -329,7 +390,7 @@ export function WizardApp() {
   }, []);
 
   const itineraryFlatRows = useMemo(() => {
-    if (!result) {
+    if (!reconciledResult) {
       return [] as {
         key: string;
         stop: GroundedStop;
@@ -347,7 +408,9 @@ export function WizardApp() {
       globalIndex: number;
       hasNext: boolean;
     }[] = [];
-    const sortedDays = [...result.days].sort((a, b) => a.dayIndex - b.dayIndex);
+    const sortedDays = [...reconciledResult.days].sort(
+      (a, b) => a.dayIndex - b.dayIndex
+    );
     let globalIndex = 0;
     for (const day of sortedDays) {
       const stops = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
@@ -368,7 +431,7 @@ export function WizardApp() {
       globalIndex: index,
       hasNext: index < rows.length - 1,
     }));
-  }, [result]);
+  }, [reconciledResult]);
 
   const rowsByDay = useMemo(() => {
     const byDay = new Map<number, (typeof itineraryFlatRows)[number][]>();
@@ -381,18 +444,23 @@ export function WizardApp() {
   }, [itineraryFlatRows]);
 
   const activeStop = useMemo(() => {
-    if (!result || !activeStopKey) return null;
-    return findStopByKey(result, activeStopKey);
-  }, [result, activeStopKey]);
+    if (!reconciledResult || !activeStopKey) return null;
+    return findStopByKey(reconciledResult, activeStopKey);
+  }, [reconciledResult, activeStopKey]);
+
+  const tripAnalytics = useMemo(
+    () => (reconciledResult ? itineraryAnalytics(reconciledResult) : null),
+    [reconciledResult]
+  );
 
   useEffect(() => {
-    if (!result) return;
+    if (!reconciledResult) return;
     const next: Record<number, boolean> = {};
-    for (const d of result.days) {
+    for (const d of reconciledResult.days) {
       next[d.dayIndex] = false;
     }
     setDayListOpen(next);
-  }, [result]);
+  }, [reconciledResult]);
 
   useEffect(() => {
     if (!itineraryFlatRows.length) {
@@ -406,7 +474,11 @@ export function WizardApp() {
     setMapFocusedDay("all");
   }, [itineraryFlatRows]);
 
-  const onSelectStop = useCallback((key: string) => {
+  const onSelectStop = useCallback((key: string | null) => {
+    if (key == null) {
+      setActiveStopKey(null);
+      return;
+    }
     setActiveStopKey(key);
     setExpandedStops((prev) => ({ ...prev, [key]: true }));
     const day = dayIndexFromStopKey(key);
@@ -537,26 +609,106 @@ export function WizardApp() {
       );
       return;
     }
-    setLoading(true);
+    setGenerateModalOpen(true);
+    setGenModalError(null);
+    setGenProgress(6);
+    setGenPhase("Pianificazione con l’AI…");
+    setGenerating(true);
     setError(null);
     try {
-      const res = await fetch("/api/itinerary/generate", {
+      const planRes = await fetch("/api/itinerary/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as ItineraryResult & { error?: string };
-      if (!res.ok) {
-        throw new Error(data.error || "Errore generazione");
+      const planJson = (await planRes.json()) as GeminiPlan & { error?: string };
+      if (!planRes.ok) {
+        throw new Error(planJson.error || "Errore pianificazione");
       }
+      setGenProgress(44);
+      setGenPhase("Luoghi, distanze e mappa…");
+      const groundRes = await fetch("/api/itinerary/ground", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, plan: planJson }),
+      });
+      const data = (await groundRes.json()) as ItineraryResult & {
+        error?: string;
+      };
+      if (!groundRes.ok) {
+        throw new Error(data.error || "Errore grounding");
+      }
+      setGenProgress(100);
+      setGenPhase("Completato");
       setResult(data as ItineraryResult);
       setStep(4);
+      setGenerateModalOpen(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore");
+      const msg = e instanceof Error ? e.message : "Errore";
+      setGenModalError(msg);
+      setError(msg);
     } finally {
-      setLoading(false);
+      setGenerating(false);
     }
   };
+
+  const openParkingForRow = useCallback(async (rowKey: string) => {
+    if (!reconciledResult) return;
+    const stop = findStopByKey(reconciledResult, rowKey);
+    if (!stop?.lat || !stop?.lng) {
+      setParkingErr("Coordinate non disponibili per questa tappa.");
+      setParkingRows([]);
+      setParkingSheetOpen(true);
+      return;
+    }
+    setParkingSheetOpen(true);
+    setParkingLoading(true);
+    setParkingErr(null);
+    setParkingRows([]);
+    try {
+      const res = await fetch(
+        `/api/places/nearby-parking?lat=${stop.lat}&lng=${stop.lng}&radiusM=1800`
+      );
+      const j = (await res.json()) as {
+        results?: NearbyParkingRow[];
+        error?: string;
+      };
+      if (!res.ok) throw new Error(j.error || "Ricerca fallita");
+      setParkingRows(j.results ?? []);
+    } catch (e) {
+      setParkingErr(e instanceof Error ? e.message : "Errore");
+    } finally {
+      setParkingLoading(false);
+    }
+  }, [reconciledResult]);
+
+  const TOUR_MS = 4800;
+  useEffect(() => {
+    if (!tourPlaying || itineraryFlatRows.length === 0) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ms = reduce ? 9000 : TOUR_MS;
+    const id = window.setInterval(() => {
+      setTourIndex((i) => (i + 1) % itineraryFlatRows.length);
+    }, ms);
+    return () => window.clearInterval(id);
+  }, [tourPlaying, itineraryFlatRows.length]);
+
+  useEffect(() => {
+    if (!tourPlaying || itineraryFlatRows.length === 0) return;
+    const row = itineraryFlatRows[tourIndex];
+    if (!row) return;
+    onSelectStop(row.key);
+    setMapFocusedDay(row.dayIndex);
+    if (row.stop.lat != null && row.stop.lng != null) {
+      setCameraTarget({
+        lat: row.stop.lat,
+        lng: row.stop.lng,
+        zoom: 14,
+      });
+    }
+  }, [tourPlaying, tourIndex, itineraryFlatRows, onSelectStop]);
 
   const onInsertStop = async () => {
     if (!result || !insertText.trim() || !area) return;
@@ -989,15 +1141,135 @@ export function WizardApp() {
           </Card>
         )}
 
-        {step === 4 && result && (
+        {step === 4 && reconciledResult && (
           <Card className="roamy-card">
             <CardHeader className="pb-2">
-              <CardTitle className="font-display">Il tuo itinerario</CardTitle>
-              <CardDescription className="sr-only">
-                Tappe, mappa e distanze tra una tappa e l&apos;altra.
-              </CardDescription>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="font-display">Il tuo itinerario</CardTitle>
+                  <CardDescription className="sr-only">
+                    Tappe, mappa e distanze tra una tappa e l&apos;altra.
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={tourPlaying ? "secondary" : "outline"}
+                    disabled={itineraryFlatRows.length === 0}
+                    onClick={() => {
+                      if (tourPlaying) {
+                        setTourPlaying(false);
+                        setCameraTarget(null);
+                      } else {
+                        setTourIndex(0);
+                        setTourPlaying(true);
+                      }
+                    }}
+                  >
+                    {tourPlaying ? (
+                      <>
+                        <Pause className="h-4 w-4" /> Pausa tour
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4" /> Tour
+                      </>
+                    )}
+                  </Button>
+                  {tourPlaying && (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setTourIndex(
+                            (i) =>
+                              (i - 1 + itineraryFlatRows.length) %
+                              itineraryFlatRows.length
+                          )
+                        }
+                      >
+                        <SkipBack className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setTourIndex(
+                            (i) => (i + 1) % itineraryFlatRows.length
+                          )
+                        }
+                      >
+                        <SkipForward className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={pdfBusy}
+                    onClick={async () => {
+                      setPdfBusy(true);
+                      try {
+                        await downloadItineraryPdf(reconciledResult);
+                      } finally {
+                        setPdfBusy(false);
+                      }
+                    }}
+                  >
+                    {pdfBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileDown className="h-4 w-4" />
+                    )}
+                    PDF
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {tourPlaying && itineraryFlatRows.length > 0 && (
+                <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm shadow-sm">
+                  <p className="font-medium text-foreground">
+                    {itineraryFlatRows[tourIndex]?.stop.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Tappa {tourIndex + 1} di {itineraryFlatRows.length} · Giorno{" "}
+                    {itineraryFlatRows[tourIndex]?.dayIndex}
+                  </p>
+                </div>
+              )}
+              {tripAnalytics && (
+                <div className="rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm dark:bg-muted/20">
+                  <p className="font-semibold text-foreground">Riepilogo viaggio</p>
+                  <ul className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-2">
+                    <li>
+                      Distanza stimata:{" "}
+                      <span className="font-medium text-foreground">
+                        {tripAnalytics.totalKm} km
+                      </span>
+                    </li>
+                    <li>
+                      Tempo di guida:{" "}
+                      <span className="font-medium text-foreground">
+                        {tripAnalytics.totalHoursDrive} h
+                        {tripAnalytics.hasPartialTimes ? " (parziale)" : ""}
+                      </span>
+                    </li>
+                    <li>
+                      {tripAnalytics.dayCount} giorni · {tripAnalytics.stopCount}{" "}
+                      tappe
+                    </li>
+                    <li>
+                      Tratti in linea d’aria: {tripAnalytics.legsAirOnly}
+                    </li>
+                  </ul>
+                </div>
+              )}
               <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                 <div className="min-w-0 space-y-4">
                   <div
@@ -1066,12 +1338,13 @@ export function WizardApp() {
                           <button
                             type="button"
                             className="flex w-full flex-wrap items-center gap-2 border-b border-border/60 bg-muted/40 px-3 py-2.5 text-left dark:bg-muted/30"
-                            onClick={() =>
+                            onClick={() => {
+                              setMapFocusedDay(dayIndex);
                               setDayListOpen((p) => ({
                                 ...p,
                                 [dayIndex]: !(p[dayIndex] ?? false),
-                              }))
-                            }
+                              }));
+                            }}
                             aria-expanded={dayListOpen[dayIndex] ?? false}
                           >
                             {dayListOpen[dayIndex] ?? false ? (
@@ -1169,6 +1442,23 @@ export function WizardApp() {
                                           <MapPin className="h-3.5 w-3.5" />
                                           Apri su Google Maps
                                         </a>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="w-full sm:w-auto"
+                                          disabled={
+                                            row.stop.lat == null ||
+                                            row.stop.lng == null
+                                          }
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            void openParkingForRow(row.key);
+                                          }}
+                                        >
+                                          <ParkingCircle className="h-3.5 w-3.5" />
+                                          Parcheggi vicini
+                                        </Button>
                                         {row.stop.notes && (
                                           <p className="text-muted-foreground">
                                             {row.stop.notes}
@@ -1202,7 +1492,7 @@ export function WizardApp() {
                                         <ArrowDown className="h-3.5 w-3.5 shrink-0 opacity-90" />
                                         <span className="text-foreground/90">
                                           {legBetweenLabel(
-                                            result.legs?.[row.globalIndex],
+                                            reconciledResult.legs?.[row.globalIndex],
                                             row.stop,
                                             itineraryFlatRows[row.globalIndex + 1]
                                               ?.stop
@@ -1226,9 +1516,9 @@ export function WizardApp() {
                       Dettagli itinerario
                     </summary>
                     <div className="mt-3 space-y-2 text-muted-foreground">
-                      <p>{result.summary}</p>
-                      {result.bestPeriodNote && (
-                        <p className="text-xs">{result.bestPeriodNote}</p>
+                      <p>{reconciledResult.summary}</p>
+                      {reconciledResult.bestPeriodNote && (
+                        <p className="text-xs">{reconciledResult.bestPeriodNote}</p>
                       )}
                     </div>
                   </details>
@@ -1237,12 +1527,45 @@ export function WizardApp() {
                 <div className="min-w-0 space-y-4">
                   <div className="rounded-xl ring-1 ring-border/80 ring-offset-2 ring-offset-background dark:ring-offset-background">
                     <ItineraryResultMap
-                      result={result}
+                      result={reconciledResult}
                       activeStopKey={activeStopKey}
                       focusedDay={mapFocusedDay}
                       onStopSelect={onSelectStop}
+                      cameraTarget={cameraTarget}
+                      activeStopTitle={activeStop?.title ?? null}
+                      onOpenStopDetail={() => setStopDetailOpen(true)}
+                      onLegSegmentClick={(info) => {
+                        setLegMapInfo(info);
+                        onSelectStop(info.keyA);
+                      }}
                     />
                   </div>
+                  {legMapInfo && (
+                    <div className="rounded-lg border border-border/70 bg-card/90 px-3 py-2 text-xs shadow-sm">
+                      <p className="font-medium text-foreground">
+                        Giorno {legMapInfo.dayIndex}: {legMapInfo.fromTitle} →{" "}
+                        {legMapInfo.toTitle}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {legMapInfo.distanceKm != null
+                          ? `circa ${legMapInfo.distanceKm} km`
+                          : "Distanza n/d"}
+                        {legMapInfo.durationMin != null
+                          ? ` · ${legMapInfo.durationMin} min`
+                          : ""}
+                        {legMapInfo.airDistanceOnly ? " (linea d’aria)" : ""}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 h-7 px-2"
+                        onClick={() => setLegMapInfo(null)}
+                      >
+                        Chiudi
+                      </Button>
+                    </div>
+                  )}
                   {activeStop && (
                     <div className="space-y-2 rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm">
                       <p className="text-sm font-semibold leading-tight">
@@ -1356,10 +1679,10 @@ export function WizardApp() {
             <Button
               type="button"
               className="ml-auto"
-              disabled={!canNext || loading}
+              disabled={!canNext || generating}
               onClick={onGenerate}
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {generating && <Loader2 className="h-4 w-4 animate-spin" />}
               Genera itinerario
             </Button>
           )}
@@ -1385,6 +1708,88 @@ export function WizardApp() {
             </Button>
           )}
         </div>
+
+        <Dialog
+          open={generateModalOpen}
+          onOpenChange={(open) => {
+            if (!generating) {
+              setGenerateModalOpen(open);
+              if (!open) setGenModalError(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Generazione itinerario</DialogTitle>
+              <DialogDescription>
+                {genModalError
+                  ? genModalError
+                  : "Attendi mentre prepariamo il tuo viaggio."}
+              </DialogDescription>
+            </DialogHeader>
+            {!genModalError && (
+              <>
+                <p className="text-sm text-muted-foreground">{genPhase}</p>
+                <Progress value={genProgress} className="h-2" />
+              </>
+            )}
+            {genModalError && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setGenerateModalOpen(false);
+                  setGenModalError(null);
+                }}
+              >
+                Chiudi
+              </Button>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Sheet open={parkingSheetOpen} onOpenChange={setParkingSheetOpen}>
+          <SheetContent className="sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>Parcheggi vicini</SheetTitle>
+            </SheetHeader>
+            {parkingLoading && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {parkingErr && (
+              <p className="text-sm text-destructive">{parkingErr}</p>
+            )}
+            {!parkingLoading && !parkingErr && parkingRows.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nessun parcheggio trovato nelle vicinanze.
+              </p>
+            )}
+            <ul className="mt-4 space-y-3">
+              {parkingRows.map((p) => (
+                <li
+                  key={p.placeId}
+                  className="rounded-lg border border-border/70 p-3 text-sm"
+                >
+                  <p className="font-medium">{p.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.formattedAddress} · ~{p.distanceKm} km
+                  </p>
+                  <a
+                    className="mt-2 inline-block text-xs font-medium text-primary underline"
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.lat},${p.lng}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Apri in Maps
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </SheetContent>
+        </Sheet>
 
         <footer className="mt-12 space-y-3 border-t pt-8 text-xs text-muted-foreground">
           <p>

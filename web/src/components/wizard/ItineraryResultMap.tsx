@@ -8,7 +8,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { GoogleMap, LoadScript, Marker, Polyline } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  InfoWindow,
+  LoadScript,
+  Marker,
+  Polyline,
+} from "@react-google-maps/api";
 import { Maximize2, Minimize2 } from "lucide-react";
 import type { ItineraryResult, StopType } from "@/lib/itinerary/schema";
 import { MAP_MARKER_MUTED_HEX, dayItineraryHex } from "@/lib/itinerary/colors";
@@ -59,12 +65,28 @@ function markerIconDataUrl(hex: string, symbol: string, active: boolean): string
 
 type FocusedDay = "all" | number;
 
+export type LegSegmentMapInfo = {
+  dayIndex: number;
+  keyA: string;
+  keyB: string;
+  fromTitle: string;
+  toTitle: string;
+  distanceKm?: number;
+  durationMin?: number;
+  airDistanceOnly?: boolean;
+};
+
 type Props = {
   result: ItineraryResult;
   activeStopKey: string | null;
   /** Giorno evidenziato sulla mappa; gli altri sono attenuati. */
   focusedDay: FocusedDay;
-  onStopSelect: (stopKey: string) => void;
+  onStopSelect: (stopKey: string | null) => void;
+  /** Tour / focus esplicito (prevale sul pan solo marker). */
+  cameraTarget?: { lat: number; lng: number; zoom: number } | null;
+  onLegSegmentClick?: (info: LegSegmentMapInfo) => void;
+  activeStopTitle?: string | null;
+  onOpenStopDetail?: () => void;
 };
 
 export function ItineraryResultMap({
@@ -72,6 +94,10 @@ export function ItineraryResultMap({
   activeStopKey,
   focusedDay,
   onStopSelect,
+  cameraTarget = null,
+  onLegSegmentClick,
+  activeStopTitle,
+  onOpenStopDetail,
 }: Props) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -106,6 +132,11 @@ export function ItineraryResultMap({
       dayIndex: number;
       keyA: string;
       keyB: string;
+      fromTitle: string;
+      toTitle: string;
+      distanceKm?: number;
+      durationMin?: number;
+      airDistanceOnly?: boolean;
     }[] = [];
     for (let i = 0; i < globalStops.length - 1; i++) {
       const a = globalStops[i];
@@ -132,7 +163,17 @@ export function ItineraryResultMap({
         );
       }
       if (path.length >= 2) {
-        out.push({ path, dayIndex: a.dayIndex, keyA, keyB });
+        out.push({
+          path,
+          dayIndex: a.dayIndex,
+          keyA,
+          keyB,
+          fromTitle: a.title,
+          toTitle: b.title,
+          distanceKm: leg?.distanceKm,
+          durationMin: leg?.durationMin,
+          airDistanceOnly: leg?.airDistanceOnly,
+        });
       }
     }
     return out;
@@ -222,12 +263,18 @@ export function ItineraryResultMap({
   }, [fullscreen, map, focusedDay, fitBoundsForFocus]);
 
   useEffect(() => {
-    if (!map || !activeStopKey) return;
+    if (!map || !cameraTarget) return;
+    map.panTo({ lat: cameraTarget.lat, lng: cameraTarget.lng });
+    map.setZoom(cameraTarget.zoom);
+  }, [map, cameraTarget]);
+
+  useEffect(() => {
+    if (!map || !activeStopKey || cameraTarget) return;
     const point = coordinateByKey.get(activeStopKey);
     if (!point) return;
     map.panTo(point);
     if ((map.getZoom() ?? 0) < 11) map.setZoom(11);
-  }, [activeStopKey, coordinateByKey, map]);
+  }, [activeStopKey, coordinateByKey, map, cameraTarget]);
 
   const toggleFullscreen = useCallback(() => {
     const el = wrapRef.current;
@@ -337,7 +384,20 @@ export function ItineraryResultMap({
                     strokeOpacity,
                     strokeWeight,
                     zIndex,
+                    clickable: true,
                   }}
+                  onClick={() =>
+                    onLegSegmentClick?.({
+                      dayIndex: seg.dayIndex,
+                      keyA: seg.keyA,
+                      keyB: seg.keyB,
+                      fromTitle: seg.fromTitle,
+                      toTitle: seg.toTitle,
+                      distanceKm: seg.distanceKm,
+                      durationMin: seg.durationMin,
+                      airDistanceOnly: seg.airDistanceOnly,
+                    })
+                  }
                 />
               );
             })}
@@ -396,6 +456,33 @@ export function ItineraryResultMap({
                     }}
                   />
                 );
+                if (isActive && activeStopTitle && activeStopKey === key) {
+                  out.push(
+                    <InfoWindow
+                      key={`iw-${key}`}
+                      position={{ lat: s.lat, lng: s.lng }}
+                      onCloseClick={() => onStopSelect(null)}
+                    >
+                      <div className="max-w-[220px] space-y-2 p-1 font-sans text-gray-900">
+                        <p className="m-0 text-sm font-semibold leading-tight">
+                          {activeStopTitle}
+                        </p>
+                        <p className="m-0 text-xs text-gray-600">
+                          {typeSymbol(s.type)} · Giorno {day.dayIndex}
+                        </p>
+                        {onOpenStopDetail && (
+                          <button
+                            type="button"
+                            className="w-full rounded-md bg-[#B3123F] px-2 py-1.5 text-xs font-medium text-white"
+                            onClick={() => onOpenStopDetail()}
+                          >
+                            Per saperne di più
+                          </button>
+                        )}
+                      </div>
+                    </InfoWindow>
+                  );
+                }
               });
               return out;
             })}

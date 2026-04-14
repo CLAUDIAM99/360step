@@ -6,6 +6,9 @@ export type Transport = z.infer<typeof TransportSchema>;
 export const PaceSchema = z.enum(["relaxed", "balanced", "intense"]);
 export type Pace = z.infer<typeof PaceSchema>;
 
+export const EnergyProfileSchema = z.enum(["low", "balanced", "high"]);
+export type EnergyProfile = z.infer<typeof EnergyProfileSchema>;
+
 export const TripThemeSchema = z.enum([
   "scenic",
   "food",
@@ -62,6 +65,7 @@ export const GenerateItineraryRequestSchema = z.object({
   preferences: z.object({
     themes: z.array(TripThemeSchema).min(1),
     pace: PaceSchema,
+    energyProfile: EnergyProfileSchema.optional().default("balanced"),
     /** Vincoli testuali non negoziabili (es. “celiachia”, “no autostrada”). */
     hardConstraints: z.array(z.string().max(200)).max(12).optional(),
     /** Desideri “morbidi” che l’AI può bilanciare. */
@@ -193,6 +197,57 @@ export const ItineraryLegSchema = z.object({
 
 export type ItineraryLeg = z.infer<typeof ItineraryLegSchema>;
 
+export const DayHealthIssueCodeSchema = z.enum([
+  "too_dense",
+  "too_fragmented",
+  "too_much_drive",
+  "low_recovery_margin",
+]);
+export type DayHealthIssueCode = z.infer<typeof DayHealthIssueCodeSchema>;
+
+export const DayHealthSuggestionSchema = z.object({
+  id: z.string(),
+  issueCode: DayHealthIssueCodeSchema,
+  title: z.string(),
+  explanation: z.string(),
+  effect: z.string().optional(),
+});
+export type DayHealthSuggestion = z.infer<typeof DayHealthSuggestionSchema>;
+
+export const DayHealthSchema = z.object({
+  dayIndex: z.number().int(),
+  loadScore: z.number().min(0).max(100),
+  stopCount: z.number().int().nonnegative(),
+  transitions: z.number().int().nonnegative(),
+  visitMinutes: z.number().nonnegative(),
+  driveMinutes: z.number().nonnegative(),
+  totalMinutes: z.number().nonnegative(),
+  recoveryMinutes: z.number().nonnegative(),
+  issues: z.array(DayHealthIssueCodeSchema),
+  suggestions: z.array(DayHealthSuggestionSchema),
+});
+export type DayHealth = z.infer<typeof DayHealthSchema>;
+
+export const TripHealthSummarySchema = z.object({
+  riskLevel: z.enum(["low", "moderate", "high"]),
+  overloadDays: z.number().int().nonnegative(),
+  warningDays: z.number().int().nonnegative(),
+  averageLoadScore: z.number().min(0).max(100),
+});
+export type TripHealthSummary = z.infer<typeof TripHealthSummarySchema>;
+
+export const RebalancingSuggestionSchema = z.object({
+  id: z.string(),
+  type: z.enum(["move_stop", "mark_optional", "split_day_hint"]),
+  reason: z.string(),
+  fromDayIndex: z.number().int(),
+  toDayIndex: z.number().int().optional(),
+  stopKey: z.string().optional(),
+  stopTitle: z.string().optional(),
+  expectedImpact: z.string(),
+});
+export type RebalancingSuggestion = z.infer<typeof RebalancingSuggestionSchema>;
+
 export const ItineraryResultSchema = z.object({
   id: z.string(),
   summary: z.string(),
@@ -206,6 +261,9 @@ export const ItineraryResultSchema = z.object({
   tripId: z.string().optional(),
   revision: z.number().int().nonnegative().optional(),
   updatedAt: z.string().optional(),
+  dayHealth: z.array(DayHealthSchema).optional(),
+  tripHealthSummary: TripHealthSummarySchema.optional(),
+  rebalancingSuggestions: z.array(RebalancingSuggestionSchema).optional(),
 });
 
 export type ItineraryResult = z.infer<typeof ItineraryResultSchema>;
@@ -220,6 +278,7 @@ export const InsertStopRequestSchema = z.object({
   preferences: z.object({
     themes: z.array(TripThemeSchema).min(1),
     pace: PaceSchema,
+    energyProfile: EnergyProfileSchema.optional().default("balanced"),
     hardConstraints: z.array(z.string().max(200)).max(12).optional(),
     softWishes: z.array(z.string().max(200)).max(12).optional(),
   }),

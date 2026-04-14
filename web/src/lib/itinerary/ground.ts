@@ -21,8 +21,12 @@ import type {
   Transport,
   GenerateItineraryRequest,
   ItineraryDay,
+  Pace,
+  EnergyProfile,
 } from "@/lib/itinerary/schema";
 import { haversineKm } from "@/lib/geo/distance";
+import { evaluateItineraryHealth } from "@/lib/itinerary/health";
+import { buildRebalancingSuggestions } from "@/lib/itinerary/rebalance";
 
 /** Soglia: oltre questa distanza la prima/ultima tappa non coincide con partenza/arrivo dichiarati. */
 const ANCHOR_MAX_DISTANCE_KM = 18;
@@ -336,6 +340,8 @@ export async function groundGeminiPlan(
     preferScenicRoutes?: boolean;
     /** Continua un viaggio salvato (stesso tripId, revision incrementata). */
     continueTrip?: { tripId: string; revision?: number; createdAt?: string };
+    pace?: Pace;
+    energyProfile?: EnergyProfile;
   }
 ): Promise<ItineraryResult> {
   let calls = 0;
@@ -525,7 +531,7 @@ export async function groundGeminiPlan(
   const updatedAt = new Date().toISOString();
   const createdAt = ctx.continueTrip?.createdAt ?? updatedAt;
 
-  return {
+  const baseResult: ItineraryResult = {
     id: tripId,
     summary: plan.summary,
     bestPeriodNote: plan.bestPeriodNote ?? undefined,
@@ -536,6 +542,21 @@ export async function groundGeminiPlan(
     tripId,
     revision,
     updatedAt,
+  };
+  const health = evaluateItineraryHealth({
+    itinerary: baseResult,
+    pace: ctx.pace ?? "balanced",
+    energyProfile: ctx.energyProfile ?? "balanced",
+  });
+
+  return {
+    ...baseResult,
+    dayHealth: health.dayHealth,
+    tripHealthSummary: health.tripHealthSummary,
+    rebalancingSuggestions: buildRebalancingSuggestions(
+      baseResult,
+      health.dayHealth
+    ),
   };
 }
 

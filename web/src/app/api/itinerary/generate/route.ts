@@ -41,6 +41,8 @@ export async function POST(req: Request) {
       area: parsed.data.area,
       transport: parsed.data.transport,
       time: parsed.data.time,
+      pace: parsed.data.preferences.pace,
+      energyProfile: parsed.data.preferences.energyProfile,
       mapsApiKey: mapsKey,
       startPlaceQuery: parsed.data.startPlaceQuery,
       endPlaceQuery: parsed.data.endPlaceQuery,

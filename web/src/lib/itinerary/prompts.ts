@@ -1,5 +1,6 @@
 import type { GenerateItineraryRequest } from "@/lib/itinerary/schema";
 import { boundsFromArea } from "@/lib/maps/bounds";
+import { deriveDailyBudget } from "@/lib/itinerary/pace-budgets";
 
 function describeArea(area: GenerateItineraryRequest["area"]): string {
   if (area.kind === "polygon") {
@@ -21,6 +22,11 @@ function describeAreaBounds(area: GenerateItineraryRequest["area"]): string {
 }
 
 export function buildPlannerPrompt(req: GenerateItineraryRequest): string {
+  const budget = deriveDailyBudget(
+    req.preferences.pace,
+    req.preferences.energyProfile
+  );
+
   const themes = req.preferences.themes.join(", ");
   const time =
     req.time.mode === "days_only"
@@ -78,10 +84,12 @@ export function buildPlannerPrompt(req: GenerateItineraryRequest): string {
 Vincoli utente:
 - Temi preferiti (peso simile): ${themes}.
 - Ritmo: ${req.preferences.pace}.
+- Energia target: ${req.preferences.energyProfile}.
 - Mezzo: ${req.transport}. ${transport}
 - Tempo: ${time}
 - ${areaStrict}
 ${startEnd}${hubLoop}${hardBlock}${softBlock}${scenicHint}
+- Limiti soft di realismo umano: massimo ${budget.maxStops} tappe/giorno, circa ${budget.maxDriveMinutes} minuti guida/giorno, circa ${budget.maxTotalMinutes} minuti di carico totale (visite + guida).
 
 Restituisci SOLO JSON valido (nessun markdown) con questa forma esatta:
 {
@@ -110,7 +118,7 @@ Regole:
 - Copri tutti i giorni richiesti (dayIndex sequenziale da 1).
 - Ogni stop deve avere searchQuery concretamente cercabile (luogo + zona).
 - Non inventare coordinate; servono solo titoli e query.
-- Massimo ~8 tappe/giorno salvo ritmo "relaxed" (meno tappe).
+- Rispetta i limiti soft di realismo umano indicati sopra.
 - Includi pasti dove ha senso (type meal), pernottamento (sleep) se multi-giorno, parcheggio/camper_stop solo se coerenti col mezzo.
 - Rispetta rigorosamente partenza e (se indicata) ultima tappa come sopra.
 - Se usi aiRationale, tienilo breve (max ~200 caratteri) e concreto.`;

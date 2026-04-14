@@ -68,7 +68,9 @@ import {
   type GroundedStop,
   type ItineraryLeg,
   type ItineraryResult,
+  type RebalancingSuggestion,
   type StopType,
+  type EnergyProfile,
   type Pace,
   type Transport,
   type TripTheme,
@@ -79,6 +81,11 @@ import {
   reconcileItineraryLegs,
 } from "@/lib/itinerary/legs-reconcile";
 import { estimateDailyLoads } from "@/lib/itinerary/day-estimates";
+import { evaluateItineraryHealth } from "@/lib/itinerary/health";
+import {
+  applyRebalancingSuggestion,
+  buildRebalancingSuggestions,
+} from "@/lib/itinerary/rebalance";
 import {
   STOP_TYPE_BADGE_CLASS,
   dayItineraryHex,
@@ -260,6 +267,7 @@ export function WizardApp() {
   const [step, setStep] = useState(0);
   const [themes, setThemes] = useState<TripTheme[]>(["scenic", "food"]);
   const [pace, setPace] = useState<Pace>("balanced");
+  const [energyProfile, setEnergyProfile] = useState<EnergyProfile>("balanced");
   const [transport, setTransport] = useState<Transport>("car");
   const [timeTab, setTimeTab] = useState<"days" | "dates">("days");
   const [days, setDays] = useState(3);
@@ -352,6 +360,9 @@ export function WizardApp() {
         const d = JSON.parse(raw) as Record<string, unknown>;
         if (Array.isArray(d.themes)) setThemes(d.themes as TripTheme[]);
         if (typeof d.pace === "string") setPace(d.pace as Pace);
+        if (typeof d.energyProfile === "string") {
+          setEnergyProfile(d.energyProfile as EnergyProfile);
+        }
         if (typeof d.transport === "string")
           setTransport(d.transport as Transport);
         if (typeof d.days === "number") setDays(d.days);
@@ -403,6 +414,7 @@ export function WizardApp() {
     const payload = {
       themes,
       pace,
+      energyProfile,
       transport,
       days,
       range:
@@ -425,6 +437,7 @@ export function WizardApp() {
   }, [
     themes,
     pace,
+    energyProfile,
     transport,
     days,
     range,
@@ -559,6 +572,23 @@ export function WizardApp() {
     const rows = estimateDailyLoads(reconciledResult);
     return new Map(rows.map((r) => [r.dayIndex, r]));
   }, [reconciledResult]);
+
+  const itineraryHealth = useMemo(() => {
+    if (!reconciledResult) return null;
+    return evaluateItineraryHealth({
+      itinerary: reconciledResult,
+      pace,
+      energyProfile,
+    });
+  }, [reconciledResult, pace, energyProfile]);
+
+  const rebalancingSuggestions = useMemo(() => {
+    if (!reconciledResult || !itineraryHealth) return [] as RebalancingSuggestion[];
+    if (reconciledResult.rebalancingSuggestions?.length) {
+      return reconciledResult.rebalancingSuggestions;
+    }
+    return buildRebalancingSuggestions(reconciledResult, itineraryHealth.dayHealth);
+  }, [reconciledResult, itineraryHealth]);
 
   const weatherFeasibilityWarnings = useMemo(() => {
     if (!reconciledResult) return [] as { dayIndex: number }[];
@@ -706,6 +736,7 @@ export function WizardApp() {
       preferences: {
         themes,
         pace,
+        energyProfile,
         ...(hardList.length ? { hardConstraints: hardList } : {}),
         ...(softList.length ? { softWishes: softList } : {}),
       },
@@ -726,6 +757,7 @@ export function WizardApp() {
     range,
     themes,
     pace,
+    energyProfile,
     transport,
     corridorStart,
     corridorEnd,
@@ -986,6 +1018,7 @@ export function WizardApp() {
           preferences: {
             themes,
             pace,
+            energyProfile,
             ...(linesToList(hardConstraintsText).length
               ? { hardConstraints: linesToList(hardConstraintsText) }
               : {}),
@@ -1143,6 +1176,28 @@ export function WizardApp() {
                     className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
                   >
                     <RadioGroupItem value={v} id={`pace-${v}`} />
+                    {label}
+                  </label>
+                ))}
+              </RadioGroup>
+              <Label className="mb-2 mt-4 block">Energia giornaliera</Label>
+              <RadioGroup
+                value={energyProfile}
+                onValueChange={(v) => setEnergyProfile(v as EnergyProfile)}
+                className="flex flex-wrap gap-3"
+              >
+                {(
+                  [
+                    ["low", "Bassa (no stress)"],
+                    ["balanced", "Media"],
+                    ["high", "Alta"],
+                  ] as const
+                ).map(([v, label]) => (
+                  <label
+                    key={v}
+                    className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                  >
+                    <RadioGroupItem value={v} id={`energy-${v}`} />
                     {label}
                   </label>
                 ))}
@@ -1667,6 +1722,55 @@ export function WizardApp() {
                   </ul>
                 </div>
               )}
+              {itineraryHealth && (
+                <div className="rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm dark:bg-muted/20">
+                  <p className="font-semibold text-foreground">Stato energia viaggio</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Rischio{" "}
+                    <span className="font-medium text-foreground">
+                      {itineraryHealth.tripHealthSummary.riskLevel}
+                    </span>{" "}
+                    · media carico {itineraryHealth.tripHealthSummary.averageLoadScore}/100 · giorni critici{" "}
+                    {itineraryHealth.tripHealthSummary.overloadDays}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Budget attivo: max {itineraryHealth.budget.maxStops} tappe, ~
+                    {Math.round(itineraryHealth.budget.maxDriveMinutes / 60)}h guida, ~
+                    {Math.round(itineraryHealth.budget.maxTotalMinutes / 60)}h carico.
+                  </p>
+                </div>
+              )}
+              {rebalancingSuggestions.length > 0 && (
+                <div className="rounded-xl border border-border/80 bg-card/60 px-4 py-3 text-sm">
+                  <p className="font-semibold text-foreground">
+                    Suggerimenti di riequilibrio
+                  </p>
+                  <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
+                    {rebalancingSuggestions.slice(0, 4).map((s) => (
+                      <li key={s.id} className="rounded-md border border-border/60 p-2">
+                        <p className="font-medium text-foreground">{s.stopTitle ?? "Riequilibrio giornata"}</p>
+                        <p>{s.reason}</p>
+                        <p className="mt-0.5">{s.expectedImpact}</p>
+                        {s.type !== "split_day_hint" && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 h-7 px-2 text-[11px]"
+                            onClick={() =>
+                              setResult((prev) =>
+                                prev ? applyRebalancingSuggestion(prev, s) : prev
+                              )
+                            }
+                          >
+                            Applica suggerimento
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                 <div className="min-w-0 space-y-4">
                   <div
@@ -1759,6 +1863,9 @@ export function WizardApp() {
                             )}
                             {(() => {
                               const load = dayLoadByDay.get(dayIndex);
+                              const health = itineraryHealth?.dayHealth.find(
+                                (h) => h.dayIndex === dayIndex
+                              );
                               if (!load) return null;
                               const h =
                                 Math.round((load.totalMinutes / 60) * 10) / 10;
@@ -1773,12 +1880,34 @@ export function WizardApp() {
                                 >
                                   ~{h}h carico stim.
                                   {load.overload ? " · intenso" : ""}
+                                  {health && health.issues.length > 0
+                                    ? ` · warning ${health.issues.length}`
+                                    : ""}
                                 </span>
                               );
                             })()}
                           </button>
                           {(dayListOpen[dayIndex] ?? false) && (
                           <ul className="space-y-2 p-3">
+                            {(() => {
+                              const health = itineraryHealth?.dayHealth.find(
+                                (h) => h.dayIndex === dayIndex
+                              );
+                              if (!health || health.issues.length === 0) return null;
+                              return (
+                                <li className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
+                                  <p className="font-medium">
+                                    Carico giorno {dayIndex}: {health.loadScore}/100
+                                  </p>
+                                  <p className="mt-1 opacity-90">
+                                    {health.suggestions
+                                      .map((s) => s.title)
+                                      .slice(0, 2)
+                                      .join(" · ")}
+                                  </p>
+                                </li>
+                              );
+                            })()}
                             {dayRows.map((row) => {
                               const typeMeta = STOP_TYPE_META[row.stop.type];
                               const TypeIcon = typeMeta.icon;

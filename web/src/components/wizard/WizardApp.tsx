@@ -83,7 +83,6 @@ import {
 import { estimateDailyLoads } from "@/lib/itinerary/day-estimates";
 import { evaluateItineraryHealth } from "@/lib/itinerary/health";
 import {
-  applyRebalancingSuggestion,
   buildRebalancingSuggestions,
 } from "@/lib/itinerary/rebalance";
 import {
@@ -283,6 +282,9 @@ export function WizardApp() {
   const [tripStartQuery, setTripStartQuery] = useState("");
   const [tripEndQuery, setTripEndQuery] = useState("");
   const [returnToHubEachNight, setReturnToHubEachNight] = useState(false);
+  const [accommodationAsBase, setAccommodationAsBase] = useState(true);
+  const [reuseAccommodationUntilChanged, setReuseAccommodationUntilChanged] =
+    useState(true);
   const [preferScenicRoutes, setPreferScenicRoutes] = useState(false);
   const [hardConstraintsText, setHardConstraintsText] = useState("");
   const [softWishesText, setSoftWishesText] = useState("");
@@ -290,6 +292,7 @@ export function WizardApp() {
     showConfirmedStops: true,
     showOptionalStops: true,
     showRoute: true,
+    showAccommodations: true,
   });
   /** Giorni espansi nella lista step 4 (default: tutti aperti). */
   const [dayListOpen, setDayListOpen] = useState<Record<number, boolean>>({});
@@ -330,10 +333,178 @@ export function WizardApp() {
   const [parkingRows, setParkingRows] = useState<NearbyParkingRow[]>([]);
   const [parkingErr, setParkingErr] = useState<string | null>(null);
 
+  const [rebalanceDialogOpen, setRebalanceDialogOpen] = useState(false);
+  const [rebalanceBusy, setRebalanceBusy] = useState(false);
+  const [rebalanceErr, setRebalanceErr] = useState<string | null>(null);
+  const [rebalanceSuggestion, setRebalanceSuggestion] =
+    useState<RebalancingSuggestion | null>(null);
+  const [rebalancePreview, setRebalancePreview] = useState<ItineraryResult | null>(
+    null
+  );
+  const [rebalancePreviewDelta, setRebalancePreviewDelta] = useState<{
+    riskLevelBefore: "low" | "moderate" | "high";
+    riskLevelAfter: "low" | "moderate" | "high";
+    averageLoadScoreBefore: number;
+    averageLoadScoreAfter: number;
+    overloadDaysBefore: number;
+    overloadDaysAfter: number;
+  } | null>(null);
+
+  const rebalanceMiniDiff = useMemo(() => {
+    if (!result || !rebalancePreview || !rebalanceSuggestion) return null;
+    const beforeByDay = new Map(
+      result.days.map((d) => [
+        d.dayIndex,
+        [...d.stops].sort((a, b) => a.orderInDay - b.orderInDay),
+      ])
+    );
+    const afterByDay = new Map(
+      rebalancePreview.days.map((d) => [
+        d.dayIndex,
+        [...d.stops].sort((a, b) => a.orderInDay - b.orderInDay),
+      ])
+    );
+
+    const dayIndexes = Array.from(
+      new Set([...beforeByDay.keys(), ...afterByDay.keys()])
+    ).sort((a, b) => a - b);
+
+    const touchedDays: number[] = [];
+    for (const dayIndex of dayIndexes) {
+      const b = beforeByDay.get(dayIndex) ?? [];
+      const a = afterByDay.get(dayIndex) ?? [];
+      const bKeys = b.map((s) => `${s.type}|${s.placeId ?? s.title}`);
+      const aKeys = a.map((s) => `${s.type}|${s.placeId ?? s.title}`);
+      if (bKeys.join("||") !== aKeys.join("||")) touchedDays.push(dayIndex);
+    }
+
+    const beforeHealthByDay = new Map(
+      (result.dayHealth ?? []).map((h) => [h.dayIndex, h])
+    );
+    const afterHealthByDay = new Map(
+      (rebalancePreview.dayHealth ?? []).map((h) => [h.dayIndex, h])
+    );
+
+    const affected = touchedDays.slice(0, 3);
+    return {
+      touchedDays,
+      affectedDays: affected.map((dayIndex) => ({
+        dayIndex,
+        beforeScore: beforeHealthByDay.get(dayIndex)?.loadScore,
+        afterScore: afterHealthByDay.get(dayIndex)?.loadScore,
+        beforeIssues: beforeHealthByDay.get(dayIndex)?.issues.length ?? 0,
+        afterIssues: afterHealthByDay.get(dayIndex)?.issues.length ?? 0,
+      })),
+      changeLabel:
+        rebalanceSuggestion.type === "move_stop"
+          ? `Sposta “${rebalanceSuggestion.stopTitle ?? "tappa"}” dal giorno ${rebalanceSuggestion.fromDayIndex} al giorno ${rebalanceSuggestion.toDayIndex ?? "?"}.`
+          : rebalanceSuggestion.type === "mark_optional"
+            ? `Rende opzionale “${rebalanceSuggestion.stopTitle ?? "tappa"}” nel giorno ${rebalanceSuggestion.fromDayIndex}.`
+            : "Suggerimento informativo (nessuna applicazione automatica).",
+    };
+  }, [result, rebalancePreview, rebalanceSuggestion]);
+
   const reconciledResult = useMemo(
     () => (result ? reconcileItineraryLegs(result) : null),
     [result]
   );
+
+  const openRebalancePreview = useCallback(
+    async (s: RebalancingSuggestion) => {
+      if (!result) return;
+      setRebalanceErr(null);
+      setRebalanceBusy(true);
+      setRebalanceSuggestion(s);
+      setRebalancePreview(null);
+      setRebalancePreviewDelta(null);
+      setRebalanceDialogOpen(true);
+      try {
+        const res = await fetch("/api/itinerary/rebalance/propose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itinerary: result,
+            suggestion: s,
+            ctx: {
+              transport,
+              pace,
+              energyProfile,
+              preferScenicRoutes,
+            },
+          }),
+        });
+        const data = (await res.json()) as
+          | {
+              error?: string;
+              afterPreview?: ItineraryResult;
+              delta?: unknown;
+            }
+          | ItineraryResult;
+        if (!res.ok || (data as { error?: string }).error) {
+          throw new Error(
+            (data as { error?: string }).error ?? "Errore preview riequilibrio"
+          );
+        }
+        const parsed = (data as { afterPreview?: ItineraryResult; delta?: unknown })
+          .afterPreview;
+        if (parsed) {
+          setRebalancePreview(parsed);
+        }
+        const delta = (data as { delta?: typeof rebalancePreviewDelta }).delta as
+          | typeof rebalancePreviewDelta
+          | undefined;
+        if (delta) setRebalancePreviewDelta(delta);
+      } catch (e) {
+        setRebalanceErr(e instanceof Error ? e.message : "Errore preview");
+      } finally {
+        setRebalanceBusy(false);
+      }
+    },
+    [result, transport, pace, energyProfile, preferScenicRoutes]
+  );
+
+  const applyRebalanceConfirmed = useCallback(async () => {
+    if (!result || !rebalanceSuggestion) return;
+    setRebalanceErr(null);
+    setRebalanceBusy(true);
+    try {
+      const res = await fetch("/api/itinerary/rebalance/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itinerary: result,
+          suggestion: rebalanceSuggestion,
+          ctx: {
+            transport,
+            pace,
+            energyProfile,
+            preferScenicRoutes,
+          },
+        }),
+      });
+      const data = (await res.json()) as ItineraryResult | { error?: string };
+      if (!res.ok || (data as { error?: string }).error) {
+        throw new Error(
+          (data as { error?: string }).error ?? "Errore apply riequilibrio"
+        );
+      }
+      const out = ItineraryResultSchema.safeParse(data);
+      if (!out.success) throw new Error("Risposta apply non valida");
+      setResult(out.data);
+      setRebalanceDialogOpen(false);
+    } catch (e) {
+      setRebalanceErr(e instanceof Error ? e.message : "Errore apply");
+    } finally {
+      setRebalanceBusy(false);
+    }
+  }, [
+    result,
+    rebalanceSuggestion,
+    transport,
+    pace,
+    energyProfile,
+    preferScenicRoutes,
+  ]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -379,6 +550,12 @@ export function WizardApp() {
         if (typeof d.tripEndQuery === "string") setTripEndQuery(d.tripEndQuery);
         if (typeof d.returnToHubEachNight === "boolean")
           setReturnToHubEachNight(d.returnToHubEachNight);
+        if (typeof d.accommodationAsBase === "boolean") {
+          setAccommodationAsBase(d.accommodationAsBase);
+        }
+        if (typeof d.reuseAccommodationUntilChanged === "boolean") {
+          setReuseAccommodationUntilChanged(d.reuseAccommodationUntilChanged);
+        }
         if (typeof d.preferScenicRoutes === "boolean")
           setPreferScenicRoutes(d.preferScenicRoutes);
         if (typeof d.hardConstraintsText === "string")
@@ -425,6 +602,8 @@ export function WizardApp() {
       tripStartQuery,
       tripEndQuery,
       returnToHubEachNight,
+      accommodationAsBase,
+      reuseAccommodationUntilChanged,
       preferScenicRoutes,
       hardConstraintsText,
       softWishesText,
@@ -445,6 +624,8 @@ export function WizardApp() {
     tripStartQuery,
     tripEndQuery,
     returnToHubEachNight,
+    accommodationAsBase,
+    reuseAccommodationUntilChanged,
     preferScenicRoutes,
     hardConstraintsText,
     softWishesText,
@@ -746,6 +927,8 @@ export function WizardApp() {
       startPlaceQuery,
       endPlaceQuery: endRaw.length > 0 ? endRaw : undefined,
       returnToHubEachNight,
+      accommodationAsBase,
+      reuseAccommodationUntilChanged,
       preferScenicRoutes,
       language: "it",
     };
@@ -764,6 +947,8 @@ export function WizardApp() {
     tripStartQuery,
     tripEndQuery,
     returnToHubEachNight,
+    accommodationAsBase,
+    reuseAccommodationUntilChanged,
     preferScenicRoutes,
     hardConstraintsText,
     softWishesText,
@@ -1028,6 +1213,8 @@ export function WizardApp() {
           },
           language: "it",
           returnToHubEachNight,
+          accommodationAsBase,
+          reuseAccommodationUntilChanged,
           preferScenicRoutes,
           ...(startQ.length >= 2 ? { startPlaceQuery: startQ } : {}),
           ...(endQ ? { endPlaceQuery: endQ } : {}),
@@ -1420,6 +1607,52 @@ export function WizardApp() {
                   </div>
                   <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
                     <Checkbox
+                      id="acc-base"
+                      checked={accommodationAsBase}
+                      onCheckedChange={(v) => {
+                        const on = v === true;
+                        setAccommodationAsBase(on);
+                        if (on) setReturnToHubEachNight(false);
+                      }}
+                    />
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="acc-base"
+                        className="text-sm font-medium leading-snug"
+                      >
+                        Alloggio come base (partenza e rientro)
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Ogni giorno inizia e finisce dall’alloggio (ultimo “sleep”
+                        del giorno).
+                      </p>
+                    </div>
+                  </div>
+                  {accommodationAsBase && (
+                    <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                      <Checkbox
+                        id="acc-reuse"
+                        checked={reuseAccommodationUntilChanged}
+                        onCheckedChange={(v) =>
+                          setReuseAccommodationUntilChanged(v === true)
+                        }
+                      />
+                      <div className="space-y-0.5">
+                        <Label
+                          htmlFor="acc-reuse"
+                          className="text-sm font-medium leading-snug"
+                        >
+                          Stesso alloggio per più giorni
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Se un giorno non hai un alloggio inserito, riuso l’ultimo
+                          alloggio noto dei giorni precedenti.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                    <Checkbox
                       id="scenic-routes"
                       checked={preferScenicRoutes}
                       onCheckedChange={(v) =>
@@ -1539,6 +1772,52 @@ export function WizardApp() {
                     </p>
                   </div>
                 </div>
+                <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                  <Checkbox
+                    id="acc-base-fb"
+                    checked={accommodationAsBase}
+                    onCheckedChange={(v) => {
+                      const on = v === true;
+                      setAccommodationAsBase(on);
+                      if (on) setReturnToHubEachNight(false);
+                    }}
+                  />
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor="acc-base-fb"
+                      className="text-sm font-medium leading-snug"
+                    >
+                      Alloggio come base (partenza e rientro)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Ogni giorno inizia e finisce dall’alloggio (ultimo “sleep”
+                      del giorno).
+                    </p>
+                  </div>
+                </div>
+                {accommodationAsBase && (
+                  <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
+                    <Checkbox
+                      id="acc-reuse-fb"
+                      checked={reuseAccommodationUntilChanged}
+                      onCheckedChange={(v) =>
+                        setReuseAccommodationUntilChanged(v === true)
+                      }
+                    />
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="acc-reuse-fb"
+                        className="text-sm font-medium leading-snug"
+                      >
+                        Stesso alloggio per più giorni
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Se un giorno non hai un alloggio inserito, riuso l’ultimo
+                        alloggio noto dei giorni precedenti.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
                   <Checkbox
                     id="scenic-routes-fb"
@@ -1757,11 +2036,7 @@ export function WizardApp() {
                             variant="outline"
                             size="sm"
                             className="mt-2 h-7 px-2 text-[11px]"
-                            onClick={() =>
-                              setResult((prev) =>
-                                prev ? applyRebalancingSuggestion(prev, s) : prev
-                              )
-                            }
+                            onClick={() => void openRebalancePreview(s)}
                           >
                             Applica suggerimento
                           </Button>
@@ -1771,6 +2046,114 @@ export function WizardApp() {
                   </ul>
                 </div>
               )}
+              <Dialog
+                open={rebalanceDialogOpen}
+                onOpenChange={(v) => {
+                  if (!v) {
+                    setRebalanceErr(null);
+                    setRebalanceSuggestion(null);
+                    setRebalancePreview(null);
+                    setRebalancePreviewDelta(null);
+                  }
+                  setRebalanceDialogOpen(v);
+                }}
+              >
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Conferma riequilibrio</DialogTitle>
+                    <DialogDescription>
+                      Anteprima dell’impatto prima di modificare l’itinerario.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {rebalanceErr && (
+                    <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {rebalanceErr}
+                    </p>
+                  )}
+                  <div className="space-y-2 text-sm">
+                    <p className="font-medium text-foreground">
+                      {rebalanceSuggestion?.stopTitle ?? "Riequilibrio giornata"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {rebalanceSuggestion?.reason}
+                    </p>
+                    {rebalancePreviewDelta && (
+                      <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs">
+                        <p className="font-medium text-foreground">Impatto stimato</p>
+                        <p className="text-muted-foreground">
+                          Rischio: {rebalancePreviewDelta.riskLevelBefore} →{" "}
+                          {rebalancePreviewDelta.riskLevelAfter}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Media carico: {rebalancePreviewDelta.averageLoadScoreBefore}
+                          /100 → {rebalancePreviewDelta.averageLoadScoreAfter}/100
+                        </p>
+                        <p className="text-muted-foreground">
+                          Giorni critici: {rebalancePreviewDelta.overloadDaysBefore} →{" "}
+                          {rebalancePreviewDelta.overloadDaysAfter}
+                        </p>
+                      </div>
+                    )}
+                    {rebalanceBusy && (
+                      <p className="text-xs text-muted-foreground">
+                        Calcolo anteprima…
+                      </p>
+                    )}
+                    {rebalancePreview?.tripHealthSummary && (
+                      <p className="text-xs text-muted-foreground">
+                        Dopo: rischio{" "}
+                        <span className="font-medium text-foreground">
+                          {rebalancePreview.tripHealthSummary.riskLevel}
+                        </span>{" "}
+                        · media carico{" "}
+                        {rebalancePreview.tripHealthSummary.averageLoadScore}/100
+                      </p>
+                    )}
+                    {rebalanceMiniDiff && (
+                      <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-2 text-xs">
+                        <p className="font-medium text-foreground">Cosa cambia</p>
+                        <p className="mt-0.5 text-muted-foreground">
+                          {rebalanceMiniDiff.changeLabel}
+                        </p>
+                        {rebalanceMiniDiff.affectedDays.length > 0 && (
+                          <ul className="mt-2 space-y-1 text-muted-foreground">
+                            {rebalanceMiniDiff.affectedDays.map((d) => (
+                              <li key={d.dayIndex}>
+                                Giorno {d.dayIndex}: carico{" "}
+                                {d.beforeScore != null ? `${d.beforeScore}/100` : "n/d"} →{" "}
+                                {d.afterScore != null ? `${d.afterScore}/100` : "n/d"} · warning{" "}
+                                {d.beforeIssues} → {d.afterIssues}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {rebalanceMiniDiff.touchedDays.length > 3 && (
+                          <p className="mt-1 text-muted-foreground">
+                            + altri {rebalanceMiniDiff.touchedDays.length - 3} giorni toccati
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setRebalanceDialogOpen(false)}
+                      disabled={rebalanceBusy}
+                    >
+                      Annulla
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => void applyRebalanceConfirmed()}
+                      disabled={rebalanceBusy || !rebalanceSuggestion}
+                    >
+                      Applica
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                 <div className="min-w-0 space-y-4">
                   <div
@@ -2209,6 +2592,18 @@ export function WizardApp() {
                         }
                       />
                       Tratte
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <Checkbox
+                        checked={mapLayers.showAccommodations}
+                        onCheckedChange={(v) =>
+                          setMapLayers((m) => ({
+                            ...m,
+                            showAccommodations: v === true,
+                          }))
+                        }
+                      />
+                      Alloggi
                     </label>
                   </div>
                   <div className="rounded-xl ring-1 ring-border/80 ring-offset-2 ring-offset-background dark:ring-offset-background">

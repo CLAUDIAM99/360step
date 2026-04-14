@@ -28,7 +28,9 @@ export function buildRebalancingSuggestions(
     if (!day) continue;
     const ordered = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
     const movable =
-      [...ordered].reverse().find((s) => s.stopStatus === "optional") ??
+      [...ordered]
+        .reverse()
+        .find((s) => s.stopStatus === "optional" && s.type !== "sleep") ??
       [...ordered].reverse().find((s) => s.type !== "sleep");
     const nextDay = sortedDays.find((d) => d.dayIndex === health.dayIndex + 1);
 
@@ -84,7 +86,9 @@ export function applyRebalancingSuggestion(
     for (const day of next.days) {
       day.stops = day.stops.map((stop) =>
         stopKey(stop.dayIndex, stop.orderInDay, stop.title, stop.placeId) === suggestion.stopKey
-          ? { ...stop, stopStatus: "optional" }
+          ? stop.type === "sleep"
+            ? stop
+            : { ...stop, stopStatus: "optional" }
           : stop
       );
     }
@@ -105,6 +109,10 @@ export function applyRebalancingSuggestion(
       );
       if (idx >= 0) {
         const [moved] = fromDay.stops.splice(idx, 1);
+        if (moved?.type === "sleep") {
+          // Safety: never auto-move accommodations (base anchors).
+          return itinerary;
+        }
         toDay.stops.push({ ...moved, dayIndex: toDay.dayIndex });
       }
       fromDay.stops = fromDay.stops

@@ -68,7 +68,11 @@ function typeSymbol(type: StopType): string {
 function markerIconDataUrl(hex: string, symbol: string, active: boolean): string {
   const stroke = active ? "#2a1810" : "#faf6f2";
   const strokeWidth = active ? 1.8 : 1.1;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="40" viewBox="0 0 24 32"><path fill="${hex}" stroke="${stroke}" stroke-width="${strokeWidth}" d="M12 2C7 2 3 6 3 11c0 7 9 17 9 17s9-10 9-17c0-5-4-9-9-9z"/><circle cx="12" cy="11" r="4.1" fill="#ffffff"/><text x="12" y="12.6" font-size="5.2" text-anchor="middle" fill="#2a1810" font-family="Arial, sans-serif" font-weight="700">${symbol}</text></svg>`;
+  const isSleep = symbol === "S";
+  const baseShape = isSleep
+    ? `<rect x="4" y="3" width="16" height="16" rx="4" fill="${hex}" stroke="${stroke}" stroke-width="${strokeWidth}"/><path d="M8 12h8v4H8z" fill="#ffffff"/><path d="M8 10h5v2H8z" fill="#ffffff"/>`
+    : `<path fill="${hex}" stroke="${stroke}" stroke-width="${strokeWidth}" d="M12 2C7 2 3 6 3 11c0 7 9 17 9 17s9-10 9-17c0-5-4-9-9-9z"/><circle cx="12" cy="11" r="4.1" fill="#ffffff"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="40" viewBox="0 0 24 32">${baseShape}<text x="12" y="12.6" font-size="5.2" text-anchor="middle" fill="#2a1810" font-family="Arial, sans-serif" font-weight="700">${symbol}</text></svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
@@ -89,18 +93,21 @@ export type MapLayerVisibility = {
   showConfirmedStops: boolean;
   showOptionalStops: boolean;
   showRoute: boolean;
+  showAccommodations: boolean;
 };
 
 const DEFAULT_MAP_LAYERS: MapLayerVisibility = {
   showConfirmedStops: true,
   showOptionalStops: true,
   showRoute: true,
+  showAccommodations: true,
 };
 
 function stopMatchesLayer(
   stop: GroundedStop,
   layers: MapLayerVisibility
 ): boolean {
+  if (stop.type === "sleep" && !layers.showAccommodations) return false;
   const optional = stop.stopStatus === "optional";
   if (optional) return layers.showOptionalStops;
   return layers.showConfirmedStops;

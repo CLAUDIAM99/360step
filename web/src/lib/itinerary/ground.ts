@@ -266,6 +266,88 @@ function reindexDay(dayIndex: number, stops: GroundedStop[]): GroundedStop[] {
   return stops.map((s, i) => ({ ...s, dayIndex, orderInDay: i }));
 }
 
+function cloneAccommodationStop(
+  base: GroundedStop,
+  dayIndex: number,
+  orderInDay: number,
+  extraNote?: string
+): GroundedStop {
+  const note = extraNote
+    ? [base.notes, extraNote].filter(Boolean).join(" — ")
+    : base.notes;
+  return {
+    ...base,
+    type: "sleep",
+    dayIndex,
+    orderInDay,
+    notes: note || undefined,
+  };
+}
+
+function pickDailyAccommodationBase(day: ItineraryDay): GroundedStop | undefined {
+  const ordered = sortStops(day.stops);
+  const lastSleep = [...ordered].reverse().find((s) => s.type === "sleep");
+  return lastSleep ? { ...lastSleep, type: "sleep" } : undefined;
+}
+
+/** Garantisce: ogni giorno parte/torna all’alloggio (ultimo sleep del giorno). */
+function enforceDailyAccommodationBase(
+  days: ItineraryDay[],
+  opts: { reuseUntilChanged: boolean }
+): ItineraryDay[] {
+  const ordered = [...days].sort((a, b) => a.dayIndex - b.dayIndex);
+  let lastKnownBase: GroundedStop | undefined;
+
+  return ordered.map((day) => {
+    let stops = sortStops(day.stops);
+    const dailyBase = pickDailyAccommodationBase({ ...day, stops });
+    const base =
+      dailyBase ?? (opts.reuseUntilChanged ? lastKnownBase : undefined);
+    if (dailyBase) lastKnownBase = dailyBase;
+    if (!base) return { ...day, stops: reindexDay(day.dayIndex, stops) };
+
+    // Se non ci sono stop, crea solo base partenza+rientro
+    if (stops.length === 0) {
+      return {
+        ...day,
+        stops: reindexDay(day.dayIndex, [
+          cloneAccommodationStop(base, day.dayIndex, 0, "Alloggio — partenza"),
+          cloneAccommodationStop(base, day.dayIndex, 1, "Alloggio — rientro"),
+        ]),
+      };
+    }
+
+    // Parte dalla base
+    if (!areStopsEquivalent(stops[0], base)) {
+      stops = [
+        cloneAccommodationStop(base, day.dayIndex, 0, "Partenza dall’alloggio"),
+        ...stops,
+      ];
+    } else {
+      // forza tipo sleep sul primo se è la base
+      stops = [{ ...stops[0], type: "sleep" }, ...stops.slice(1)];
+    }
+
+    // Rientro in base
+    if (!areStopsEquivalent(stops[stops.length - 1], base)) {
+      stops = [
+        ...stops,
+        cloneAccommodationStop(
+          base,
+          day.dayIndex,
+          stops.length,
+          "Rientro all’alloggio"
+        ),
+      ];
+    } else {
+      const last = stops[stops.length - 1];
+      stops = [...stops.slice(0, -1), { ...last, type: "sleep" }];
+    }
+
+    return { ...day, stops: reindexDay(day.dayIndex, stops) };
+  });
+}
+
 /** Garantisce prima e ultima tappa di ogni giorno = hub (base giorno 1). */
 function enforceDailyHubReturn(
   days: ItineraryDay[],
@@ -337,6 +419,8 @@ export async function groundGeminiPlan(
     startPlaceQuery?: string;
     endPlaceQuery?: string;
     returnToHubEachNight?: boolean;
+    accommodationAsBase?: boolean;
+    reuseAccommodationUntilChanged?: boolean;
     preferScenicRoutes?: boolean;
     /** Continua un viaggio salvato (stesso tripId, revision incrementata). */
     continueTrip?: { tripId: string; revision?: number; createdAt?: string };
@@ -422,7 +506,11 @@ export async function groundGeminiPlan(
     endPlaceQuery: ctx.endPlaceQuery,
     mapsApiKey: ctx.mapsApiKey,
   });
-  if (ctx.returnToHubEachNight) {
+  if (ctx.accommodationAsBase) {
+    anchored = enforceDailyAccommodationBase(anchored, {
+      reuseUntilChanged: ctx.reuseAccommodationUntilChanged !== false,
+    });
+  } else if (ctx.returnToHubEachNight) {
     const day1 = anchored.find((d) => d.dayIndex === 1);
     const hub = day1?.stops?.length ? sortStops(day1.stops)[0] : undefined;
     if (hub?.lat != null && hub?.lng != null) {

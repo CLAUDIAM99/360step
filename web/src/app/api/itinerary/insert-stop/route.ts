@@ -99,6 +99,8 @@ export async function POST(req: Request) {
       startPlaceQuery: parsed.data.startPlaceQuery,
       endPlaceQuery: parsed.data.endPlaceQuery,
       returnToHubEachNight: parsed.data.returnToHubEachNight,
+      accommodationAsBase: parsed.data.accommodationAsBase,
+      reuseAccommodationUntilChanged: parsed.data.reuseAccommodationUntilChanged,
       preferScenicRoutes: parsed.data.preferScenicRoutes,
       continueTrip: {
         tripId: prev.tripId ?? prev.id,

@@ -83,6 +83,16 @@ export const GenerateItineraryRequestSchema = z.object({
    * Utile per itinerari “a raggiera” con rientro serale.
    */
   returnToHubEachNight: z.boolean().optional().default(false),
+  /**
+   * Se true: ogni giorno parte e termina dall’alloggio (tappa sleep).
+   * La base del giorno è l’ULTIMO stop di tipo "sleep" in quel giorno.
+   */
+  accommodationAsBase: z.boolean().optional().default(false),
+  /**
+   * Se true e un giorno non ha un alloggio ("sleep"), riusa l’ultimo alloggio
+   * noto dei giorni precedenti (utile quando si resta più notti nello stesso posto).
+   */
+  reuseAccommodationUntilChanged: z.boolean().optional().default(true),
   /** Preferisci strade secondarie / panoramiche (Directions con avoid highways). */
   preferScenicRoutes: z.boolean().optional().default(false),
   language: z.enum(["it", "en"]).default("it"),
@@ -285,8 +295,40 @@ export const InsertStopRequestSchema = z.object({
   startPlaceQuery: z.string().min(2).optional(),
   endPlaceQuery: z.string().optional(),
   returnToHubEachNight: z.boolean().optional(),
+  accommodationAsBase: z.boolean().optional(),
+  reuseAccommodationUntilChanged: z.boolean().optional(),
   preferScenicRoutes: z.boolean().optional(),
   language: z.enum(["it", "en"]).default("it"),
 });
 
 export type InsertStopRequest = z.infer<typeof InsertStopRequestSchema>;
+
+export const RebalanceProposeRequestSchema = z.object({
+  itinerary: ItineraryResultSchema,
+  suggestion: RebalancingSuggestionSchema,
+  ctx: z.object({
+    transport: TransportSchema,
+    pace: PaceSchema.optional().default("balanced"),
+    energyProfile: EnergyProfileSchema.optional().default("balanced"),
+    preferScenicRoutes: z.boolean().optional().default(false),
+  }),
+});
+export type RebalanceProposeRequest = z.infer<typeof RebalanceProposeRequestSchema>;
+
+export const RebalanceProposeResponseSchema = z.object({
+  before: ItineraryResultSchema,
+  afterPreview: ItineraryResultSchema,
+  delta: z.object({
+    riskLevelBefore: TripHealthSummarySchema.shape.riskLevel,
+    riskLevelAfter: TripHealthSummarySchema.shape.riskLevel,
+    averageLoadScoreBefore: z.number().min(0).max(100),
+    averageLoadScoreAfter: z.number().min(0).max(100),
+    overloadDaysBefore: z.number().int().nonnegative(),
+    overloadDaysAfter: z.number().int().nonnegative(),
+  }),
+  explanation: z.string(),
+});
+export type RebalanceProposeResponse = z.infer<typeof RebalanceProposeResponseSchema>;
+
+export const RebalanceApplyRequestSchema = RebalanceProposeRequestSchema;
+export type RebalanceApplyRequest = z.infer<typeof RebalanceApplyRequestSchema>;

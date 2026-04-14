@@ -2155,6 +2155,24 @@ export function WizardApp() {
                 </div>
 
                 <div className="min-w-0 space-y-4">
+                  {tripAnalytics && (
+                    <div
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-xs",
+                        tripAnalytics.legsAirOnly > 0
+                          ? "border-amber-500/35 bg-amber-500/10 text-amber-900 dark:text-amber-100"
+                          : "border-emerald-500/35 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100"
+                      )}
+                    >
+                      {tripAnalytics.legsAirOnly > 0 ? (
+                        <>
+                          Mappa e itinerario parzialmente allineati: {tripAnalytics.legsAirOnly} tratte sono stimate in linea d&apos;aria.
+                        </>
+                      ) : (
+                        <>Mappa e itinerario allineati: tutte le tratte hanno stima stradale.</>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-3 rounded-xl border border-border/70 bg-muted/25 px-3 py-2 text-xs dark:bg-muted/15">
                     <label className="flex cursor-pointer items-center gap-2">
                       <Checkbox

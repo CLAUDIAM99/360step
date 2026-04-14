@@ -219,6 +219,28 @@ function enforceHumanPacing(
   return {
     ...plan,
     days: plan.days.map((day) => {
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "e32d68",
+        },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H3",
+          location: "gemini.ts:enforceHumanPacing:day-entry",
+          message: "day pacing evaluation started",
+          data: {
+            dayIndex: day.dayIndex,
+            stopCount: day.stops.length,
+            maxStops: budget.maxStops,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       const ordered = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
       if (ordered.length <= budget.maxStops) return day;
       const keepCount = Math.max(2, budget.maxStops);
@@ -237,6 +259,29 @@ function enforceHumanPacing(
                   .join(" — ")
               : stop.notes,
         }));
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "e32d68",
+        },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H4",
+          location: "gemini.ts:enforceHumanPacing:day-trimmed",
+          message: "day trimmed according to pacing budget",
+          data: {
+            dayIndex: day.dayIndex,
+            orderedCount: ordered.length,
+            keepCount,
+            finalCount: keep.length,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       return { ...day, stops: keep };
     }),
   };

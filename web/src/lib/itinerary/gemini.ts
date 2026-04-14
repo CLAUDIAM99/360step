@@ -253,7 +253,7 @@ function enforceHumanPacing(
           dayIndex: day.dayIndex,
           orderInDay: index,
           notes:
-            index === keep.length - 1 && ordered.length > keepCount
+            index === keepCount - 1 && ordered.length > keepCount
               ? [stop.notes, "Giornata compressa per mantenere un ritmo sostenibile."]
                   .filter(Boolean)
                   .join(" — ")

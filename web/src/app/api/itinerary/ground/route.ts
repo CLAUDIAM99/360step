@@ -49,6 +49,7 @@ export async function POST(req: Request) {
       accommodationAsBase: ctx.accommodationAsBase,
       reuseAccommodationUntilChanged: ctx.reuseAccommodationUntilChanged,
       preferScenicRoutes: ctx.preferScenicRoutes,
+      bookedAccommodations: ctx.bookedAccommodations,
     });
     return NextResponse.json(result);
   } catch (e) {

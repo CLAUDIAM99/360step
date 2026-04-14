@@ -102,6 +102,7 @@ export async function POST(req: Request) {
       accommodationAsBase: parsed.data.accommodationAsBase,
       reuseAccommodationUntilChanged: parsed.data.reuseAccommodationUntilChanged,
       preferScenicRoutes: parsed.data.preferScenicRoutes,
+      bookedAccommodations: parsed.data.bookedAccommodations,
       continueTrip: {
         tripId: prev.tripId ?? prev.id,
         revision: prev.revision,

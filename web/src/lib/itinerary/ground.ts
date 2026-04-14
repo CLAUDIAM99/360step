@@ -422,6 +422,7 @@ export async function groundGeminiPlan(
     accommodationAsBase?: boolean;
     reuseAccommodationUntilChanged?: boolean;
     preferScenicRoutes?: boolean;
+    bookedAccommodations?: { dayIndex: number; query: string; label?: string }[];
     /** Continua un viaggio salvato (stesso tripId, revision incrementata). */
     continueTrip?: { tripId: string; revision?: number; createdAt?: string };
     pace?: Pace;
@@ -431,7 +432,36 @@ export async function groundGeminiPlan(
   let calls = 0;
   const bounds = await resolveAreaBounds(ctx.area, ctx.mapsApiKey);
 
-  const flatStops = plan.days.flatMap((d) => d.stops);
+  const bookedByDay = new Map(
+    (ctx.bookedAccommodations ?? []).map((a) => [a.dayIndex, a])
+  );
+  const planWithBooked: GeminiPlan = {
+    ...plan,
+    days: plan.days.map((d) => {
+      const booked = bookedByDay.get(d.dayIndex);
+      if (!booked) return d;
+      const nonSleep = d.stops.filter((s) => s.type !== "sleep");
+      const sleepStop = {
+        title: booked.label?.trim() || "Alloggio",
+        type: "sleep" as const,
+        searchQuery: booked.query,
+        dayIndex: d.dayIndex,
+        orderInDay: Math.max(0, nonSleep.length),
+        notes: "Alloggio prenotato (inserito dall’utente).",
+        aiRationale: "Ancora di pianificazione: alloggio già prenotato.",
+      };
+      return {
+        ...d,
+        stops: [...nonSleep, sleepStop].map((s, i) => ({
+          ...s,
+          dayIndex: d.dayIndex,
+          orderInDay: i,
+        })),
+      };
+    }),
+  };
+
+  const flatStops = planWithBooked.days.flatMap((d) => d.stops);
   if (flatStops.length > MAX_PLANNED_STOPS) {
     throw new Error("Troppe tappe pianificate");
   }
@@ -493,7 +523,7 @@ export async function groundGeminiPlan(
     byDay.set(g.dayIndex, list);
   }
 
-  const rawDays: ItineraryDay[] = plan.days.map((d) => {
+  const rawDays: ItineraryDay[] = planWithBooked.days.map((d) => {
     const stops = sortStops(byDay.get(d.dayIndex) ?? []);
     return {
       dayIndex: d.dayIndex,

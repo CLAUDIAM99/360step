@@ -99,6 +99,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { AuthBar } from "@/components/AuthBar";
+import { useSession } from "next-auth/react";
+
+function dayCountFromTime(
+  tab: "days" | "dates",
+  days: number,
+  range?: DateRange
+): number {
+  if (tab === "days") return days;
+  if (!range?.from || !range?.to) return 0;
+  const ms = range.to.getTime() - range.from.getTime();
+  return Math.max(1, Math.round(ms / (24 * 60 * 60 * 1000)) + 1);
+}
 
 type NearbyParkingRow = {
   name: string;
@@ -262,6 +275,7 @@ const defaultArea = (): GeographicArea => ({
 const MAPS_PUBLIC_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export function WizardApp() {
+  const { status: authStatus } = useSession();
   const [dark, setDark] = useState(false);
   const [step, setStep] = useState(0);
   const [themes, setThemes] = useState<TripTheme[]>(["scenic", "food"]);
@@ -286,6 +300,9 @@ export function WizardApp() {
   const [reuseAccommodationUntilChanged, setReuseAccommodationUntilChanged] =
     useState(true);
   const [preferScenicRoutes, setPreferScenicRoutes] = useState(false);
+  const [bookedAccommodationsByDay, setBookedAccommodationsByDay] = useState<
+    Record<number, string>
+  >({});
   const [hardConstraintsText, setHardConstraintsText] = useState("");
   const [softWishesText, setSoftWishesText] = useState("");
   const [mapLayers, setMapLayers] = useState<MapLayerVisibility>({
@@ -350,6 +367,16 @@ export function WizardApp() {
     overloadDaysAfter: number;
   } | null>(null);
 
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [saveTitle, setSaveTitle] = useState("Itinerario");
+  const [folders, setFolders] = useState<Array<{ id: string; name: string }>>(
+    []
+  );
+  const [folderId, setFolderId] = useState<string>("");
+  const [newFolderName, setNewFolderName] = useState("");
+
   const rebalanceMiniDiff = useMemo(() => {
     if (!result || !rebalancePreview || !rebalanceSuggestion) return null;
     const beforeByDay = new Map(
@@ -408,6 +435,77 @@ export function WizardApp() {
     () => (result ? reconcileItineraryLegs(result) : null),
     [result]
   );
+
+  const openSaveDialog = useCallback(async () => {
+    if (!reconciledResult) return;
+    if (authStatus !== "authenticated") {
+      setSaveErr("Accedi per salvare l’itinerario nel tuo account.");
+      setSaveDialogOpen(true);
+      return;
+    }
+    setSaveErr(null);
+    setSaveBusy(true);
+    setSaveTitle(reconciledResult.summary?.slice(0, 80) || "Itinerario");
+    try {
+      const res = await fetch("/api/folders", { method: "GET" });
+      const data = (await res.json()) as { folders?: Array<{ id: string; name: string }>; error?: string };
+      if (!res.ok) throw new Error(data.error || "Errore caricamento cartelle");
+      setFolders((data.folders ?? []).map((f) => ({ id: String(f.id), name: String(f.name) })));
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Errore");
+    } finally {
+      setSaveBusy(false);
+      setSaveDialogOpen(true);
+    }
+  }, [reconciledResult, authStatus]);
+
+  const createFolder = useCallback(async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    setSaveErr(null);
+    setSaveBusy(true);
+    try {
+      const res = await fetch("/api/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = (await res.json()) as { id?: string; name?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || "Errore creazione cartella");
+      const id = String(data.id);
+      setFolders((p) => [{ id, name }, ...p]);
+      setFolderId(id);
+      setNewFolderName("");
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Errore");
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [newFolderName]);
+
+  const saveItinerary = useCallback(async () => {
+    if (!reconciledResult) return;
+    setSaveErr(null);
+    setSaveBusy(true);
+    try {
+      const res = await fetch("/api/itineraries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: saveTitle.trim() || "Itinerario",
+          folderId: folderId.trim() || undefined,
+          itinerary: reconciledResult,
+        }),
+      });
+      const data = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || "Errore salvataggio");
+      setSaveDialogOpen(false);
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Errore");
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [reconciledResult, saveTitle, folderId]);
 
   const openRebalancePreview = useCallback(
     async (s: RebalancingSuggestion) => {
@@ -556,6 +654,9 @@ export function WizardApp() {
         if (typeof d.reuseAccommodationUntilChanged === "boolean") {
           setReuseAccommodationUntilChanged(d.reuseAccommodationUntilChanged);
         }
+        if (d.bookedAccommodationsByDay && typeof d.bookedAccommodationsByDay === "object") {
+          setBookedAccommodationsByDay(d.bookedAccommodationsByDay as Record<number, string>);
+        }
         if (typeof d.preferScenicRoutes === "boolean")
           setPreferScenicRoutes(d.preferScenicRoutes);
         if (typeof d.hardConstraintsText === "string")
@@ -604,6 +705,7 @@ export function WizardApp() {
       returnToHubEachNight,
       accommodationAsBase,
       reuseAccommodationUntilChanged,
+      bookedAccommodationsByDay,
       preferScenicRoutes,
       hardConstraintsText,
       softWishesText,
@@ -626,6 +728,7 @@ export function WizardApp() {
     returnToHubEachNight,
     accommodationAsBase,
     reuseAccommodationUntilChanged,
+    bookedAccommodationsByDay,
     preferScenicRoutes,
     hardConstraintsText,
     softWishesText,
@@ -930,6 +1033,20 @@ export function WizardApp() {
       accommodationAsBase,
       reuseAccommodationUntilChanged,
       preferScenicRoutes,
+      bookedAccommodations:
+        (() => {
+          const count = dayCountFromTime(timeTab, days, range);
+          if (count <= 0) return undefined;
+          const out = Array.from({ length: count })
+            .map((_, i) => {
+              const dayIndex = i + 1;
+              const q = (bookedAccommodationsByDay[dayIndex] ?? "").trim();
+              if (!q) return null;
+              return { dayIndex, query: q, label: "Alloggio" };
+            })
+            .filter(Boolean) as { dayIndex: number; query: string; label: string }[];
+          return out.length ? out : undefined;
+        })(),
       language: "it",
     };
   }, [
@@ -950,6 +1067,7 @@ export function WizardApp() {
     accommodationAsBase,
     reuseAccommodationUntilChanged,
     preferScenicRoutes,
+    bookedAccommodationsByDay,
     hardConstraintsText,
     softWishesText,
   ]);
@@ -1216,6 +1334,20 @@ export function WizardApp() {
           accommodationAsBase,
           reuseAccommodationUntilChanged,
           preferScenicRoutes,
+          bookedAccommodations:
+            (() => {
+              const count = dayCountFromTime(timeTab, days, range);
+              if (count <= 0) return undefined;
+              const out = Array.from({ length: count })
+                .map((_, i) => {
+                  const dayIndex = i + 1;
+                  const q = (bookedAccommodationsByDay[dayIndex] ?? "").trim();
+                  if (!q) return null;
+                  return { dayIndex, query: q, label: "Alloggio" };
+                })
+                .filter(Boolean) as { dayIndex: number; query: string; label: string }[];
+              return out.length ? out : undefined;
+            })(),
           ...(startQ.length >= 2 ? { startPlaceQuery: startQ } : {}),
           ...(endQ ? { endPlaceQuery: endQ } : {}),
         }),
@@ -1651,6 +1783,40 @@ export function WizardApp() {
                       </div>
                     </div>
                   )}
+                  <div className="mt-3 rounded-lg border border-border/70 bg-muted/25 p-3 text-sm dark:bg-muted/15">
+                    <p className="font-medium text-foreground">
+                      Alloggi prenotati (opzionale)
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Inserisci l’alloggio per notte (uno per giorno). Verrà forzato
+                      come ultima tappa “Alloggio” del giorno.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {Array.from({
+                        length: Math.max(1, dayCountFromTime(timeTab, days, range)),
+                      }).map((_, i) => {
+                        const dayIndex = i + 1;
+                        return (
+                          <div key={dayIndex} className="space-y-1">
+                            <Label htmlFor={`acc-${dayIndex}`}>
+                              Giorno {dayIndex} · alloggio
+                            </Label>
+                            <Input
+                              id={`acc-${dayIndex}`}
+                              value={bookedAccommodationsByDay[dayIndex] ?? ""}
+                              onChange={(e) =>
+                                setBookedAccommodationsByDay((p) => ({
+                                  ...p,
+                                  [dayIndex]: e.target.value,
+                                }))
+                              }
+                              placeholder="Es. Hotel X, Via…, oppure link Google Maps"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
                     <Checkbox
                       id="scenic-routes"
@@ -1818,6 +1984,40 @@ export function WizardApp() {
                     </div>
                   </div>
                 )}
+                <div className="mt-3 rounded-lg border border-border/70 bg-muted/25 p-3 text-sm dark:bg-muted/15">
+                  <p className="font-medium text-foreground">
+                    Alloggi prenotati (opzionale)
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Inserisci l’alloggio per notte (uno per giorno). Verrà forzato
+                    come ultima tappa “Alloggio” del giorno.
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {Array.from({
+                      length: Math.max(1, dayCountFromTime(timeTab, days, range)),
+                    }).map((_, i) => {
+                      const dayIndex = i + 1;
+                      return (
+                        <div key={dayIndex} className="space-y-1">
+                          <Label htmlFor={`acc-fb-${dayIndex}`}>
+                            Giorno {dayIndex} · alloggio
+                          </Label>
+                          <Input
+                            id={`acc-fb-${dayIndex}`}
+                            value={bookedAccommodationsByDay[dayIndex] ?? ""}
+                            onChange={(e) =>
+                              setBookedAccommodationsByDay((p) => ({
+                                ...p,
+                                [dayIndex]: e.target.value,
+                              }))
+                            }
+                            placeholder="Es. Hotel X, Via…, oppure link Google Maps"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="mt-3 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/25 p-3 dark:bg-muted/15">
                   <Checkbox
                     id="scenic-routes-fb"
@@ -1860,7 +2060,8 @@ export function WizardApp() {
                     Tappe, mappa e distanze tra una tappa e l&apos;altra.
                   </CardDescription>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <AuthBar />
                   <Button
                     type="button"
                     size="sm"
@@ -1868,6 +2069,14 @@ export function WizardApp() {
                     onClick={startNewTrip}
                   >
                     Nuovo viaggio
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void openSaveDialog()}
+                  >
+                    Salva
                   </Button>
                   <Button
                     type="button"
@@ -2150,6 +2359,83 @@ export function WizardApp() {
                       disabled={rebalanceBusy || !rebalanceSuggestion}
                     >
                       Applica
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Salva itinerario</DialogTitle>
+                    <DialogDescription>
+                      Salva nel tuo account, dentro una cartella.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {saveErr && (
+                    <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {saveErr}
+                    </p>
+                  )}
+                  <div className="space-y-3 text-sm">
+                    <div className="space-y-1">
+                      <Label htmlFor="save-title">Titolo</Label>
+                      <Input
+                        id="save-title"
+                        value={saveTitle}
+                        onChange={(e) => setSaveTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="folder">Cartella</Label>
+                      <select
+                        id="folder"
+                        className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        value={folderId}
+                        onChange={(e) => setFolderId(e.target.value)}
+                      >
+                        <option value="">Senza cartella</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="new-folder">Nuova cartella</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="new-folder"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          placeholder="Es. Estate 2026"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void createFolder()}
+                          disabled={saveBusy || !newFolderName.trim()}
+                        >
+                          Crea
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSaveDialogOpen(false)}
+                      disabled={saveBusy}
+                    >
+                      Chiudi
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => void saveItinerary()}
+                      disabled={saveBusy || authStatus !== "authenticated"}
+                    >
+                      {saveBusy ? "Salvo…" : "Salva"}
                     </Button>
                   </div>
                 </DialogContent>

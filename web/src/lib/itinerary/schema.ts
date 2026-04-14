@@ -95,6 +95,16 @@ export const GenerateItineraryRequestSchema = z.object({
   reuseAccommodationUntilChanged: z.boolean().optional().default(true),
   /** Preferisci strade secondarie / panoramiche (Directions con avoid highways). */
   preferScenicRoutes: z.boolean().optional().default(false),
+  /** Alloggi prenotati (uno per notte / giorno). L’alloggio del giorno è l’ultimo sleep. */
+  bookedAccommodations: z
+    .array(
+      z.object({
+        dayIndex: z.number().int().min(1),
+        query: z.string().min(2).max(200),
+        label: z.string().max(120).optional(),
+      })
+    )
+    .optional(),
   language: z.enum(["it", "en"]).default("it"),
 });
 
@@ -298,6 +308,15 @@ export const InsertStopRequestSchema = z.object({
   accommodationAsBase: z.boolean().optional(),
   reuseAccommodationUntilChanged: z.boolean().optional(),
   preferScenicRoutes: z.boolean().optional(),
+  bookedAccommodations: z
+    .array(
+      z.object({
+        dayIndex: z.number().int().min(1),
+        query: z.string().min(2).max(200),
+        label: z.string().max(120).optional(),
+      })
+    )
+    .optional(),
   language: z.enum(["it", "en"]).default("it"),
 });
 

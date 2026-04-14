@@ -6,6 +6,7 @@ import {
 } from "@/lib/itinerary/prompts";
 import type { GenerateItineraryRequest } from "@/lib/itinerary/schema";
 import { GEMINI_PLAN_RESPONSE_SCHEMA } from "@/lib/itinerary/gemini-response-schema";
+import { deriveDailyBudget } from "@/lib/itinerary/pace-budgets";
 
 /** Default: Gemini 3 Flash (preview). Override con GEMINI_MODEL se serve (es. gemini-3.1-flash-lite-preview). */
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
@@ -196,6 +197,51 @@ function normalizePlan(plan: GeminiPlan): GeminiPlan {
   };
 }
 
+function enforceHumanPacing(
+  plan: GeminiPlan,
+  req: GenerateItineraryRequest
+): GeminiPlan {
+  const budget = deriveDailyBudget(
+    req.preferences.pace,
+    req.preferences.energyProfile
+  );
+  const trimPriority = new Map<string, number>([
+    ["other", 0],
+    ["fuel", 1],
+    ["meal", 2],
+    ["scenic", 3],
+    ["visit", 4],
+    ["parking", 5],
+    ["camper_stop", 6],
+    ["sleep", 10],
+  ]);
+
+  return {
+    ...plan,
+    days: plan.days.map((day) => {
+      const ordered = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
+      if (ordered.length <= budget.maxStops) return day;
+      const keepCount = Math.max(2, budget.maxStops);
+      const keep = [...ordered]
+        .sort((a, b) => (trimPriority.get(b.type) ?? 0) - (trimPriority.get(a.type) ?? 0))
+        .slice(0, keepCount)
+        .sort((a, b) => a.orderInDay - b.orderInDay)
+        .map((stop, index) => ({
+          ...stop,
+          dayIndex: day.dayIndex,
+          orderInDay: index,
+          notes:
+            index === keep.length - 1 && ordered.length > keepCount
+              ? [stop.notes, "Giornata compressa per mantenere un ritmo sostenibile."]
+                  .filter(Boolean)
+                  .join(" — ")
+              : stop.notes,
+        }));
+      return { ...day, stops: keep };
+    }),
+  };
+}
+
 export async function runGeminiPlanner(
   req: GenerateItineraryRequest
 ): Promise<GeminiPlan> {
@@ -217,7 +263,8 @@ export async function runGeminiPlanner(
     );
     throw new Error("Schema itinerario Gemini non valido");
   }
-  return normalizePlan(out.data);
+  const normalizedPlan = normalizePlan(out.data);
+  return enforceHumanPacing(normalizedPlan, req);
 }
 
 export async function runGeminiInsertStop(

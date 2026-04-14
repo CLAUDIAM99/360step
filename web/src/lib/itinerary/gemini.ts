@@ -123,28 +123,6 @@ async function generatePlannerJson(prompt: string): Promise<string> {
   try {
     return await run(true);
   } catch (e) {
-    // #region agent log
-    fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "570e4d",
-      },
-      body: JSON.stringify({
-        sessionId: "570e4d",
-        location: "gemini.ts:generatePlannerJson",
-        message: "retry without responseSchema",
-        data: {
-          err:
-            e instanceof Error
-              ? e.message.slice(0, 200)
-              : String(e).slice(0, 200),
-        },
-        hypothesisId: "H2",
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     console.warn("[gemini] responseSchema failed, retrying without", e);
     return await run(false);
   }
@@ -155,31 +133,10 @@ function logPlanSchemaFailure(
   parsed: unknown,
   issues: { path: (string | number)[]; message: string }[]
 ): void {
-  // #region agent log
   const topKeys =
     parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? Object.keys(parsed as Record<string, unknown>)
       : [];
-  fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "570e4d",
-    },
-    body: JSON.stringify({
-      sessionId: "570e4d",
-      location,
-      message: "GeminiPlanSchema safeParse failed",
-      data: {
-        issueCount: issues.length,
-        issues: issues.slice(0, 12),
-        topKeys,
-      },
-      hypothesisId: "H1",
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   console.error("[gemini] GeminiPlanSchema", JSON.stringify({ issues, topKeys }));
 }
 
@@ -219,28 +176,6 @@ function enforceHumanPacing(
   return {
     ...plan,
     days: plan.days.map((day) => {
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "e32d68",
-        },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H3",
-          location: "gemini.ts:enforceHumanPacing:day-entry",
-          message: "day pacing evaluation started",
-          data: {
-            dayIndex: day.dayIndex,
-            stopCount: day.stops.length,
-            maxStops: budget.maxStops,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const ordered = [...day.stops].sort((a, b) => a.orderInDay - b.orderInDay);
       if (ordered.length <= budget.maxStops) return day;
       const keepCount = Math.max(2, budget.maxStops);
@@ -259,29 +194,6 @@ function enforceHumanPacing(
                   .join(" — ")
               : stop.notes,
         }));
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "e32d68",
-        },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H4",
-          location: "gemini.ts:enforceHumanPacing:day-trimmed",
-          message: "day trimmed according to pacing budget",
-          data: {
-            dayIndex: day.dayIndex,
-            orderedCount: ordered.length,
-            keepCount,
-            finalCount: keep.length,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return { ...day, stops: keep };
     }),
   };

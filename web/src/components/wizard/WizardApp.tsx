@@ -100,7 +100,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AuthBar } from "@/components/AuthBar";
-import { useSession } from "next-auth/react";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+import { onAuthStateChanged, type User } from "firebase/auth";
 
 function dayCountFromTime(
   tab: "days" | "dates",
@@ -275,7 +276,8 @@ const defaultArea = (): GeographicArea => ({
 const MAPS_PUBLIC_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export function WizardApp() {
-  const { status: authStatus } = useSession();
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [dark, setDark] = useState(false);
   const [step, setStep] = useState(0);
   const [themes, setThemes] = useState<TripTheme[]>(["scenic", "food"]);
@@ -377,6 +379,14 @@ export function WizardApp() {
   const [folderId, setFolderId] = useState<string>("");
   const [newFolderName, setNewFolderName] = useState("");
 
+  useEffect(() => {
+    const auth = getFirebaseAuth();
+    return onAuthStateChanged(auth, (u) => {
+      setAuthUser(u);
+      setAuthReady(true);
+    });
+  }, []);
+
   const rebalanceMiniDiff = useMemo(() => {
     if (!result || !rebalancePreview || !rebalanceSuggestion) return null;
     const beforeByDay = new Map(
@@ -438,7 +448,7 @@ export function WizardApp() {
 
   const openSaveDialog = useCallback(async () => {
     if (!reconciledResult) return;
-    if (authStatus !== "authenticated") {
+    if (!authUser) {
       setSaveErr("Accedi per salvare l’itinerario nel tuo account.");
       setSaveDialogOpen(true);
       return;
@@ -447,7 +457,11 @@ export function WizardApp() {
     setSaveBusy(true);
     setSaveTitle(reconciledResult.summary?.slice(0, 80) || "Itinerario");
     try {
-      const res = await fetch("/api/folders", { method: "GET" });
+      const token = await authUser.getIdToken();
+      const res = await fetch("/api/folders", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = (await res.json()) as { folders?: Array<{ id: string; name: string }>; error?: string };
       if (!res.ok) throw new Error(data.error || "Errore caricamento cartelle");
       setFolders((data.folders ?? []).map((f) => ({ id: String(f.id), name: String(f.name) })));
@@ -457,7 +471,7 @@ export function WizardApp() {
       setSaveBusy(false);
       setSaveDialogOpen(true);
     }
-  }, [reconciledResult, authStatus]);
+  }, [reconciledResult, authUser]);
 
   const createFolder = useCallback(async () => {
     const name = newFolderName.trim();
@@ -465,9 +479,11 @@ export function WizardApp() {
     setSaveErr(null);
     setSaveBusy(true);
     try {
+      const token = await authUser?.getIdToken();
+      if (!token) throw new Error("Token non disponibile (sei loggato?)");
       const res = await fetch("/api/folders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name }),
       });
       const data = (await res.json()) as { id?: string; name?: string; error?: string };
@@ -481,16 +497,18 @@ export function WizardApp() {
     } finally {
       setSaveBusy(false);
     }
-  }, [newFolderName]);
+  }, [newFolderName, authUser]);
 
   const saveItinerary = useCallback(async () => {
     if (!reconciledResult) return;
     setSaveErr(null);
     setSaveBusy(true);
     try {
+      const token = await authUser?.getIdToken();
+      if (!token) throw new Error("Token non disponibile (sei loggato?)");
       const res = await fetch("/api/itineraries", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           title: saveTitle.trim() || "Itinerario",
           folderId: folderId.trim() || undefined,
@@ -505,7 +523,7 @@ export function WizardApp() {
     } finally {
       setSaveBusy(false);
     }
-  }, [reconciledResult, saveTitle, folderId]);
+  }, [reconciledResult, saveTitle, folderId, authUser]);
 
   const openRebalancePreview = useCallback(
     async (s: RebalancingSuggestion) => {
@@ -2433,7 +2451,7 @@ export function WizardApp() {
                     <Button
                       type="button"
                       onClick={() => void saveItinerary()}
-                      disabled={saveBusy || authStatus !== "authenticated"}
+                      disabled={saveBusy || !authReady || !authUser}
                     >
                       {saveBusy ? "Salvo…" : "Salva"}
                     </Button>

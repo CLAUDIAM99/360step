@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { ensureRoamySchema } from "@/lib/db";
 import { sql } from "@vercel/postgres";
 import { ItineraryResultSchema } from "@/lib/itinerary/schema";
 import { z } from "zod";
+import { verifyFirebaseIdToken } from "@/lib/firebase/admin";
 
 const SaveItinerarySchema = z.object({
   title: z.string().min(1).max(80),
@@ -13,10 +12,17 @@ const SaveItinerarySchema = z.object({
   itinerary: ItineraryResultSchema,
 });
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: Request) {
+  let userId: string;
+  try {
+    const { uid } = await verifyFirebaseIdToken(req);
+    userId = uid;
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Unauthorized" },
+      { status: 401 }
+    );
+  }
 
   await ensureRoamySchema();
   const { rows } = await sql`
@@ -30,9 +36,16 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId: string;
+  try {
+    const { uid } = await verifyFirebaseIdToken(req);
+    userId = uid;
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Unauthorized" },
+      { status: 401 }
+    );
+  }
 
   let json: unknown;
   try {

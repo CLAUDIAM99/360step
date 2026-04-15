@@ -145,6 +145,10 @@ export function ItineraryResultMap({
   );
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const gmaps =
+    typeof window !== "undefined" ? window.google?.maps : undefined;
+  const canUseSizePoint =
+    typeof gmaps?.Size === "function" && typeof gmaps?.Point === "function";
   const wrapRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   /** Mostra CTA dettaglio nel callout solo dopo tap su Info. */
@@ -305,15 +309,15 @@ export function ItineraryResultMap({
   }, [map, focusedDay, fitBoundsForFocus, cameraTarget]);
 
   useEffect(() => {
-    if (!map || typeof google === "undefined") return;
+    if (!map || !gmaps?.event) return;
     const id = window.setTimeout(() => {
-      google.maps.event.trigger(map, "resize");
+      gmaps.event.trigger(map, "resize");
       if (!cameraTarget) {
         fitBoundsForFocus(map, focusedDay);
       }
     }, fullscreen ? 180 : 0);
     return () => window.clearTimeout(id);
-  }, [fullscreen, map, focusedDay, fitBoundsForFocus, cameraTarget]);
+  }, [fullscreen, map, focusedDay, fitBoundsForFocus, cameraTarget, gmaps?.event]);
 
   useEffect(() => {
     setCalloutDetailOpen(false);
@@ -553,15 +557,15 @@ export function ItineraryResultMap({
                         isActive
                       ),
                       scaledSize:
-                        typeof google !== "undefined"
-                          ? new google.maps.Size(
+                        canUseSizePoint
+                          ? new gmaps.Size(
                               isActive ? 34 : dayDimmed ? 26 : 30,
                               isActive ? 46 : dayDimmed ? 34 : 40
                             )
                           : undefined,
                       anchor:
-                        typeof google !== "undefined"
-                          ? new google.maps.Point(
+                        canUseSizePoint
+                          ? new gmaps.Point(
                               isActive ? 17 : dayDimmed ? 13 : 15,
                               isActive ? 46 : dayDimmed ? 34 : 40
                             )

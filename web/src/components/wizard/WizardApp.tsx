@@ -1391,6 +1391,9 @@ export function WizardApp() {
 
   return (
     <div className="roamy-board min-h-screen">
+      <div className="fixed left-4 top-4 z-50 md:left-8 md:top-8">
+        <AuthBar />
+      </div>
       <div className="fixed right-4 top-4 z-50 md:right-8 md:top-8">
         <Button
           type="button"
@@ -2079,7 +2082,6 @@ export function WizardApp() {
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <AuthBar />
                   <Button
                     type="button"
                     size="sm"

@@ -468,21 +468,6 @@ export function WizardApp() {
     try {
       const token = await authUser.getIdToken();
       const url = apiUrl("/api/folders");
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H1",
-          location: "web/src/components/wizard/WizardApp.tsx:openSaveDialog",
-          message: "Fetching folders",
-          data: { url, origin: typeof window !== "undefined" ? window.location.origin : null },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const res = await fetch(url, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
@@ -492,21 +477,6 @@ export function WizardApp() {
       setFolders((data.folders ?? []).map((f) => ({ id: String(f.id), name: String(f.name) })));
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore";
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H2",
-          location: "web/src/components/wizard/WizardApp.tsx:openSaveDialog",
-          message: "Fetch folders failed",
-          data: { message: String(msg).slice(0, 200) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       setSaveErr(
         msg === "The string did not match the expected pattern."
           ? "Errore rete: URL non valido o bloccato dal browser. Prova un altro browser (Safari/Chrome) o disattiva blocchi/tracker per questo sito."
@@ -527,21 +497,6 @@ export function WizardApp() {
       const token = await authUser?.getIdToken();
       if (!token) throw new Error("Token non disponibile (sei loggato?)");
       const url = apiUrl("/api/folders");
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H1",
-          location: "web/src/components/wizard/WizardApp.tsx:createFolder",
-          message: "Creating folder",
-          data: { url, nameLen: name.length },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -555,21 +510,6 @@ export function WizardApp() {
       setNewFolderName("");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore";
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H2",
-          location: "web/src/components/wizard/WizardApp.tsx:createFolder",
-          message: "Create folder failed",
-          data: { message: String(msg).slice(0, 200) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       setSaveErr(
         msg === "The string did not match the expected pattern."
           ? "Errore rete: URL non valido o bloccato dal browser. Prova un altro browser (Safari/Chrome) o disattiva blocchi/tracker per questo sito."
@@ -588,21 +528,6 @@ export function WizardApp() {
       const token = await authUser?.getIdToken();
       if (!token) throw new Error("Token non disponibile (sei loggato?)");
       const url = apiUrl("/api/itineraries");
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H1",
-          location: "web/src/components/wizard/WizardApp.tsx:saveItinerary",
-          message: "Saving itinerary",
-          data: { url, hasFolderId: Boolean(folderId.trim()), titleLen: saveTitle.trim().length },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -617,21 +542,6 @@ export function WizardApp() {
       setSaveDialogOpen(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore";
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
-        body: JSON.stringify({
-          sessionId: "e32d68",
-          runId: "pre-fix",
-          hypothesisId: "H2",
-          location: "web/src/components/wizard/WizardApp.tsx:saveItinerary",
-          message: "Save itinerary failed",
-          data: { message: String(msg).slice(0, 200) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       setSaveErr(
         msg === "The string did not match the expected pattern."
           ? "Errore rete: URL non valido o bloccato dal browser. Prova un altro browser (Safari/Chrome) o disattiva blocchi/tracker per questo sito."

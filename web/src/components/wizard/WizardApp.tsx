@@ -446,6 +446,15 @@ export function WizardApp() {
     [result]
   );
 
+  const apiUrl = useCallback((path: string) => {
+    if (typeof window === "undefined") return path;
+    try {
+      return new URL(path, window.location.origin).toString();
+    } catch {
+      return path;
+    }
+  }, []);
+
   const openSaveDialog = useCallback(async () => {
     if (!reconciledResult) return;
     if (!authUser) {
@@ -458,7 +467,23 @@ export function WizardApp() {
     setSaveTitle(reconciledResult.summary?.slice(0, 80) || "Itinerario");
     try {
       const token = await authUser.getIdToken();
-      const res = await fetch("/api/folders", {
+      const url = apiUrl("/api/folders");
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H1",
+          location: "web/src/components/wizard/WizardApp.tsx:openSaveDialog",
+          message: "Fetching folders",
+          data: { url, origin: typeof window !== "undefined" ? window.location.origin : null },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      const res = await fetch(url, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -466,12 +491,32 @@ export function WizardApp() {
       if (!res.ok) throw new Error(data.error || "Errore caricamento cartelle");
       setFolders((data.folders ?? []).map((f) => ({ id: String(f.id), name: String(f.name) })));
     } catch (e) {
-      setSaveErr(e instanceof Error ? e.message : "Errore");
+      const msg = e instanceof Error ? e.message : "Errore";
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H2",
+          location: "web/src/components/wizard/WizardApp.tsx:openSaveDialog",
+          message: "Fetch folders failed",
+          data: { message: String(msg).slice(0, 200) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      setSaveErr(
+        msg === "The string did not match the expected pattern."
+          ? "Errore rete: URL non valido o bloccato dal browser. Prova un altro browser (Safari/Chrome) o disattiva blocchi/tracker per questo sito."
+          : msg
+      );
     } finally {
       setSaveBusy(false);
       setSaveDialogOpen(true);
     }
-  }, [reconciledResult, authUser]);
+  }, [reconciledResult, authUser, apiUrl]);
 
   const createFolder = useCallback(async () => {
     const name = newFolderName.trim();
@@ -481,7 +526,23 @@ export function WizardApp() {
     try {
       const token = await authUser?.getIdToken();
       if (!token) throw new Error("Token non disponibile (sei loggato?)");
-      const res = await fetch("/api/folders", {
+      const url = apiUrl("/api/folders");
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H1",
+          location: "web/src/components/wizard/WizardApp.tsx:createFolder",
+          message: "Creating folder",
+          data: { url, nameLen: name.length },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name }),
@@ -493,11 +554,31 @@ export function WizardApp() {
       setFolderId(id);
       setNewFolderName("");
     } catch (e) {
-      setSaveErr(e instanceof Error ? e.message : "Errore");
+      const msg = e instanceof Error ? e.message : "Errore";
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H2",
+          location: "web/src/components/wizard/WizardApp.tsx:createFolder",
+          message: "Create folder failed",
+          data: { message: String(msg).slice(0, 200) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      setSaveErr(
+        msg === "The string did not match the expected pattern."
+          ? "Errore rete: URL non valido o bloccato dal browser. Prova un altro browser (Safari/Chrome) o disattiva blocchi/tracker per questo sito."
+          : msg
+      );
     } finally {
       setSaveBusy(false);
     }
-  }, [newFolderName, authUser]);
+  }, [newFolderName, authUser, apiUrl]);
 
   const saveItinerary = useCallback(async () => {
     if (!reconciledResult) return;
@@ -506,7 +587,23 @@ export function WizardApp() {
     try {
       const token = await authUser?.getIdToken();
       if (!token) throw new Error("Token non disponibile (sei loggato?)");
-      const res = await fetch("/api/itineraries", {
+      const url = apiUrl("/api/itineraries");
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H1",
+          location: "web/src/components/wizard/WizardApp.tsx:saveItinerary",
+          message: "Saving itinerary",
+          data: { url, hasFolderId: Boolean(folderId.trim()), titleLen: saveTitle.trim().length },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -519,11 +616,31 @@ export function WizardApp() {
       if (!res.ok) throw new Error(data.error || "Errore salvataggio");
       setSaveDialogOpen(false);
     } catch (e) {
-      setSaveErr(e instanceof Error ? e.message : "Errore");
+      const msg = e instanceof Error ? e.message : "Errore";
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/e4ffde1a-52c1-4510-a1f5-e151e4db8f3e", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e32d68" },
+        body: JSON.stringify({
+          sessionId: "e32d68",
+          runId: "pre-fix",
+          hypothesisId: "H2",
+          location: "web/src/components/wizard/WizardApp.tsx:saveItinerary",
+          message: "Save itinerary failed",
+          data: { message: String(msg).slice(0, 200) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      setSaveErr(
+        msg === "The string did not match the expected pattern."
+          ? "Errore rete: URL non valido o bloccato dal browser. Prova un altro browser (Safari/Chrome) o disattiva blocchi/tracker per questo sito."
+          : msg
+      );
     } finally {
       setSaveBusy(false);
     }
-  }, [reconciledResult, saveTitle, folderId, authUser]);
+  }, [reconciledResult, saveTitle, folderId, authUser, apiUrl]);
 
   const openRebalancePreview = useCallback(
     async (s: RebalancingSuggestion) => {

@@ -3,7 +3,9 @@
 
   const BASE = "https://api.themoviedb.org/3";
   const IMG_BASE = "https://image.tmdb.org/t/p/w500";
+  const IMG_LOGO = "https://image.tmdb.org/t/p/w45";
   const IMG_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 600' fill='%23333'%3E%3Crect width='400' height='600' fill='%23222'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%23666'%3E🎬%3C/text%3E%3C/svg%3E";
+  const WATCH_REGION = "IT";
 
   const GENRES_IT = [
     { id: 28, name: "Azione" },
@@ -95,6 +97,90 @@
   async function loadSimilar(movieId) {
     const data = await tmdb(`/movie/${movieId}/similar`, { page: 1 });
     return (data.results || []).map(normalizeMovie);
+  }
+
+  async function loadWatchProviders(movieId) {
+    const data = await tmdb(`/movie/${movieId}/watch/providers`);
+    return data.results || {};
+  }
+
+  function sortProviders(list) {
+    if (!list || !list.length) return [];
+    return [...list].sort(
+      (a, b) => (a.display_priority ?? 999) - (b.display_priority ?? 999)
+    );
+  }
+
+  function pickWatchRegion(results) {
+    if (!results || typeof results !== "object") return null;
+    if (results[WATCH_REGION]) return { code: WATCH_REGION, data: results[WATCH_REGION] };
+    const keys = Object.keys(results);
+    if (!keys.length) return null;
+    const fallback = keys.includes("US") ? "US" : keys.sort()[0];
+    return { code: fallback, data: results[fallback] };
+  }
+
+  function renderWhereResults(movie, resultsByRegion) {
+    const container = $("where-results");
+    if (!container) return;
+    const picked = pickWatchRegion(resultsByRegion);
+    if (!picked) {
+      container.innerHTML =
+        "<p class=\"where-footnote\">Nessun dato sulle piattaforme per questo titolo su TMDB.</p>";
+      return;
+    }
+    const { code, data } = picked;
+    const flat = sortProviders(data.flatrate || []);
+    const rent = sortProviders(data.rent || []);
+    const buy = sortProviders(data.buy || []);
+    const link = typeof data.link === "string" ? data.link : "";
+
+    function rowSection(title, items) {
+      if (!items.length) return "";
+      const chips = items
+        .map((p) => {
+          const logo = p.logo_path ? IMG_LOGO + p.logo_path : "";
+          const imgHtml = logo
+            ? `<img src="${logo}" alt="" width="28" height="28" loading="lazy">`
+            : "";
+          return `<div class="where-provider">${imgHtml}<span>${escapeHtml(
+            p.provider_name || "Servizio"
+          )}</span></div>`;
+        })
+        .join("");
+      return `<div class="where-section"><h3 class="where-section-title">${title}</h3><div class="where-provider-list">${chips}</div></div>`;
+    }
+
+    const regionNote =
+      code !== WATCH_REGION
+        ? `<p class="where-footnote">Per l’Italia TMDB non ha ancora dati: mostriamo la regione <strong>${escapeHtml(
+            code
+          )}</strong> come riferimento (verifica disponibilità sul tuo store).</p>`
+        : "";
+
+    const listsHtml =
+      flat.length || rent.length || buy.length
+        ? rowSection("In abbonamento (streaming)", flat) +
+          rowSection("Noleggio digitale", rent) +
+          rowSection("Acquisto digitale", buy)
+        : "<p class=\"where-footnote\">Nessuna piattaforma elencata per questa regione: il film potrebbe essere al cinema, in DVD o non ancora mappato.</p>";
+
+    const linkHtml = link
+      ? `<a class="where-link" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">Scheda completa su TMDB / JustWatch</a>`
+      : "";
+
+    container.innerHTML = `
+      <div class="where-hero">
+        <img class="where-hero-poster" src="${movie.poster}" alt="">
+        <div class="where-hero-text">
+          <h2 class="where-hero-title">${escapeHtml(movie.title)}</h2>
+          <p class="where-hero-meta">${movie.year ? escapeHtml(movie.year) : ""}</p>
+        </div>
+      </div>
+      ${listsHtml}
+      ${regionNote}
+      ${linkHtml}
+    `;
   }
 
   function renderGenreChips() {
@@ -273,21 +359,41 @@
   const setupCards = document.querySelector(".setup-cards");
   const formStyle = $("form-style");
   const formSimilar = $("form-similar");
+  const formWhere = $("form-where");
 
-  $("btn-by-style")?.addEventListener("click", () => {
+  function hideSetupChooser() {
     $("btn-by-style")?.classList.add("hidden");
     $("btn-by-similar")?.classList.add("hidden");
+    $("btn-by-where")?.classList.add("hidden");
     setupCards?.classList.add("hidden");
+  }
+
+  function showSetupChooser() {
+    setupCards?.classList.remove("hidden");
+    $("btn-by-style")?.classList.remove("hidden");
+    $("btn-by-similar")?.classList.remove("hidden");
+    $("btn-by-where")?.classList.remove("hidden");
+    formStyle?.classList.add("hidden");
+    formSimilar?.classList.add("hidden");
+    formWhere?.classList.add("hidden");
+  }
+
+  $("btn-by-style")?.addEventListener("click", () => {
+    hideSetupChooser();
     formStyle?.classList.remove("hidden");
     renderGenreChips();
   });
 
   $("btn-by-similar")?.addEventListener("click", () => {
-    $("btn-by-style")?.classList.add("hidden");
-    $("btn-by-similar")?.classList.add("hidden");
-    setupCards?.classList.add("hidden");
+    hideSetupChooser();
     formSimilar?.classList.remove("hidden");
     $("similar-input")?.focus();
+  });
+
+  $("btn-by-where")?.addEventListener("click", () => {
+    hideSetupChooser();
+    formWhere?.classList.remove("hidden");
+    $("where-input")?.focus();
   });
 
   $("include-animation")?.addEventListener("change", (e) => {
@@ -396,15 +502,105 @@
 
   $("btn-back-to-swipe")?.addEventListener("click", () => showScreen("screen-swipe"));
 
+  const whereInput = $("where-input");
+  const whereSuggestions = $("where-suggestions");
+  let whereDebounce = null;
+  let whereSelectedMovieId = null;
+
+  whereInput?.addEventListener("input", () => {
+    whereSelectedMovieId = null;
+    const q = whereInput.value.trim();
+    const btnSearchWhere = $("btn-search-where");
+    if (btnSearchWhere) btnSearchWhere.disabled = q.length < 2;
+    clearTimeout(whereDebounce);
+    if (q.length < 2) {
+      whereSuggestions?.classList.add("hidden");
+      if (whereSuggestions) whereSuggestions.innerHTML = "";
+      return;
+    }
+    whereDebounce = setTimeout(async () => {
+      if (!apiKey) return;
+      try {
+        const list = await searchMovie(q);
+        whereSuggestions.innerHTML = list
+          .slice(0, 6)
+          .map(
+            (m) =>
+              `<div class="similar-suggestion" data-id="${m.id}">${escapeHtml(m.title)}${
+                m.year ? " (" + m.year + ")" : ""
+              }</div>`
+          )
+          .join("");
+        whereSuggestions.classList.remove("hidden");
+        whereSuggestions.querySelectorAll(".similar-suggestion").forEach((el) => {
+          el.addEventListener("click", () => {
+            whereSelectedMovieId = +el.dataset.id;
+            whereInput.value = el.textContent.trim();
+            whereSuggestions.classList.add("hidden");
+            const wBtn = $("btn-search-where");
+            if (wBtn) wBtn.disabled = false;
+          });
+        });
+      } catch (_) {
+        whereSuggestions?.classList.add("hidden");
+      }
+    }, 300);
+  });
+
+  $("btn-search-where")?.addEventListener("click", async () => {
+    if (!checkApiKey()) return;
+    const q = whereInput?.value?.trim() || "";
+    if (q.length < 2) {
+      showApiHint("Scrivi almeno due lettere del titolo.", true);
+      return;
+    }
+    let list;
+    try {
+      list = await searchMovie(q);
+    } catch (_) {
+      showApiHint("Errore di connessione o API key non valida.", true);
+      return;
+    }
+    if (!list.length) {
+      showApiHint("Nessun film trovato. Prova un altro titolo.", true);
+      return;
+    }
+    let movieId;
+    let movieNorm;
+    if (whereSelectedMovieId && list.some((m) => m.id === whereSelectedMovieId)) {
+      movieId = whereSelectedMovieId;
+      movieNorm = list.find((m) => m.id === whereSelectedMovieId);
+    } else {
+      movieId = list[0].id;
+      movieNorm = list[0];
+    }
+    const resultsEl = $("where-results");
+    if (resultsEl) resultsEl.innerHTML = "<p class=\"where-footnote\">Caricamento piattaforme…</p>";
+    showScreen("screen-where");
+    showApiHint("");
+    try {
+      const regions = await loadWatchProviders(movieId);
+      renderWhereResults(movieNorm, regions);
+    } catch (e) {
+      if (resultsEl) {
+        resultsEl.innerHTML =
+          "<p class=\"where-footnote\">Errore nel recupero dei dati. Controlla la connessione e la API key.</p>";
+      }
+    }
+  });
+
+  $("btn-where-back")?.addEventListener("click", () => {
+    showScreen("screen-setup");
+    showApiHint(apiKey && apiKey.trim() ? "API key configurata. Scegli come cercare i film." : "");
+  });
+
   $("btn-new-search")?.addEventListener("click", () => {
     showScreen("screen-setup");
-    setupCards?.classList.remove("hidden");
-    $("btn-by-style")?.classList.remove("hidden");
-    $("btn-by-similar")?.classList.remove("hidden");
-    formStyle?.classList.add("hidden");
-    formSimilar?.classList.add("hidden");
+    showSetupChooser();
     if (similarInput) similarInput.value = "";
     selectedMovieId = null;
+    if (whereInput) whereInput.value = "";
+    whereSelectedMovieId = null;
     showApiHint("");
   });
 

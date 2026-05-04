@@ -28,7 +28,12 @@
           <button type="button" class="setup-card" id="btn-by-similar" data-mode="similar">
             <span class="setup-card-icon">🔍</span>
             <span class="setup-card-title">Simile a un film</span>
-            <span class="setup-card-desc">Scrivi un film che ti è piaciuto e troveremo altri come quello</span>
+            <span class="setup-card-desc">Scrivi un film che ti è piaciuto e troveremo altri come quello (spesso approssimativo)</span>
+          </button>
+          <button type="button" class="setup-card" id="btn-by-where" data-mode="where">
+            <span class="setup-card-icon">📺</span>
+            <span class="setup-card-title">Dove lo guardo?</span>
+            <span class="setup-card-desc">Cerca un titolo e vedi su quali servizi in streaming è disponibile in Italia</span>
           </button>
         </div>
 
@@ -47,10 +52,20 @@
 
         <!-- Form simile a -->
         <div class="setup-form hidden" id="form-similar">
+          <p class="form-hint">TMDB propone titoli “simili” in modo automatico: non sempre sono davvero affini. Se i risultati deludono, prova <strong>Per stile o genere</strong> oppure <strong>Dove lo guardo?</strong>.</p>
           <label class="form-label" for="similar-input">Nome del film che ti è piaciuto</label>
           <input type="text" id="similar-input" class="field-input" placeholder="Es. Shrek, Inception, La La Land…" autocomplete="off">
           <div id="similar-suggestions" class="similar-suggestions hidden"></div>
           <button type="button" class="btn btn-primary btn-block" id="btn-start-similar" disabled>Cerca film simili</button>
+        </div>
+
+        <!-- Form dove guardarlo -->
+        <div class="setup-form hidden" id="form-where">
+          <label class="form-label" for="where-input">Titolo del film</label>
+          <input type="text" id="where-input" class="field-input" placeholder="Es. Oppenheimer, Toy Story…" autocomplete="off">
+          <div id="where-suggestions" class="similar-suggestions hidden"></div>
+          <button type="button" class="btn btn-primary btn-block" id="btn-search-where" disabled>Mostra piattaforme</button>
+          <p class="form-hint form-hint-tight">Dati Italia da TMDB / JustWatch: possono mancare o aggiornarsi in ritardo.</p>
         </div>
 
         <p class="setup-api-hint" id="api-hint"></p>
@@ -80,6 +95,14 @@
       </div>
 
       <button type="button" class="btn btn-ghost btn-small" id="btn-see-matches">Vedi i miei match</button>
+    </section>
+
+    <!-- Schermata dove vederlo -->
+    <section class="screen screen-where" id="screen-where">
+      <div class="where-inner">
+        <button type="button" class="btn btn-ghost btn-back-where" id="btn-where-back">← Indietro</button>
+        <div id="where-results" class="where-results"></div>
+      </div>
     </section>
 
     <!-- Schermata match / scelta finale -->

@@ -153,6 +153,16 @@ function linesToList(s: string): string[] {
     .slice(0, 12);
 }
 
+async function safeJson<T = unknown>(res: Response): Promise<T | null> {
+  const text = await res.text().catch(() => "");
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
 type StopTypeMeta = {
   label: string;
   icon: LucideIcon;
@@ -472,7 +482,9 @@ export function WizardApp() {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = (await res.json()) as { folders?: Array<{ id: string; name: string }>; error?: string };
+      const data =
+        (await safeJson<{ folders?: Array<{ id: string; name: string }>; error?: string }>(res)) ??
+        {};
       if (!res.ok) throw new Error(data.error || "Errore caricamento cartelle");
       setFolders((data.folders ?? []).map((f) => ({ id: String(f.id), name: String(f.name) })));
     } catch (e) {
@@ -502,7 +514,8 @@ export function WizardApp() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name }),
       });
-      const data = (await res.json()) as { id?: string; name?: string; error?: string };
+      const data =
+        (await safeJson<{ id?: string; name?: string; error?: string }>(res)) ?? {};
       if (!res.ok) throw new Error(data.error || "Errore creazione cartella");
       const id = String(data.id);
       setFolders((p) => [{ id, name }, ...p]);
@@ -537,7 +550,7 @@ export function WizardApp() {
           itinerary: reconciledResult,
         }),
       });
-      const data = (await res.json()) as { id?: string; error?: string };
+      const data = (await safeJson<{ id?: string; error?: string }>(res)) ?? {};
       if (!res.ok) throw new Error(data.error || "Errore salvataggio");
       setSaveDialogOpen(false);
     } catch (e) {
@@ -576,7 +589,7 @@ export function WizardApp() {
             },
           }),
         });
-        const data = (await res.json()) as
+        const data = ((await safeJson(res)) ?? {}) as
           | {
               error?: string;
               afterPreview?: ItineraryResult;
@@ -625,7 +638,7 @@ export function WizardApp() {
           },
         }),
       });
-      const data = (await res.json()) as ItineraryResult | { error?: string };
+      const data = ((await safeJson(res)) ?? {}) as ItineraryResult | { error?: string };
       if (!res.ok || (data as { error?: string }).error) {
         throw new Error(
           (data as { error?: string }).error ?? "Errore apply riequilibrio"
@@ -1188,10 +1201,10 @@ export function WizardApp() {
       const res = await fetch(
         `/api/places/nearby-parking?lat=${stop.lat}&lng=${stop.lng}&radiusM=1800`
       );
-      const j = (await res.json()) as {
+      const j = (((await safeJson(res)) ?? {}) as {
         results?: NearbyParkingRow[];
         error?: string;
-      };
+      }) satisfies { results?: NearbyParkingRow[]; error?: string };
       if (!res.ok) throw new Error(j.error || "Ricerca fallita");
       setParkingRows(j.results ?? []);
     } catch (e) {
@@ -1397,7 +1410,9 @@ export function WizardApp() {
           ...(endQ ? { endPlaceQuery: endQ } : {}),
         }),
       });
-      const data = (await res.json()) as ItineraryResult & { error?: string };
+      const data = (((await safeJson(res)) ?? {}) as ItineraryResult & {
+        error?: string;
+      });
       if (!res.ok) throw new Error(data.error || "Errore inserimento tappa");
       const next = data as ItineraryResult;
       setResult(next);
